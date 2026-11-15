@@ -68,7 +68,7 @@ const mouse = { dx: 0, dy: 0, wheel: 0, buttons: 0, dirty: false, last: 0 };
 const stage = $('#stage'), consoleEl = $('#console');
 function fit() {
   const showPad = !consoleEl.classList.contains('nopad');
-  const ratio = showPad ? 2.204 : 16 / 9;   // matches the fixed tracks and two gaps in joycon.css
+  const ratio = showPad ? 2.1769 : 16 / 9;  // .console width / --h in joycon.css (Joy-Con, bezelled screen, gaps)
   const full = document.fullscreenElement === consoleEl;
   const desktop = matchMedia('(min-width: 1000px) and (min-height: 600px)').matches;
   const outerHeight = (el) => {

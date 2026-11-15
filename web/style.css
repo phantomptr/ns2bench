@@ -228,7 +228,8 @@ button.badge::after { content: ""; position: absolute; top: 3px; right: 5px; wid
 .settings-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 16px 0; padding: 3px; background: var(--field); border-radius: 999px; width: fit-content; max-width: 100%; }
 .settings-tabs button { border: 0; background: transparent; box-shadow: none; padding: 5px 14px; color: var(--muted); }
 .settings-tabs [aria-pressed=true] { background: var(--raised); color: var(--text); box-shadow: var(--shadow-1); font-weight: 600; }
-#settings h3 { margin: 20px 0 8px; font-size: 16px; }
+#settings h3 { margin: 22px 0 10px; font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+#settings [data-pane] > h3:first-child, #settings .group > h3:first-child { margin-top: 0; }
 #settings p { overflow-wrap: anywhere; }
 #settings pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: var(--field); border-radius: var(--r-field); max-height: 240px; overflow: auto; }
 #settings input:not([type=checkbox]):not([type=radio]), #settings select { min-width: 0; width: 100%; font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: var(--r-field); padding: 8px 10px; }
@@ -246,3 +247,72 @@ button:disabled { opacity: .5; cursor: default; }
 .kbd-hint { float: right; font: 600 11px/1 ui-monospace, monospace; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; }
 /* Phones: the toolbar may use two rows (its content no longer changes width, so it doesn't jump). */
 @media (max-width: 760px) { .bar { flex-wrap: wrap; } .bar .spacer { display: none; } }
+
+/* ps5upload-style settings: grouped cards, theme cards, choice chips, switches. */
+#settings .group { background: color-mix(in srgb, var(--text) 3%, var(--surface)); border: 1px solid var(--line); border-radius: var(--r-panel);
+  padding: 18px 20px; margin-bottom: 14px; }
+#settings .group .field { margin: 0; }
+.sub { display: block; font-size: 15px; font-weight: 500; margin: 0 0 10px; }
+.theme-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.theme-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; text-align: left; padding: 14px 16px;
+  border-radius: var(--r-card); border: 1px solid var(--line); background: transparent; box-shadow: none; touch-action: auto; user-select: auto; }
+.theme-card:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.theme-card[aria-checked=true] { background: color-mix(in srgb, var(--text) 9%, transparent); border-color: var(--line-strong); }
+.tc-ico { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.tc-ico svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tc-body { display: grid; gap: 3px; min-width: 0; }
+.tc-name { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; }
+.tc-desc { font-size: 12.5px; color: var(--muted); }
+.swatch { display: inline-flex; border-radius: 999px; overflow: hidden; border: 1px solid var(--line-strong); height: 16px; }
+.swatch i { width: 13px; }
+.tc-check { align-self: start; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent);
+  font-size: 11px; display: grid; place-items: center; visibility: hidden; }
+.theme-card[aria-checked=true] .tc-check { visibility: visible; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { min-width: 56px; padding: 7px 16px; background: transparent; border: 1px solid var(--line-strong); box-shadow: none; font-size: 13px; touch-action: auto; }
+.choice[aria-pressed=true] { background: color-mix(in srgb, var(--text) 14%, transparent); border-color: transparent; font-weight: 650; }
+.choice .dim { color: var(--muted); font-weight: 600; }
+.toggle-list { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 8px; }
+.toggle-row { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; cursor: pointer; }
+.toggle-row b { display: block; font-weight: 500; font-size: 14.5px; }
+.toggle-row small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+input[type=checkbox].switch, #settings label.row input[type=checkbox], .toggles input[type=checkbox] {
+  appearance: none; -webkit-appearance: none; flex: none; width: 40px; height: 24px; margin: 0; border-radius: 999px; position: relative; cursor: pointer;
+  background: color-mix(in srgb, var(--text) 16%, transparent); border: 1px solid var(--line); transition: background .15s; }
+input[type=checkbox].switch::after, #settings label.row input[type=checkbox]::after, .toggles input[type=checkbox]::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .3); transition: transform .15s; }
+input[type=checkbox].switch:checked, #settings label.row input[type=checkbox]:checked, .toggles input[type=checkbox]:checked { background: var(--accent-strong); border-color: transparent; }
+input[type=checkbox].switch:checked::after, #settings label.row input[type=checkbox]:checked::after, .toggles input[type=checkbox]:checked::after { transform: translateX(16px); }
+input[type=checkbox]:disabled { opacity: .5; cursor: default; }
+
+/* Accessibility modes (Settings → Appearance), set as attributes on <html>. */
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
+  animation-duration: 90ms !important; transition-duration: 60ms !important; scroll-behavior: auto !important; }
+:root[data-motion="none"] *, :root[data-motion="none"] *::before, :root[data-motion="none"] *::after {
+  animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+:root[data-transparency="reduced"] .bar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+:root[data-transparency="reduced"] #settings::backdrop, :root[data-transparency="reduced"] dialog::backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+:root[data-contrast="high"] { --line: var(--line-strong); --muted: var(--text); }
+:root[data-contrast="high"] button, :root[data-contrast="high"] .card { border-color: var(--line-strong); }
+:root[data-contrast="high"] :focus-visible { outline-width: 3px; outline-offset: 4px; }
+:root[data-dyslexia="true"] body, :root[data-dyslexia="true"] button, :root[data-dyslexia="true"] input, :root[data-dyslexia="true"] select {
+  font-family: "Atkinson Hyperlegible", "OpenDyslexic", system-ui, -apple-system, sans-serif; letter-spacing: .01em; }
+:root[data-dyslexia="true"] body { line-height: 1.6; }
+
+/* Settings window: a sidebar of sections on wide windows, like ps5upload; pills on phones. */
+.settings-tabs .ti { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.settings-tabs button { display: inline-flex; align-items: center; gap: 8px; }
+@media (min-width: 760px) {
+  #settings { width: min(1040px, calc(100vw - 48px)); height: min(780px, calc(100dvh - 48px)); overflow: hidden; padding: 0; }
+  #settings[open] { display: grid; grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  #settings .settings-head { grid-column: 1 / -1; padding: 16px 20px 14px 22px; border-bottom: 1px solid var(--line); }
+  #settings .settings-tabs { grid-column: 1; grid-row: 2 / span 2; flex-direction: column; flex-wrap: nowrap; width: auto; margin: 0; padding: 14px 10px;
+    border-radius: 0; background: color-mix(in srgb, var(--text) 3%, var(--surface)); border-right: 1px solid var(--line); gap: 2px; overflow: auto; }
+  #settings .settings-tabs button { justify-content: flex-start; padding: 8px 12px; border-radius: 10px; font-size: 14px; color: var(--text); }
+  #settings .settings-tabs button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+  #settings .settings-tabs [aria-pressed=true] { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+  #settings #settings-message { grid-column: 2; grid-row: 2; margin: 16px 24px 0; }
+  #settings [data-pane] { grid-column: 2; grid-row: 3; overflow: auto; padding: 20px 24px 24px; min-height: 0; }
+}
+#settings .group .hint + .choices { margin-top: 12px; }

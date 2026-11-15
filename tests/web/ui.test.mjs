@@ -70,7 +70,7 @@ test('page loads without errors and video goes live', async () => {
 test('every settings tab opens; status pills open the right tab', async () => {
   const { p, errors, ctx } = await page();
   await p.click('#btn-settings');
-  for (const tab of ['devices', 'network', 'integrations', 'appearance', 'updates', 'help', 'about']) {
+  for (const tab of ['devices', 'network', 'integrations', 'install', 'appearance', 'updates', 'help', 'about']) {
     await p.click(`[data-tab="${tab}"]`);
     assert.equal(await p.isVisible(`[data-pane="${tab}"]`), true, tab);
   }
@@ -87,14 +87,37 @@ test('themes apply and the toolbar toggle remembers light/dark choices', async (
   await p.click('#btn-settings');
   await p.click('[data-tab="appearance"]');
   for (const t of ['light', 'peach', 'dark', 'oled']) {
-    await p.selectOption('#theme-select', t);
+    await p.click(`[data-theme-pick="${t}"]`);
     assert.equal(await p.getAttribute('html', 'data-theme'), t);
+    assert.equal(await p.getAttribute(`[data-theme-pick="${t}"]`, 'aria-checked'), 'true');
   }
   await p.click('#settings-close');
   await p.click('#btn-theme');                                        // oled -> last light (peach)
   assert.equal(await p.getAttribute('html', 'data-theme'), 'peach');
   await p.click('#btn-theme');                                        // back to oled
   assert.equal(await p.getAttribute('html', 'data-theme'), 'oled');
+  await ctx.close();
+});
+
+test('text size and accessibility settings apply and persist', async () => {
+  const { p, ctx } = await page();
+  await p.click('#btn-settings');
+  await p.click('[data-tab="appearance"]');
+  await p.click('[data-scale="1.25"]');
+  assert.equal(await p.evaluate(() => document.documentElement.style.zoom), '1.25');
+  await p.click('[data-motion="none"]');
+  assert.equal(await p.getAttribute('html', 'data-motion'), 'none');
+  for (const [box, attr, on] of [['#a11y-transparency', 'data-transparency', 'reduced'], ['#a11y-contrast', 'data-contrast', 'high'], ['#a11y-dyslexia', 'data-dyslexia', 'true']]) {
+    await p.click(`label:has(${box})`);
+    assert.equal(await p.getAttribute('html', attr), on, box);
+  }
+  await p.reload();
+  assert.equal(await p.evaluate(() => document.documentElement.style.zoom), '1.25');
+  assert.equal(await p.getAttribute('html', 'data-contrast'), 'high');
+  await p.click('#btn-settings'); await p.click('[data-tab="appearance"]');
+  await p.click('[data-scale="1"]'); await p.click('[data-motion="auto"]');
+  assert.equal(await p.evaluate(() => document.documentElement.style.zoom), '');
+  assert.equal(await p.getAttribute('html', 'data-motion'), null);
   await ctx.close();
 });
 

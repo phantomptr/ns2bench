@@ -12,6 +12,8 @@ What's new in NS2Bench, written for humans.
   - Flash a Raspberry Pi Pico with the Bridge firmware.
   - Install or update the Bridge on a Linux board over SSH.
   - Install the offline network helper as a service on macOS or Linux.
+- The on-screen Switch 2 looks like the real console: one device with a bezelled screen, Joy-Con attached with coloured rails, and shoulder buttons on the top edge.
+- Settings has a sidebar, and Appearance works like ps5upload. It has theme cards, a Text size setting (70–140%) and Accessibility options: Motion, Reduce transparency, High contrast and a dyslexia-friendly font.
 - Windows on ARM: a native `win-arm64` installer and command line tool.
 
 ## 0.0.2

@@ -3,34 +3,48 @@
 .console {
   --h: 480px;
   --j: calc(var(--h) * 0.29);            /* Joy-Con width */
-  --body: #25272b; --edge: #393c43;
-  --btn: #474b54; --btn-hi: #565b66; --glyph: #eef0f4; --kl: #a3a9b4;
+  --sh: calc(var(--h) * 0.08);           /* shoulder buttons on the top edge */
+  --bz: calc(var(--h) * 0.03);           /* screen bezel */
+  --slab: #141518; --body: #26282d; --body-lo: #1d1f23; --edge: rgb(255 255 255 / .07);
+  --btn: #3d4048; --btn-hi: #4b4f59; --glyph: #eef0f4; --kl: #a3a9b4;
   --accent-l: #2ccbe3;                   /* left: cyan (the Switch 2 stick ring) */
   --accent-r: #ff6a45;                   /* right: coral */
   --agent: #a98bff;                      /* agent presses */
-  display: grid; grid-template-columns: var(--j) calc(var(--h) * 1.6) var(--j); align-items: end; column-gap: calc(var(--h) * 0.012);
-  height: var(--h); width: calc(var(--h) * 2.204); max-width: 100%; margin-inline: auto;
+  --device-shadow: 0 calc(var(--h) * 0.04) calc(var(--h) * 0.09) calc(var(--h) * -0.03) rgb(0 0 0 / .55);
+  /* One device: Joy-Con | screen slab | Joy-Con, flush like the real console. */
+  display: grid; grid-template-columns: var(--j) calc((var(--h) - var(--sh) - 2 * var(--bz)) * 16 / 9 + 2 * var(--bz)) var(--j);
+  align-items: end; column-gap: calc(var(--h) * 0.004);
+  height: var(--h); width: calc(var(--h) * 2.1769); max-width: 100%; margin-inline: auto;
 }
+:root:is([data-theme="light"], [data-theme="peach"]) .console { --device-shadow: 0 calc(var(--h) * 0.035) calc(var(--h) * 0.08) calc(var(--h) * -0.03) rgb(0 0 0 / .32); }
+@media (prefers-color-scheme: light) { :root:not([data-theme]) .console { --device-shadow: 0 calc(var(--h) * 0.035) calc(var(--h) * 0.08) calc(var(--h) * -0.03) rgb(0 0 0 / .32); } }
 .console.nopad { grid-template-columns: calc(var(--h) * 16 / 9); width: calc(var(--h) * 16 / 9); }
 .console.nopad .joycon { display: none; }
 .console .screen {
-  height: calc(var(--h) * 0.9); width: 100%; box-sizing: border-box;
-  border-radius: calc(var(--h) * 0.018); background: #000;
-  box-shadow: 0 0 0 1px var(--edge), 0 12px 32px rgb(0 0 0 / .4);
+  height: calc(var(--h) - var(--sh)); width: 100%; box-sizing: border-box;
+  border: var(--bz) solid var(--slab); border-radius: calc(var(--h) * 0.022); background: #000;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04), 0 0 0 1px var(--edge), var(--device-shadow);
 }
-.console.nopad .screen { height: var(--h); }
+.console .screen img, .console .screen canvas.live { border-radius: calc(var(--h) * 0.006); }
+.console.nopad .screen { height: var(--h); border-width: 0; }
+.console:fullscreen .screen { box-shadow: none; }
 
 /* ---------------------------------------------------------------- body */
 .joycon { position: relative; width: var(--j); height: var(--h); display: grid;
-  grid-template-rows: calc(var(--h) * 0.1) 1fr; user-select: none; -webkit-user-select: none; touch-action: none; }
-.joycon .body { position: relative; background: var(--body); box-shadow: inset 0 0 0 1px var(--edge); }
-.joycon.left .body { border-radius: calc(var(--j) * 0.5) calc(var(--h) * 0.018) calc(var(--h) * 0.018) calc(var(--j) * 0.5); }
-.joycon.right .body { border-radius: calc(var(--h) * 0.018) calc(var(--j) * 0.5) calc(var(--j) * 0.5) calc(var(--h) * 0.018); }
+  grid-template-rows: var(--sh) 1fr; user-select: none; -webkit-user-select: none; touch-action: none; }
+.joycon .body { position: relative; background: linear-gradient(180deg, var(--body), var(--body-lo));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .08), inset 0 0 0 1px var(--edge), var(--device-shadow); }
+/* The rail side (next to the screen) carries the Joy-Con 2 colour, as on the real controllers. */
+.joycon.left .body { border-radius: calc(var(--j) * 0.44) calc(var(--h) * 0.022) calc(var(--h) * 0.022) calc(var(--j) * 0.44);
+  box-shadow: inset calc(var(--h) * -0.006) 0 0 color-mix(in srgb, var(--accent-l) 70%, #000), inset 0 1px 0 rgb(255 255 255 / .08), inset 0 0 0 1px var(--edge), var(--device-shadow); }
+.joycon.right .body { border-radius: calc(var(--h) * 0.022) calc(var(--j) * 0.44) calc(var(--j) * 0.44) calc(var(--h) * 0.022);
+  box-shadow: inset calc(var(--h) * 0.006) 0 0 color-mix(in srgb, var(--accent-r) 70%, #000), inset 0 1px 0 rgb(255 255 255 / .08), inset 0 0 0 1px var(--edge), var(--device-shadow); }
 
 /* ---------------------------------------------------------------- buttons */
 .joycon .key { position: absolute; border: 0; padding: 0; background: none; cursor: pointer;
   min-width: 44px; min-height: 44px; display: grid; place-items: center; translate: -50% -50%; color: var(--glyph); }
-.joycon .face { width: var(--d); height: var(--d); border-radius: 50%; background: var(--btn);
+.joycon .face { width: var(--d); height: var(--d); border-radius: 50%; background: radial-gradient(circle at 50% 30%, var(--btn-hi), var(--btn) 70%);
+  box-shadow: 0 calc(var(--d) * 0.04) calc(var(--d) * 0.08) rgb(0 0 0 / .45), inset 0 1px 0 rgb(255 255 255 / .1);
   display: grid; place-items: center; align-content: center; gap: calc(var(--d) * 0.02);
   transition: background-color .06s, transform .06s, box-shadow .06s; }
 .joycon .g { width: calc(var(--d) * 0.5); height: calc(var(--d) * 0.5); fill: currentColor; display: grid; place-items: center; }
@@ -68,13 +82,17 @@
 .joycon .home .face { box-shadow: inset 0 0 0 calc(var(--d) * 0.06) #6c717b; }
 .joycon .cbtn { --d: calc(var(--j) * 0.13); left: 70%; top: 92%; }
 
-/* ---------------------------------------------------------------- shoulders: two flat pills */
-.joycon .shoulders { display: flex; gap: calc(var(--j) * 0.05); align-items: center; padding-inline: calc(var(--j) * 0.04);
-  padding-bottom: calc(var(--h) * 0.014); }
+/* ---------------------------------------------------------------- shoulders: tabs on the top edge */
+.joycon .shoulders { display: flex; gap: calc(var(--j) * 0.035); align-items: end; padding-inline: calc(var(--j) * 0.1); }
 .joycon .pill { position: static; translate: none; flex: 1; min-width: 0; min-height: 0;
-  height: calc(var(--h) * 0.06); --d: calc(var(--h) * 0.06); }
-.joycon .pill .face { width: 100%; height: 100%; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--edge);
+  height: calc(var(--sh) * 0.78); --d: calc(var(--sh) * 0.78); }
+.joycon .pill .face { width: 100%; height: 100%; border-radius: calc(var(--sh) * 0.42) calc(var(--sh) * 0.42) 2px 2px;
+  background: linear-gradient(180deg, #44474f, #2c2e33); box-shadow: inset 0 1px 0 rgb(255 255 255 / .12), inset 0 0 0 1px var(--edge);
   grid-auto-flow: column; gap: calc(var(--j) * 0.04); }
+.joycon.left .pill:first-child .face { border-top-left-radius: calc(var(--j) * 0.3); }
+.joycon.right .pill:last-child .face { border-top-right-radius: calc(var(--j) * 0.3); }
+.joycon .key.pill:hover:not(.unavailable) .face { background: linear-gradient(180deg, #50545d, #363840); }
+.joycon .key.pill.on .face { transform: translateY(8%); }
 .joycon .pill .g.letter, .console.show-keys .joycon .pill .g.letter { font-size: calc(var(--d) * 0.42); }
 .joycon .pill .kl { font-size: calc(var(--d) * 0.32); }
 
@@ -85,7 +103,7 @@
 .joycon.left .stick { top: 29%; --ring: var(--accent-l); }
 .joycon.right .stick { top: 58%; --ring: var(--accent-r); }
 .joycon .stick .base { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; cursor: grab;
-  background: #1d1f23; box-shadow: inset 0 0 0 calc(var(--j) * 0.022) var(--ring), 0 0 calc(var(--j) * 0.05) color-mix(in srgb, var(--ring) 30%, transparent);
+  background: radial-gradient(circle, #121316 60%, #1b1d21); box-shadow: inset 0 0 0 calc(var(--j) * 0.022) var(--ring), 0 0 calc(var(--j) * 0.05) color-mix(in srgb, var(--ring) 30%, transparent);
   touch-action: none; }
 .joycon .stick .thumb { position: absolute; inset: 19%; border-radius: 50%; background: var(--btn);
   box-shadow: inset 0 0 0 1px var(--btn-hi), 0 calc(var(--j) * 0.015) calc(var(--j) * 0.03) rgb(0 0 0 / .45);
