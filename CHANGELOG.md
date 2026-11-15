@@ -6,6 +6,9 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Connect an agent in one click**, like ps5upload. Settings → API & MCP shows the MCP address and a card each for Claude Code, Codex and OpenCode: whether it has NS2Bench, an Add or Remove button, and the command to run yourself. Agents now connect to the running app by address (`http://127.0.0.1:7630/mcp`), with nothing to install or point at.
+- Settings → API & MCP is split into Connect an agent, Agent tools and API, with copy buttons on every command.
+
 ## 0.0.6
 
 - `ns2bench serve` now prints a link ending in `?ui=…`. Open that link to drive from your browser. A page opened without it can watch but not drive, so other programs on the computer can no longer pose as you. The desktop app is unchanged.

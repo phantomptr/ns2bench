@@ -377,6 +377,27 @@ async fn handle(m: &Mcp, msg: &Value) -> Option<Value> {
     })
 }
 
+/// MCP over HTTP at POST /mcp (the streamable HTTP transport, answered as plain JSON): agents
+/// add the running engine by address, with nothing to install or launch. Same tools as stdio.
+pub async fn http(axum::extract::State(b): axum::extract::State<crate::server::S>, axum::Json(msg): axum::Json<Value>) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let m = Mcp { c: Client::from_config(&b.cfg, "mcp") };
+    let reply = match msg.as_array() {
+        Some(batch) => {
+            let mut out = vec![];
+            for one in batch.iter().take(50) {
+                if let Some(r) = handle(&m, one).await { out.push(r); }
+            }
+            (!out.is_empty()).then_some(Value::Array(out))
+        }
+        None => handle(&m, &msg).await,
+    };
+    match reply {
+        Some(r) => axum::Json(r).into_response(),
+        None => axum::http::StatusCode::ACCEPTED.into_response(), // notifications and responses get no body
+    }
+}
+
 /// Serve MCP on stdin/stdout until stdin closes.
 pub async fn run(cfg: crate::Config) -> Result<()> {
     let m = std::sync::Arc::new(Mcp { c: Client::from_config(&cfg, "mcp") });

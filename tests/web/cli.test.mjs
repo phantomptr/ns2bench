@@ -150,3 +150,18 @@ test('the page still works while agents are blocked, and agents cannot redirect 
     body: JSON.stringify({ backend: 'hidd', host: '127.0.0.1', port: 9, token_file: '~/.ns2bench/hidd.token' }) });
   assert.equal(move.status, 403);
 });
+
+test('MCP over HTTP: agents add the engine by address', async () => {
+  const rpc = async (body) => fetch(`${URL}/mcp`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' }, body: JSON.stringify(body) });
+  const init = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } } });
+  assert.equal(init.status, 200);
+  assert.equal((await init.json()).result.serverInfo.name, 'NS2Bench');
+  assert.equal((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' })).status, 202);
+  const tools = (await (await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' })).json()).result.tools;
+  assert.ok(tools.length >= 30 && tools.some((x) => x.name === 'screenshot'));
+  const call = await (await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'health', arguments: {} } })).json();
+  assert.equal(call.result.isError, false);
+  assert.equal((await fetch(`${URL}/mcp`)).status, 405);
+  const info = await (await fetch(`${URL}/api/integrations`)).json();
+  assert.equal(info.mcp_url, `${URL}/mcp`);
+});

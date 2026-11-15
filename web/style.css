@@ -392,3 +392,29 @@ details.faq { border-top: 1px solid var(--line); padding: 10px 0; }
 details.faq:first-of-type { border-top: 0; padding-top: 0; }
 details.faq summary { cursor: pointer; font-weight: 500; }
 details.faq p { margin: 8px 0 0; color: var(--muted); }
+
+/* Settings → MCP & API: sub-tabs, copyable commands, one card per agent (like ps5upload). */
+.subtabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.subtabs button { border-radius: 999px; padding: 6px 14px; }
+.subtabs button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 600; }
+.copyblock { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--field); border: 1px solid var(--line); }
+.copyblock code { flex: 1; min-width: 0; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: break-word; user-select: all; -webkit-user-select: all; }
+.copyblock .copy { flex: none; width: 28px; height: 28px; padding: 0; border: 0; background: none; color: var(--muted); display: grid; place-items: center; border-radius: 8px; cursor: pointer; }
+.copyblock .copy:hover { color: var(--text); background: var(--raised); }
+.copyblock .copy.done { color: var(--ok); }
+.copyblock .copy .i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.agent-label { margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
+.agents-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.agents-head h3 { margin: 0; }
+.agents { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 10px 0; }
+.agent { padding: 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.agent header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.agent h4 { margin: 0; font-size: 15px; }
+.agent-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); white-space: nowrap; }
+.agent-badge[hidden] { display: none; }
+.agent-badge[data-state="added"] { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.agent-badge[data-state="moved"] { color: var(--warn); border-color: var(--warn); }
+.agent-act { display: flex; gap: 8px; margin-top: 10px; }
+.agent-act:not(:has(button:not([hidden]))) { display: none; }
+.agent-note:empty { display: none; }
+#mcp-tools p { margin: 6px 0; }

@@ -89,7 +89,7 @@ pub async fn integrations(State(b): State<S>) -> Json<Value> {
             json!({"NS2BENCH_CONFIG": std::fs::canonicalize(path).unwrap_or(path.clone())});
     }
     Json(
-        json!({"api_url": b.cfg.url(), "token_required": b.cfg.token().is_some(),
+        json!({"api_url": b.cfg.url(), "mcp_url": format!("{}/mcp", b.cfg.url()), "token_required": b.cfg.token().is_some(),
         "mcp": {"mcpServers": {"ns2bench": server}}, "tools": crate::mcp::tools()}),
     )
 }

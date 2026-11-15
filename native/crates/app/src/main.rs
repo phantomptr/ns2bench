@@ -5,6 +5,7 @@
 
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
+mod agents;
 mod cli_install;
 mod components;
 mod updates;
@@ -105,6 +106,7 @@ fn main() {
 
     let cfg = load_config();
     let url = format!("{}/", cfg.url());
+    let _ = agents::ENGINE_URL.set(cfg.url());
     let attach = tauri::async_runtime::block_on(running(&cfg));
     // The window's proof that it is the app (kept in memory, never written anywhere).
     let ui_key = updates::hex(&rand::random::<[u8; 24]>());
@@ -136,14 +138,14 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .manage(updates::Updates::default())
-        .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action])
+        .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action, agents::agent_action])
         .setup(move |app| {
             // Installing, updating and the command line tool are only offered to the engine this
             // app started itself, never to whatever else may be answering on the port.
             let mut cap = tauri::ipc::CapabilityBuilder::new("engine-ui").local(false).window("main")
                 .remote(format!("{}/*", target.origin().ascii_serialization())).permission("notification:default");
             if ours {
-                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action");
+                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("allow-agent-action");
             }
             app.add_capability(cap)?;
             let mut window = app.config().app.windows.iter().find(|w| w.label == "main")

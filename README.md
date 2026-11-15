@@ -124,10 +124,10 @@ Details for each system are in the setup guide's **[Before you start](docs/setup
 3. Open **Settings → Devices**, choose your input device and **Apply**. The **Bridge** pill in the top bar turns green when the console sees the controller.
 4. Click the video and drive with the keyboard, or plug in a gamepad. If something isn't right, click **Help** in the top bar and **Run the check**: it says which part is broken and how to fix it.
 
-To let an AI agent drive, open **Settings → API & MCP** and copy the MCP configuration into your agent, or:
+To let an AI agent drive, open **Settings → API & MCP** and click **Add** next to Claude Code, Codex or OpenCode. Or run it yourself:
 
 ```sh
-claude mcp add ns2bench -- /Applications/NS2Bench.app/Contents/MacOS/ns2bench-app mcp
+claude mcp add --scope user --transport http ns2bench http://127.0.0.1:7630/mcp
 ```
 
 ## Build from source
@@ -167,7 +167,7 @@ Tested on hardware so far: macOS capture (UGREEN 15389) and a Luckfox Pico Max b
 
 ## API and AI agents
 
-The engine listens on `127.0.0.1:7630`. The MCP server (34 tools: see, find text, wait for the screen, drive, navigate, test, check health, debug) is the same binary run with `mcp`; it talks to the running engine, so you see everything an agent does. Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
+The engine listens on `127.0.0.1:7630`. The MCP server (34 tools: see, find text, wait for the screen, drive, navigate, test, check health, debug) is part of the engine, at `http://127.0.0.1:7630/mcp`, so you see everything an agent does (`ns2bench mcp` is the same server over stdio). Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Command line
 

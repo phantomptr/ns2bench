@@ -111,25 +111,17 @@ validate recovery for each board, dock and power arrangement.
 
 ## Agents: MCP and HTTP API
 
-Start the bench (`make serve`, or `ns2bench serve`), then add the MCP server. It is the same `ns2bench` binary (`native/target/release/ns2bench`, or the one inside the desktop app) and talks to the running bench, so whoever watches the UI sees every agent action and can block agent input:
+Open NS2Bench (or run `ns2bench serve`), then add its MCP address to your agent. In the desktop app, **Settings → API & MCP → Connect an agent** does it with one click for Claude Code, Codex and OpenCode, shows whether each one has it, and can remove it again. Or run the command yourself:
 
 ```sh
-# Claude Code
-claude mcp add ns2bench -- /path/to/ns2bench mcp
+claude mcp add --scope user --transport http ns2bench http://127.0.0.1:7630/mcp   # Claude Code
+codex mcp add ns2bench --url http://127.0.0.1:7630/mcp                             # Codex
+opencode mcp add ns2bench --url http://127.0.0.1:7630/mcp                          # OpenCode
 ```
 
-```toml
-# Codex: ~/.codex/config.toml
-[mcp_servers.ns2bench]
-command = "/path/to/ns2bench"
-args = ["mcp"]
-```
+The MCP server is part of the running engine, so keep NS2Bench open while the agent works. Whoever watches the UI sees every agent action and can block agent input. Nothing needs redoing after an update. If the engine uses `server.token`, give the agent the same token as an `Authorization: Bearer` header.
 
-```json
-// opencode: opencode.json
-{ "mcp": { "ns2bench": { "type": "local", "command": ["/path/to/ns2bench", "mcp"] } } }
-```
-
+Clients that start the server themselves can use the stdio form instead (the same `ns2bench` binary, also inside the desktop app): `ns2bench mcp`, for example `claude mcp add ns2bench -- /path/to/ns2bench mcp`.
 
 Tools (34):
 - **See:** `screenshot` (with `region` to crop/zoom), `read_screen` (OCR with positions), `find_text` (every match with its box), `wait_for_text`, `wait_for_screen` (until the screen changes, or until it settles), `where_am_i`, `wait`

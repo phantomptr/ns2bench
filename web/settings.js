@@ -103,10 +103,81 @@ async function integrations() {
   $('#api-info').textContent = `Engine: ${i.api_url} · ${i.token_required ? 'Bearer token required' : 'No API token configured; keep the listener on loopback.'}`;
   $('#api-example').textContent = `curl ${i.token_required ? '-H "Authorization: Bearer <token>" ' : ''}${JSON.stringify(i.api_url + '/api/status')}\n\ncurl ${i.token_required ? '-H "Authorization: Bearer <token>" ' : ''}-X POST -H 'Content-Type: application/json' -d '{"buttons":["A"],"hold_ms":80}' ${JSON.stringify(i.api_url + '/api/press')}`;
   $('#mcp-config').textContent = JSON.stringify(i.mcp, null, 2);
-  $('#mcp-count').textContent = `${i.tools.length} available MCP tools`;
+  $('#mcp-count').textContent = `${i.tools.length} ${t('tools an agent can use. The same list is in the API and the command line.')}`;
+  const url = i.mcp_url || `${i.api_url}/mcp`;
+  $('#mcp-url').textContent = url;
+  $('#mcp-token-note').hidden = !i.token_required;
+  const commands = {
+    'claude-code': `claude mcp add --scope user --transport http ns2bench ${url}`,
+    codex: `codex mcp add ns2bench --url ${url}`,
+    opencode: `opencode mcp add ns2bench --url ${url}`,
+  };
+  for (const card of dialog.querySelectorAll('.agent')) card.querySelector('.agent-cmd').textContent = commands[card.dataset.agent];
+  agents();
   $('#mcp-tools').replaceChildren(...i.tools.map((t) => { const p = document.createElement('p'); const b = document.createElement('b'); b.textContent = t.name; p.append(b, document.createTextNode(` — ${t.description || ''}`)); return p; }));
 }
 $('#api-token-apply').onclick = () => setToken($('#api-token').value);
+// ---------------------------------------------------------------- agents (MCP), like ps5upload
+// The desktop app asks each agent's own CLI whether it has NS2Bench and can add or remove it;
+// in a browser the cards show the commands to run.
+function showAgent(st) {
+  const card = dialog.querySelector(`.agent[data-agent="${st.agent}"]`);
+  if (!card) return;
+  const badge = card.querySelector('.agent-badge'), add = card.querySelector('.agent-add'), rm = card.querySelector('.agent-remove'), note = card.querySelector('.agent-note');
+  const here = st.configured && st.saved_url === st.expected_url;
+  const state = !st.found ? 'missing' : st.read_failed ? 'unknown' : here ? 'added' : st.configured ? 'moved' : 'none';
+  badge.dataset.state = state;
+  badge.textContent = { missing: t('Not installed'), unknown: t('Couldn’t check'), added: t('Added'), moved: t('Other address'), none: t('Not added') }[state];
+  add.hidden = !st.found || here;
+  add.textContent = st.configured ? t('Update') : t('Add');
+  rm.hidden = !(st.configured && st.can_remove);
+  note.textContent = !st.found ? t('This agent isn’t installed on this computer, or NS2Bench couldn’t find it. You can still run the command below where it is installed.')
+    : state === 'moved' ? t('This agent has an NS2Bench entry with a different address. Update points it at this engine.')
+      : st.configured && !st.can_remove ? t('To remove it, delete the ns2bench entry under "mcp" in OpenCode’s config file.') : '';
+}
+let agentsBusy = false;
+async function agents() {
+  const cards = [...dialog.querySelectorAll('.agent')];
+  if (!invoke) {
+    for (const c of cards) {
+      c.querySelector('.agent-badge').hidden = true;
+      c.querySelector('.agent-note').textContent = t('Run the command below in a terminal. The NS2Bench desktop app can add it for you with one click.');
+    }
+    $('#agents-check').hidden = true;
+    return;
+  }
+  if (agentsBusy) return;
+  agentsBusy = true; $('#agents-check').disabled = true;
+  for (const c of cards) { const b = c.querySelector('.agent-badge'); b.dataset.state = 'unknown'; b.textContent = t('Checking…'); }
+  try { (await invoke('agent_action', { action: 'status' })).forEach(showAgent); }
+  catch (e) { message(String(e)); }
+  finally { agentsBusy = false; $('#agents-check').disabled = false; }
+}
+$('#agents-check').onclick = run(agents);
+const AGENT_ERRORS = { cli_not_found: 'This agent isn’t installed on this computer.', timed_out: 'The agent took too long to answer. Try again.' };
+for (const card of dialog.querySelectorAll('.agent')) {
+  for (const [sel, action] of [['.agent-add', 'add'], ['.agent-remove', 'remove']]) {
+    card.querySelector(sel).onclick = run(async (e) => {
+      const b = e.currentTarget;
+      b.disabled = true;
+      try { showAgent(await invoke('agent_action', { action, agent: card.dataset.agent })); message(action === 'add' ? t('Added. Start a new session in your agent to load it.') : t('Removed.')); }
+      catch (err) { message(t(AGENT_ERRORS[String(err)] || String(err))); }
+      finally { b.disabled = false; }
+    });
+  }
+}
+for (const b of dialog.querySelectorAll('.copyblock .copy')) {
+  b.onclick = run(async () => {
+    await navigator.clipboard.writeText(b.parentElement.querySelector('code').textContent);
+    b.classList.add('done'); setTimeout(() => b.classList.remove('done'), 1200);
+  });
+}
+for (const b of dialog.querySelectorAll('[data-sub]')) {
+  b.onclick = () => {
+    dialog.querySelectorAll('[data-sub]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    dialog.querySelectorAll('[data-subpane]').forEach((p) => { p.hidden = p.dataset.subpane !== b.dataset.sub; });
+  };
+}
 for (const [button, content] of [['#api-copy', '#api-example'], ['#mcp-copy', '#mcp-config']]) $(button).onclick = run(async () => { await navigator.clipboard.writeText($(content).textContent); message('Copied.'); });
 // Storage can be blocked (private mode, strict settings): never let that stop the UI.
 const ls = {

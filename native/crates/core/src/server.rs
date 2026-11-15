@@ -123,6 +123,8 @@ pub fn router(bench: S) -> Router {
         .route("/video", get(crate::h264::ws_video))
         .route("/audio", get(crate::audio::ws_audio))
         .route("/api/integrations", get(crate::settings::integrations))
+        // GET would open a server-to-client stream, which this server has no use for.
+        .route("/mcp", post(crate::mcp::http).get(|| async { StatusCode::METHOD_NOT_ALLOWED }))
         .route("/api/input", get(crate::settings::get_input).post(crate::settings::set_input))
         .route("/api/network", get(crate::settings::get_network).post(crate::settings::set_network))
         .route("/api/status", get(status))
