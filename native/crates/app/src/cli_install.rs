@@ -103,6 +103,7 @@ fn windows_user_path() -> Vec<PathBuf> {
     }
 }
 
+#[cfg(not(windows))]
 /// Is `p` (a link or copy) the bundled CLI, or another ns2bench?
 fn points_to_bundled(p: &Path) -> bool {
     match (std::fs::canonicalize(p), bundled().and_then(|b| std::fs::canonicalize(b).ok())) {
@@ -129,6 +130,7 @@ fn ours(p: &Path) -> bool {
     })
 }
 
+#[cfg(not(windows))]
 fn appimage() -> bool {
     cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some()
 }
