@@ -255,11 +255,15 @@ async fn install(path: &Path) -> Result<()> {
     let result = tokio::process::Command::new("/usr/bin/ditto")
         .arg(mount.join("NS2Bench.app"))
         .arg(stage.join("NS2Bench.app"))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .await;
     let _ = tokio::process::Command::new("/usr/bin/hdiutil")
         .arg("detach")
         .arg(&mount)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .await;
     if !result.as_ref().is_ok_and(|s| s.success()) {
@@ -271,6 +275,8 @@ async fn install(path: &Path) -> Result<()> {
     let signature = tokio::process::Command::new("/usr/bin/codesign")
         .args(["--verify", "--deep", "--strict"])
         .arg(stage.join("NS2Bench.app"))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .await?;
     if !signature.success() {
