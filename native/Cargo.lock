@@ -2398,7 +2398,7 @@ dependencies = [
  "image",
  "mime_guess",
  "ns2bench-netd",
- "rand 0.9.5",
+ "rand 0.10.3",
  "regex",
  "rust-embed",
  "serde",
