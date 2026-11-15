@@ -73,10 +73,14 @@ impl AudioHub {
             return self.error("disabled");
         }
         let mut delay = 2u64;
+        let mut last = String::new();
         loop {
             let r = self.clone().once(&video_cfg, &logs).await;
             if let Err(e) = r {
-                self.error(e.to_string());
+                let msg = e.to_string();
+                // say it once per distinct problem, not on every retry
+                if msg != last { logs.warn("bench", format!("audio: {msg}; retrying")); last = msg.clone(); }
+                self.error(msg);
             }
             tokio::time::sleep(Duration::from_secs(delay)).await;
             delay = (delay * 2).min(30);

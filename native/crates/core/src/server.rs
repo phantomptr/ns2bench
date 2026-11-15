@@ -90,6 +90,7 @@ pub fn strs(v: &Value) -> Vec<String> {
 
 pub fn router(bench: S) -> Router {
     let token = bench.cfg.token();
+    let bench_logs = bench.logs.clone();
     let mut r = Router::new()
         .route("/", get(index))
         .route("/static/{*path}", get(asset))
@@ -125,19 +126,36 @@ pub fn router(bench: S) -> Router {
                 fn drop(&mut self) { if let Some(b) = &self.0 { b.active_operations.fetch_sub(1, std::sync::atomic::Ordering::Relaxed); } }
             }
             let busy = req.method() == axum::http::Method::POST;
-            if !busy { return next.run(req).await; }
+            let path = req.uri().path().to_string();
+            if !busy {
+                let res = next.run(req).await;
+                if res.status().is_server_error() && path.starts_with("/api/") {
+                    bench.logs.warn("api", format!("GET {path} → {}", res.status()));
+                }
+                return res;
+            }
+            let who = if from_browser(req.headers()) { "ui".to_string() } else {
+                req.headers().get("x-ns2bench-source").and_then(|v| v.to_str().ok()).unwrap_or("api").chars().take(16).collect()
+            };
+            let logs = bench.logs.clone();
             bench.active_operations.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let operation = Operation(Some(bench));
+            let t0 = std::time::Instant::now();
             // Run to completion even if the client goes away: a timed press must
             // always reach its release, whatever happens to the HTTP connection.
-            tokio::spawn(async move { let _operation = operation; next.run(req).await })
+            let res = tokio::spawn(async move { let _operation = operation; next.run(req).await })
                 .await
-                .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+                .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+            let line = format!("{who}: POST {path} → {} in {} ms", res.status().as_u16(), t0.elapsed().as_millis());
+            if res.status().is_client_error() || res.status().is_server_error() { logs.warn("api", line) } else { logs.debug("api", line) }
+            res
         }
     }));
+    let token_logs = bench_logs.clone();
     let r = match token {
         Some(t) => r.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
             let t = t.clone();
+            let logs = token_logs.clone();
             async move {
                 let p = req.uri().path().to_string();
                 let public = p == "/" || p.starts_with("/static/") || p == "/favicon.ico";
@@ -147,6 +165,9 @@ pub fn router(bench: S) -> Router {
                     .or_else(|| q.get("token").cloned())
                     .unwrap_or_default();
                 if !public && !same(given.as_bytes(), t.as_bytes()) {
+                    if !logs.throttled("api-token", 10.0) {
+                        logs.warn("api", format!("refused {p}: wrong or missing API token (unauthorized)"));
+                    }
                     return (StatusCode::UNAUTHORIZED, "token required").into_response();
                 }
                 next.run(req).await
@@ -154,8 +175,15 @@ pub fn router(bench: S) -> Router {
         })),
         None => r,
     };
-    r.layer(axum::middleware::from_fn(|req: axum::extract::Request, next: axum::middleware::Next| async move {
+    let guard_logs = bench_logs;
+    r.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+      let logs = guard_logs.clone();
+      async move {
         if let Err(e) = guard_request(req.headers(), req.uri().path()) {
+            if !logs.throttled(&format!("guard-{e}"), 10.0) {
+                let origin = req.headers().get(header::ORIGIN).and_then(|v| v.to_str().ok()).unwrap_or("-").chars().take(80).collect::<String>();
+                logs.warn("api", format!("refused {} {}: {e} (origin {origin}). Another web page tried to use NS2Bench; it was blocked.", req.method(), req.uri().path()));
+            }
             return (StatusCode::FORBIDDEN, e).into_response();
         }
         let mut res = next.run(req).await;
@@ -166,6 +194,7 @@ pub fn router(bench: S) -> Router {
         h.insert(header::X_CONTENT_TYPE_OPTIONS, header::HeaderValue::from_static("nosniff"));
         h.insert(header::REFERRER_POLICY, header::HeaderValue::from_static("no-referrer"));
         res
+      }
     }))
 }
 
@@ -201,16 +230,21 @@ async fn status(State(b): State<S>) -> Json<Value> {
     Json(b.status())
 }
 
-async fn events(State(b): State<S>) -> Json<Value> {
-    Json(serde_json::to_value(b.hub.events.lock().unwrap().iter().cloned().collect::<Vec<_>>()).unwrap())
+async fn events(State(b): State<S>, Query(q): Query<HashMap<String, String>>) -> Json<Value> {
+    let after: f64 = q.get("after").and_then(|v| v.parse().ok()).unwrap_or(0.0);
+    let limit: usize = q.get("limit").and_then(|v| v.parse().ok()).unwrap_or(200).clamp(1, 200);
+    let source = q.get("source").filter(|s| !s.is_empty());
+    let v: Vec<_> = b.hub.events.lock().unwrap().iter().filter(|e| e.t > after && source.is_none_or(|s| &e.source == s)).cloned().collect();
+    Json(serde_json::to_value(&v[v.len().saturating_sub(limit)..]).unwrap())
 }
 
 async fn logs(State(b): State<S>, Query(q): Query<HashMap<String, String>>) -> Json<Value> {
-    let entries = b.logs.query(q.get("source").map(String::as_str).filter(|s| !s.is_empty()),
+    let entries = b.logs.query_level(q.get("source").map(String::as_str).filter(|s| !s.is_empty()),
         q.get("after").and_then(|v| v.parse().ok()).unwrap_or(0),
         q.get("limit").and_then(|v| v.parse().ok()).unwrap_or(200),
-        q.get("contains").map(String::as_str).filter(|s| !s.is_empty()));
-    Json(json!({"sources": b.logs.sources(), "entries": entries}))
+        q.get("contains").map(String::as_str).filter(|s| !s.is_empty()),
+        q.get("level").map(String::as_str).filter(|s| crate::logs::LEVELS.contains(s)));
+    Json(json!({"sources": b.logs.sources(), "levels": b.logs.level_counts(), "entries": entries}))
 }
 
 pub fn encode_image(jpeg: &[u8], fmt: &str, max_width: Option<u32>) -> Result<(Vec<u8>, &'static str)> {
@@ -243,10 +277,20 @@ async fn screenshot(State(b): State<S>, Query(q): Query<HashMap<String, String>>
     if !["jpeg", "jpg", "png"].contains(&fmt.as_str()) {
         return Err(bad("format must be jpeg or png"));
     }
-    let mw = q.get("max_width").and_then(|v| v.parse().ok());
+    let mw: Option<u32> = q.get("max_width").and_then(|v| v.parse().ok());
+    if mw.is_some_and(|w| !(16..=8192).contains(&w)) {
+        return Err(bad("max_width must be 16-8192"));
+    }
+    let region = crate::ocr::parse_region(&q.get("region").map(|s| Value::String(s.clone())).unwrap_or(Value::Null))?;
     let jpeg = f.jpeg.clone();
-    let (data, ct) = tokio::task::spawn_blocking(move || encode_image(&jpeg, &fmt, mw)).await.map_err(|e| bad(e.to_string()))??;
-    Ok(([(header::CONTENT_TYPE, ct), (header::CACHE_CONTROL, "no-store")], data).into_response())
+    let (data, ct) = tokio::task::spawn_blocking(move || -> anyhow::Result<(Vec<u8>, &'static str)> {
+        let src = match region { Some(r) => crate::ocr::crop(&jpeg, r)?, None => jpeg.to_vec() };
+        let fmt = if region.is_some() && fmt != "png" && mw.is_none() { "jpeg".to_string() } else { fmt };
+        encode_image(&src, &fmt, mw)
+    }).await.map_err(|e| bad(e.to_string()))??;
+    Ok(([(header::CONTENT_TYPE, ct.to_string()), (header::CACHE_CONTROL, "no-store".into()),
+         (header::HeaderName::from_static("x-frame-seq"), f.seq.to_string()),
+         (header::HeaderName::from_static("x-frame-age-ms"), f.at.elapsed().as_millis().to_string())], data).into_response())
 }
 
 async fn stream(State(b): State<S>) -> Response {
@@ -267,10 +311,17 @@ async fn stream(State(b): State<S>) -> Response {
 }
 
 async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R<Json<Value>> {
+    let who = source_of(&h, &body);
+    let blocked = who != "ui" && b.hub.manual_only.load(std::sync::atomic::Ordering::Relaxed);
     if let Some(m) = body["usb_mode"].as_str() {
         if !["standard", "hori", "pro"].contains(&m) {
             return Err(bad("usb_mode must be standard, hori or pro"));
         }
+        if blocked {
+            return Err(ApiError(StatusCode::CONFLICT, "manual-only mode is on: only the person at the NS2Bench page can switch the USB mode".into()));
+        }
+        // Not in the middle of an agent's input: the controller disconnects during the switch.
+        let _quiet = b.hub.configuration_guard().map_err(|e| ApiError(StatusCode::CONFLICT, e.to_string()))?;
         b.hub.backend.send(crate::inputs::Msg::UsbMode(m.into()))?;
         b.logs.add("bench", format!("board USB mode -> {m} (the console sees the controller reconnect)"));
     }
@@ -368,10 +419,15 @@ async fn sequence(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<J
 async fn get_video(State(b): State<S>) -> Json<Value> {
     let c = b.video_cfg.lock().unwrap().clone();
     Json(json!({"settings": {"backend": c["backend"], "device": c["device"], "width": c["width"], "height": c["height"],
-        "fps": c["fps"], "quality": c["quality"]}, "devices": crate::video::list_devices().await}))
+        "fps": c["fps"], "quality": c["quality"], "codec": c["codec"], "audio_device": c["audio_device"]}, "devices": crate::video::list_devices().await}))
 }
 
-async fn post_video(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value>> {
+async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
+    if source_of(&h, &v) != "ui" && b.hub.manual_only.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(ApiError(StatusCode::CONFLICT, "manual-only mode is on: only the person at the NS2Bench page can change video settings".into()));
+    }
+    let mut v = v;
+    if let Some(o) = v.as_object_mut() { o.remove("source"); }
     b.set_video(v).await?;
     Ok(Json(json!({"ok": true})))
 }
@@ -381,6 +437,10 @@ async fn ws_ui(State(b): State<S>, ws: WebSocketUpgrade) -> Response {
 }
 
 async fn ui_socket(b: S, sock: WebSocket) {
+    b.logs.debug("bench", "a NS2Bench page connected");
+    struct Gone(S);
+    impl Drop for Gone { fn drop(&mut self) { self.0.logs.debug("bench", "a NS2Bench page disconnected"); } }
+    let _gone = Gone(b.clone());
     let (mut tx, mut rx) = sock.split();
     let mut pushes = b.hub.tx.subscribe();
     let mut logs = b.logs.tx.subscribe();

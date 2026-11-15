@@ -178,7 +178,7 @@ button.badge::after { content: ""; position: absolute; top: 3px; right: 5px; wid
 .logview { list-style: none; margin: 0; padding: 0; height: 240px; overflow: auto; resize: vertical;
   font: 12px/1.5 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; background: var(--field);
   border: 1px solid var(--line); border-radius: var(--r-field); }
-.logview li { display: grid; grid-template-columns: 70px 64px 1fr; gap: 8px; padding: 1px 8px;
+.logview li { display: grid; grid-template-columns: 62px 16px 58px 1fr; gap: 8px; padding: 2px 8px; align-items: start;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
 .logview .ts { color: var(--muted); }
 .logview .sv { color: var(--accent); }
@@ -316,3 +316,21 @@ input[type=checkbox]:disabled { opacity: .5; cursor: default; }
   #settings [data-pane] { grid-column: 2; grid-row: 3; overflow: auto; padding: 20px 24px 24px; min-height: 0; }
 }
 #settings .group .hint + .choices { margin-top: 12px; }
+
+/* Log levels: an icon per line, colour for problems, and the "what to do" under it. */
+.li { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; flex: none; }
+.logview .lv { display: grid; place-items: center; height: 18px; color: var(--muted); }
+.logview li.lv-info .lv { color: var(--accent); }
+.logview li.lv-warn .lv, .logview li.lv-warn .tx { color: var(--warn); }
+.logview li.lv-error .lv, .logview li.lv-error .tx { color: var(--bad); }
+.logview li.lv-warn { background: color-mix(in srgb, var(--warn) 7%, transparent); }
+.logview li.lv-error { background: var(--bad-soft); }
+.logview li.lv-debug .tx { color: var(--muted); }
+.logview .why { display: flex; gap: 6px; align-items: flex-start; margin: 3px 0 2px; padding: 4px 8px; border-radius: 6px;
+  font-family: system-ui, -apple-system, sans-serif; color: var(--text); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.logview .why .li { color: var(--accent); margin-top: 1px; }
+#log-levels .chip { display: inline-flex; align-items: center; gap: 4px; }
+#log-levels .chip.lvl-warn:not([aria-pressed=true]) .li { color: var(--warn); }
+#log-levels .chip.lvl-error:not([aria-pressed=true]) .li { color: var(--bad); }
+.toggle-list.first { border-top: 0; margin-top: 0; padding-top: 0; }
+#settings .group .toggle-list + .field-row { margin-top: 8px; }

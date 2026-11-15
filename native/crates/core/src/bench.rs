@@ -30,6 +30,10 @@ pub struct Bench {
 impl Bench {
     pub fn new(cfg: Config) -> Arc<Bench> {
         let logs = LogHub::new(cfg.raw.get("logs"));
+        // Daily log files in ~/.ns2bench/logs (not from unit tests).
+        if !cfg!(test) && cfg.raw["log_files"].as_bool() != Some(false) {
+            logs.persist(state_dir().join("logs"));
+        }
         let (conn_tx, mut conn_rx) = tokio::sync::mpsc::unbounded_channel();
         let backend = start_backend(&cfg.input, logs.clone(), conn_tx);
         let hub = InputHub::new(backend, logs.clone());

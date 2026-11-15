@@ -1,5 +1,6 @@
 import { apiFetch, authURL, setToken } from './client.js';
 import { t } from './i18n.js';
+import { notify } from './notify.js';
 const $ = (s) => document.querySelector(s);
 const dialog = $('#settings');
 let networkRevision = 0, inputRevision = 0;
@@ -143,6 +144,10 @@ async function automaticUpdates() {
   if (!invoke || busy) return;
   if ($('#update-auto-check').checked && Date.now() - lastAttempt > 900000 && Date.now() - Number(ls.get('ns2bench.update.lastCheck') || 0) > 86400000) await updateAction('check');
   $('#btn-settings').classList.toggle('badge', !!update?.available);
+  if (update?.available && update.latest_version && ls.get('ns2bench.update.notified') !== update.latest_version) {
+    ls.set('ns2bench.update.notified', update.latest_version);
+    notify('Update available', `NS2Bench ${update.latest_version} ${t('is ready to install from Settings → Updates.')}`);
+  }
   $('#btn-settings').title = update?.available ? 'Update available' : 'Connections, appearance, API, MCP and updates';
   if (update?.available && !update.downloaded && !failedDownload && $('#update-auto-download').checked) await updateAction('download');
   if (update?.downloaded && $('#update-auto-install').checked && !failedAutoInstall && Date.now() - lastActivity > 60000 && !dialog.open) {

@@ -1,6 +1,7 @@
 import { apiFetch as fetch, authURL } from './client.js';
 import './settings.js';
 import { t } from './i18n.js';
+import { fromLog } from './notify.js';
 // NS2Bench browser client: video, Joy-Con, keyboard/mouse/gamepad driving, live activity.
 import { BIT, DPAD, mountPad } from './pad.js';
 import { startLive } from './live.js';
@@ -134,7 +135,7 @@ function connect() {
     if (m.t === 'pad') { serverPad = m.pad; serverAgent = m.agent ?? [0, 0]; }
     else if (m.t === 'status') { showStatus(m.status); serverPad = m.status.input.pad; }
     else if (m.t === 'event') addEvent(m.event);
-    else if (m.t === 'log') addLog(m.entry);
+    else if (m.t === 'log') { addLog(m.entry); fromLog(m.entry); }
     else if (m.t === 'error') addEvent({ source: 'error', action: m.error, t: Date.now() / 1000 });
   };
   ws.onclose = () => { bridgeStatus = null; releaseAll(); setTimeout(connect, 1000); };
@@ -506,7 +507,18 @@ $('#v-apply').addEventListener('click', async () => {
 loadVideo().catch((e) => { $('#v-note').textContent = String(e); });
 
 // ------------------------------------------------------------ logs panel
-const logState = { entries: [], counts: {}, source: store.get('logsource', ''), filter: '' };
+const LEVELS = ['debug', 'info', 'warn', 'error'];
+const rank = (l) => Math.max(0, LEVELS.indexOf(l));
+const ICON = {
+  debug: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
+  warn: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  error: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>',
+  hint: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+};
+const icon = (name) => `<svg class="li" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
+const logState = { entries: [], counts: {}, levelCounts: { debug: 0, info: 0, warn: 0, error: 0 }, source: store.get('logsource', ''),
+  level: LEVELS.includes(store.get('loglevel', 'info')) ? store.get('loglevel', 'info') : 'info', filter: '' };
 const logview = $('#logview');
 const fmtTime = (t) => new Date(t * 1000).toLocaleTimeString([], { hour12: false });
 const sourceLabel = (source) => source === 'board' || source === 'hidd' ? 'bridge' : source;
@@ -519,21 +531,42 @@ function renderChips() {
     b.type = 'button'; b.className = 'chip';
     b.setAttribute('aria-pressed', String(n === logState.source));
     b.innerHTML = `<span></span><span class="n"></span>`;
-    b.firstChild.textContent = sourceLabel(n) || 'all';
+    b.firstChild.textContent = sourceLabel(n) || t('all');
     b.lastChild.textContent = n ? logState.counts[n] : logState.entries.length;
     b.addEventListener('click', () => { logState.source = n; store.set('logsource', n); renderChips(); renderLogs(); });
     return b;
   }));
+  const lv = $('#log-levels');
+  lv.replaceChildren(...['debug', 'info', 'warn', 'error'].map((l) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = `chip lvl-${l}`;
+    b.title = { debug: t('Show everything, including API calls and other detail'), info: t('Hide detail; show normal activity and problems'),
+      warn: t('Only warnings and errors'), error: t('Only errors') }[l];
+    b.setAttribute('aria-pressed', String(l === logState.level));
+    const n = LEVELS.slice(rank(l)).reduce((a, k) => a + logState.levelCounts[k], 0);
+    b.innerHTML = `${icon(l)}<span></span><span class="n"></span>`;
+    b.children[1].textContent = { debug: t('Everything'), info: t('Info'), warn: t('Problems'), error: t('Errors') }[l];
+    b.children[2].textContent = n;
+    b.addEventListener('click', () => { logState.level = l; store.set('loglevel', l); renderChips(); renderLogs(); });
+    return b;
+  }));
 }
-const visible = (e) => (!logState.source || e.source === logState.source)
-  && (!logState.filter || e.text.toLowerCase().includes(logState.filter));
+const visible = (e) => (!logState.source || e.source === logState.source) && rank(e.level) >= rank(logState.level)
+  && (!logState.filter || e.text.toLowerCase().includes(logState.filter) || (e.hint || '').toLowerCase().includes(logState.filter));
 function row(e) {
   const li = document.createElement('li');
-  li.className = e.level === 'error' ? 'error' : '';
-  li.innerHTML = '<span class="ts"></span><span class="sv"></span><span class="tx"></span>';
+  li.className = `lv-${LEVELS.includes(e.level) ? e.level : 'info'}`;
+  li.innerHTML = `<span class="ts"></span><span class="lv" title="${e.level}">${icon(LEVELS.includes(e.level) ? e.level : 'info')}</span><span class="sv"></span><span class="tx"></span>`;
   li.children[0].textContent = fmtTime(e.t);
-  li.children[1].textContent = sourceLabel(e.source); li.children[1].dataset.s = e.source;
-  li.children[2].textContent = e.text;
+  li.children[2].textContent = sourceLabel(e.source); li.children[2].dataset.s = e.source;
+  li.children[3].textContent = e.text;
+  if (e.hint) {
+    const h = document.createElement('span');
+    h.className = 'why';
+    h.innerHTML = icon('hint');
+    h.append(e.hint);
+    li.children[3].append(h);
+  }
   return li;
 }
 function renderLogs() {
@@ -543,6 +576,7 @@ function renderLogs() {
 let chipTimer = 0;
 function addLog(e) {
   logState.entries.push(e);
+  logState.levelCounts[e.level in logState.levelCounts ? e.level : 'info']++;
   if (logState.entries.length > 5000) logState.entries.splice(0, 1000);
   const fresh = !(e.source in logState.counts);
   logState.counts[e.source] = (logState.counts[e.source] ?? 0) + 1;
@@ -564,7 +598,7 @@ async function copyText(btn, text) {
   setTimeout(() => { btn.classList.remove('done'); if (label) label.textContent = old; }, 1400);
 }
 const logText = () => logState.entries.filter(visible)
-  .map((e) => `${new Date(e.t * 1000).toISOString()} [${e.source}] ${e.text}`).join('\n');
+  .map((e) => `${new Date(e.t * 1000).toISOString()} ${e.level.toUpperCase()} [${e.source}] ${e.text}${e.hint ? `\n    → ${e.hint}` : ''}`).join('\n');
 $('#log-copy').addEventListener('click', (e) => copyText(e.currentTarget, logText()));
 $('#btn-diag').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
@@ -590,8 +624,11 @@ $('#log-download').addEventListener('click', () => {
     download: `ns2bench-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.txt` });
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
-fetch('/api/logs?limit=2000').then((r) => r.json()).then((d) => {
-  d.entries.forEach((e) => { logState.entries.push(e); logState.counts[e.source] = (logState.counts[e.source] ?? 0) + 1; });
+fetch('/api/logs?limit=2000&level=debug').then((r) => r.json()).then((d) => {
+  d.entries.forEach((e) => {
+    logState.entries.push(e); logState.counts[e.source] = (logState.counts[e.source] ?? 0) + 1;
+    logState.levelCounts[e.level in logState.levelCounts ? e.level : 'info']++;
+  });
   renderChips(); renderLogs();
 });
 

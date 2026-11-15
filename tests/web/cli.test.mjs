@@ -94,3 +94,37 @@ test('bad arguments are rejected before contacting the engine', () => {
   assert.notEqual(cli('usb-mode', 'turbo').code, 0);
   assert.notEqual(cli('stick', 'middle', '0', '0').code, 0);
 });
+
+test('new agent tools: health, wait-screen, cropped screenshots, events, levels', async () => {
+  const h = cli('health');
+  assert.notEqual(h.code, 0);                       // no input device in the test engine
+  assert.match(h.out, /NOT READY/);
+  assert.match(h.out, /Settings → Devices/);
+  const hj = JSON.parse(cli('--json', 'health').out);
+  assert.equal(hj.video, true);
+  // the test pattern moves all the time: that motion is the noise floor, not a "change"
+  const w = JSON.parse(cli('--json', 'wait-screen', '--timeout-ms', '1500').out);
+  assert.equal(w.until, 'change');
+  assert.ok(w.waited_ms >= 1000, JSON.stringify(w));
+  const st = JSON.parse(cli('--json', 'wait-screen', '--stable', '--timeout-ms', '1500').out);
+  assert.equal(st.until, 'stable');
+  const out = join(home, 'crop.jpg');
+  assert.equal(cli('screenshot', '-o', out, '--region', '0,0,0.5,0.5').code, 0);
+  assert.ok(statSync(out).size > 500);
+  assert.notEqual(cli('screenshot', '-o', out, '--region', '0,0,2,1').code, 0);
+  assert.equal(cli('events', '-n', '5').code, 0);
+  assert.equal(cli('reports').code, 0);
+  assert.equal(cli('screen-log', 'off').code, 0);
+  const lv = cli('--json', 'logs', '--level', 'warn', '-n', '200');
+  assert.equal(lv.code, 0);
+  for (const line of lv.out.trim().split('\n').filter(Boolean)) assert.ok(['warn', 'error'].includes(JSON.parse(line).level), line);
+  assert.notEqual(cli('logs', '--level', 'loud').code, 0);
+});
+
+test('agents cannot switch USB mode or video while blocked', async () => {
+  // manual-only is already on from the earlier test (only the page can turn it off)
+  const r = await fetch(`${URL}/api/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usb_mode: 'pro' }) });
+  assert.equal(r.status, 409);
+  const v = await fetch(`${URL}/api/video`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fps: 10 }) });
+  assert.equal(v.status, 409);
+});

@@ -100,9 +100,14 @@ pub async fn set_input(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value
     write_json(&state_dir().join("input.json"), &v).map_err(anyhow::Error::from)?;
     b.hub.release_all();
     b.hub.backend.replace(&v, b.logs.clone()).await;
+    let what = match v["backend"].as_str().unwrap_or("none") {
+        "hidd" => format!("NS2Bench Bridge at {}:{}", v["host"].as_str().unwrap_or("?"), v["port"]),
+        "serial" => format!("Pico on {}", v["serial_port"].as_str().unwrap_or("?")),
+        "ch9329" => format!("CH9329 on {}", v["serial_port"].as_str().unwrap_or("?")),
+        other => other.to_string(),
+    };
     *b.input_cfg.lock().unwrap() = v;
-    b.logs
-        .add("bench", "NS2Bench Bridge connection settings updated");
+    b.logs.add("bench", format!("input device set to: {what}"));
     Ok(Json(json!({"ok": true})))
 }
 
@@ -172,6 +177,9 @@ pub async fn set_network(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Val
     } else {
         write_json(&state_dir().join("network-controls.json"), &v).map_err(anyhow::Error::from)?;
     }
+    let onoff = |k: &str| if v[k].as_bool().unwrap_or(false) { "on" } else { "off" };
+    b.logs.add("bench", format!("console network: {} · DHCP {} · DNS {} · connectivity page {}",
+        v["topology"].as_str().unwrap_or("direct"), onoff("dhcp"), onoff("dns"), onoff("connectivity")));
     Ok(Json(json!({"ok":true,"controls":v})))
 }
 

@@ -43,8 +43,8 @@ fn tool(name: &str, desc: &str, props: Value, required: &[&str]) -> Value {
 
 pub fn tools() -> Vec<Value> {
     vec![
-        tool("screenshot", "See the console screen now. max_width downsizes (full is 1920); png for lossless.",
-            json!({"max_width": int("default 1280"), "png": boolean("lossless PNG instead of JPEG")}), &[]),
+        tool("screenshot", "See the console screen now. max_width downsizes (full is 1920); png for lossless; region crops to part of the screen (zoom in on small text or an icon).",
+            json!({"max_width": int("default 1280"), "png": boolean("lossless PNG instead of JPEG"), "region": region()}), &[]),
         tool("press", "Press and release buttons together, e.g. [\"A\"], [\"L\",\"R\"], [\"DOWN\"]. Set look_after_ms (e.g. 500) to get a screenshot taken that long after release.",
             json!({"buttons": strs("buttons to press together"), "hold_ms": int("default 100"), "look_after_ms": look()}), &["buttons"]),
         tool("hold", "Hold buttons down until release() is called.", json!({"buttons": strs("buttons to hold")}), &["buttons"]),
@@ -56,20 +56,20 @@ pub fn tools() -> Vec<Value> {
             json!({"key": st("key name"), "modifiers": strs("CTRL, SHIFT, ALT, META"), "hold_ms": int("default 60"), "look_after_ms": look()}), &["key"]),
         tool("type_text", "Type ASCII text on the USB keyboard (US layout), e.g. into an on-screen text field.",
             json!({"text": st("text to type"), "delay_ms": int("between keys, default 40"), "look_after_ms": look()}), &["text"]),
-        tool("mouse_move", "Move the USB mouse by dx,dy (relative; positive = right/down). Only works where the console/game accepts a USB mouse and the board has a mouse.",
-            json!({"dx": int("right"), "dy": int("down"), "look_after_ms": look()}), &["dx", "dy"]),
+        tool("mouse_move", "Move the USB mouse by dx,dy (relative; positive = right/down). buttons keeps buttons down while moving (drag): bit 1 left, 2 right, 4 middle. Only works where the console/game accepts a USB mouse and the board has a mouse.",
+            json!({"dx": int("right"), "dy": int("down"), "buttons": int("held buttons while moving: 1 left, 2 right, 4 middle"), "look_after_ms": look()}), &["dx", "dy"]),
         tool("mouse_click", "Click a USB mouse button: \"left\", \"right\" or \"middle\".",
-            json!({"button": st("left, right or middle"), "look_after_ms": look()}), &[]),
+            json!({"button": st("left, right or middle"), "hold_ms": int("default 60"), "look_after_ms": look()}), &[]),
         tool("scroll", "Scroll the USB mouse wheel; positive = up.", json!({"notches": int("wheel notches"), "look_after_ms": look()}), &["notches"]),
         tool("sequence", "Run several steps in order without round-trips. Each step is one of: {\"press\": [\"A\"], \"hold_ms\": 100}, {\"wait_ms\": 500}, {\"hold\": [\"B\"]}, {\"release\": [\"B\"]}, {\"stick\": \"left\", \"x\": 0, \"y\": -1, \"hold_ms\": 400}, {\"key\": \"ENTER\"}, {\"type\": \"hello\"}, {\"mouse\": {\"dx\": 40, \"dy\": 0}}, {\"click\": \"left\"}.",
             json!({"steps": {"type": "array", "items": {"type": "object"}}, "look_after_ms": look()}), &["steps"]),
         tool("wait", "Wait (e.g. for loading), then return a screenshot.", json!({"ms": int("default 1000"), "max_width": int("default 1280")}), &[]),
-        tool("logs", "Recent log lines. source: \"bench\" (actions/errors), \"board\" (NS2Bench Bridge), \"kernel\" (board kernel: USB enumeration), \"network\" (console DHCP/DNS), \"screen\" (text that appeared on screen), or a configured file. contains filters by text.",
-            json!({"source": st("log source"), "contains": st("filter text"), "limit": int("default 60")}), &[]),
+        tool("logs", "Recent log lines, oldest first, each with its level and, for recognised problems, what to do (→). source: \"bench\" (actions/errors), \"api\" (HTTP calls and refused requests), \"board\" (NS2Bench Bridge), \"kernel\" (board kernel: USB enumeration), \"network\" (console DHCP/DNS), \"screen\" (text that appeared on screen), or a configured file. level: minimum level (debug, info, warn, error; \"warn\" = problems only). after: only lines after this seq (poll for new lines). contains filters by text.",
+            json!({"source": st("log source"), "level": st("debug, info, warn or error"), "after": int("seq of the last line you saw"), "contains": st("filter text"), "limit": int("default 60")}), &[]),
         tool("read_screen", "Read the text on screen (OCR), in reading order, each line with its box [x, y, w, h] as fractions of the frame. region limits it to part of the screen.",
             json!({"region": region(), "fast": boolean("faster, less accurate")}), &[]),
         tool("wait_for_text", "Wait until text appears on screen (or disappears with gone=true). Case-insensitive; regex=true treats text as a regular expression. Returns what was found and how long it took.",
-            json!({"text": st("text or regex"), "timeout_ms": int("default 10000"), "regex": boolean("treat text as a regex"), "gone": boolean("wait for it to disappear"), "region": region()}), &["text"]),
+            json!({"text": st("text or regex"), "timeout_ms": int("default 10000"), "regex": boolean("treat text as a regex"), "gone": boolean("wait for it to disappear"), "region": region(), "fast": boolean("default true; false is slower but reads small text better")}), &["text"]),
         tool("where_am_i", "Which known screen the console shows (from the console profile), plus the screen text.", json!({}), &[]),
         tool("list_routes", "Known navigation routes and screens for this console profile.", json!({}), &[]),
         tool("navigate", "Go to a known place (e.g. \"home\", \"system_settings\", \"test_buttons\") and verify arrival.", json!({"route": st("route name")}), &["route"]),
@@ -82,6 +82,21 @@ pub fn tools() -> Vec<Value> {
         tool("status", "Video fps/health, NS2Bench Bridge connection, USB state and whether agents are blocked.", json!({}), &[]),
         tool("usb_mode", "Switch what the console sees: \"standard\" (HORI controller + keyboard + mouse) or \"pro\" (Switch 2 Pro Controller with C/GL/GR, no keyboard). Takes ~8 s; the console reconnects the controller.",
             json!({"mode": st("standard or pro")}), &["mode"]),
+        tool("wait_for_screen", "Wait until the screen changes from how it looks now (until=\"change\", e.g. after a press) or stops moving (until=\"stable\", e.g. after a menu animation or loading), instead of guessing a sleep. region watches only part of the screen. screenshot=true returns the screen afterwards.",
+            json!({"until": st("change or stable (default change)"), "timeout_ms": int("default 5000"), "stable_ms": int("for stable: how long it must stay still, default 500"), "region": region(), "screenshot": boolean("return a screenshot afterwards")}), &[]),
+        tool("find_text", "Find every line on screen that contains text (or matches regex), with its box [x, y, w, h] as fractions of the frame. Use it to see where an item is, or which one is highlighted.",
+            json!({"text": st("text or regex"), "regex": boolean("treat text as a regex"), "region": region(), "fast": boolean("faster, less accurate (default false)")}), &["text"]),
+        tool("health", "One quick check: is NS2Bench ready to drive (picture, input device, agents allowed)? Lists each problem with what to do. Cheaper than doctor.", json!({}), &[]),
+        tool("probe", "Press buttons and measure whether and how fast the screen reacted (proves input reaches the console). Use on a screen where the press visibly changes something.",
+            json!({"buttons": strs("buttons, e.g. [\"RIGHT\"]"), "hold_ms": int("default 100"), "timeout_ms": int("default 1500")}), &["buttons"]),
+        tool("events", "Recent inputs and control changes, by whom (ui = the person at the bench, api, mcp). See what the person did, or confirm your own presses.",
+            json!({"source": st("ui, api or mcp"), "limit": int("default 30")}), &[]),
+        tool("list_clips", "Saved video clips (newest first) with their paths on the bench machine.", json!({}), &[]),
+        tool("list_reports", "Saved test reports (newest first): folder, test name and whether it passed.", json!({}), &[]),
+        tool("video_info", "Capture settings (device, resolution, fps, codec) and the capture devices this computer sees.", json!({}), &[]),
+        tool("diagnostics", "A short Markdown summary of versions, devices, settings and recent errors (for bug reports).", json!({"lines": int("log lines to include, default 40")}), &[]),
+        tool("block_agents", "Turn on Block agents (manual-only): stop all agent input, including your own, and let only the person at the bench drive. Only that person can turn it off.", json!({}), &[]),
+        tool("screen_log", "Turn the screen log on or off: once a second, newly visible on-screen text is added to the logs (source \"screen\").", json!({"on": boolean("on or off")}), &["on"]),
     ]
 }
 
@@ -96,8 +111,15 @@ struct Mcp {
 
 impl Mcp {
     async fn grab(&self, max_width: u64, png: bool) -> Result<Out> {
-        let q = query(&[("max_width", max_width.to_string()), ("format", if png { "png" } else { "jpeg" }.into())]);
-        let r = self.c.call("GET", &format!("/api/screenshot{q}"), None).await?;
+        self.grab_region(max_width, png, None).await
+    }
+
+    async fn grab_region(&self, max_width: u64, png: bool, region: Option<&Value>) -> Result<Out> {
+        let mut p = vec![("max_width", max_width.clamp(16, 8192).to_string()), ("format", if png { "png" } else { "jpeg" }.into())];
+        if let Some(r) = region.and_then(Value::as_array) {
+            p.push(("region", r.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+        }
+        let r = self.c.call("GET", &format!("/api/screenshot{}", query(&p)), None).await?;
         Ok(Out::Image(r.body, if png { "image/png" } else { "image/jpeg" }))
     }
 
@@ -121,7 +143,7 @@ impl Mcp {
         let look = a["look_after_ms"].as_u64();
         let u = |k: &str, d: u64| a[k].as_u64().unwrap_or(d);
         Ok(match name {
-            "screenshot" => self.grab(u("max_width", 1280), a["png"].as_bool().unwrap_or(false)).await?,
+            "screenshot" => self.grab_region(u("max_width", 1280), a["png"].as_bool().unwrap_or(false), a.get("region")).await?,
             "press" => self.act("/api/press", json!({"buttons": a["buttons"], "hold_ms": u("hold_ms", 100)}), look).await?,
             "hold" => {
                 self.act("/api/hold", json!({"buttons": a["buttons"]}), None).await?;
@@ -137,8 +159,8 @@ impl Mcp {
             }
             "key" => self.act("/api/key", json!({"key": a["key"], "modifiers": a.get("modifiers").cloned().unwrap_or(json!([])), "hold_ms": u("hold_ms", 60)}), look).await?,
             "type_text" => self.act("/api/type", json!({"text": a["text"], "delay_ms": u("delay_ms", 40)}), look).await?,
-            "mouse_move" => self.act("/api/mouse", json!({"dx": a["dx"], "dy": a["dy"]}), look).await?,
-            "mouse_click" => self.act("/api/click", json!({"button": a["button"].as_str().unwrap_or("left")}), look).await?,
+            "mouse_move" => self.act("/api/mouse", json!({"dx": a["dx"], "dy": a["dy"], "buttons": a["buttons"]}), look).await?,
+            "mouse_click" => self.act("/api/click", json!({"button": a["button"].as_str().unwrap_or("left"), "hold_ms": u("hold_ms", 60)}), look).await?,
             "scroll" => self.act("/api/mouse", json!({"wheel": a["notches"]}), look).await?,
             "sequence" => self.act("/api/sequence", json!({"steps": a["steps"]}), look).await?,
             "wait" => {
@@ -149,11 +171,14 @@ impl Mcp {
                 let mut p = vec![("limit", u("limit", 60).to_string())];
                 if let Some(s) = a["source"].as_str() { p.push(("source", s.into())); }
                 if let Some(s) = a["contains"].as_str() { p.push(("contains", s.into())); }
+                if let Some(s) = a["level"].as_str() { p.push(("level", s.into())); }
+                if let Some(n) = a["after"].as_u64() { p.push(("after", n.to_string())); }
                 let d = self.json("GET", &format!("/api/logs{}", query(&p)), None).await?;
                 let lines: Vec<String> = d["entries"].as_array().into_iter().flatten().map(|e| {
                     let t = chrono::DateTime::from_timestamp(e["t"].as_f64().unwrap_or(0.0) as i64, 0)
                         .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string()).unwrap_or_default();
-                    format!("{t} [{}] {}", e["source"].as_str().unwrap_or(""), e["text"].as_str().unwrap_or(""))
+                    let hint = e["hint"].as_str().map(|h| format!(" → {h}")).unwrap_or_default();
+                    format!("#{} {t} {} [{}] {}{hint}", e["seq"], e["level"].as_str().unwrap_or("info").to_uppercase(), e["source"].as_str().unwrap_or(""), e["text"].as_str().unwrap_or(""))
                 }).collect();
                 Out::Text(if lines.is_empty() { format!("no log lines (sources: {})", crate::server::strs(&d["sources"]).join(", ")) } else { lines.join("\n") })
             }
@@ -172,11 +197,16 @@ impl Mcp {
             "wait_for_text" => {
                 let regex = a["regex"].as_bool() == Some(true);
                 let gone = a["gone"].as_bool() == Some(true);
-                let mut b = json!({"timeout_ms": u("timeout_ms", 10_000), "gone": gone});
+                let mut b = json!({"timeout_ms": u("timeout_ms", 10_000), "gone": gone, "fast": a["fast"].as_bool().unwrap_or(true)});
                 b[if regex { "regex" } else { "text" }] = a["text"].clone();
                 if a["region"].is_array() { b["region"] = a["region"].clone(); }
                 let d = self.json("POST", "/api/wait_text", Some(b)).await?;
-                let state = if d["found"] == true { if gone { "gone" } else { "found" } } else { "NOT found" };
+                let state = match (d["found"] == true, gone) {
+                    (true, false) => "found",
+                    (true, true) => "gone",
+                    (false, false) => "NOT found (timed out)",
+                    (false, true) => "STILL THERE (timed out)",
+                };
                 Out::Text(format!("{state} after {} ms. Screen text now:\n{}", d["elapsed_ms"], d["text"].as_str().unwrap_or("")))
             }
             "where_am_i" => {
@@ -220,8 +250,73 @@ impl Mcp {
             "usb_mode" => {
                 let m = a["mode"].as_str().unwrap_or("");
                 if !["standard", "pro", "hori"].contains(&m) { bail!("mode must be standard or pro"); }
-                self.json("POST", "/api/control", Some(json!({"usb_mode": m}))).await?;
+                self.json("POST", "/api/control", Some(json!({"usb_mode": m, "source": "mcp"}))).await?;
                 Out::Text(format!("switching to {m}; the controller reconnects in ~8 s"))
+            }
+            "wait_for_screen" => {
+                let mut b = json!({"until": a["until"].as_str().unwrap_or("change"), "timeout_ms": u("timeout_ms", 5000), "stable_ms": u("stable_ms", 500)});
+                if a["region"].is_array() { b["region"] = a["region"].clone(); }
+                let d = self.json("POST", "/api/wait_screen", Some(b)).await?;
+                if a["screenshot"].as_bool() == Some(true) { return self.grab(1280, false).await; }
+                Out::Text(if d["ok"] == true {
+                    format!("{} after {} ms", if d["until"] == "stable" { "screen is still" } else { "screen changed" }, d["waited_ms"])
+                } else {
+                    format!("{} within {} ms", d["message"].as_str().unwrap_or("timed out"), d["waited_ms"])
+                })
+            }
+            "find_text" => {
+                let regex = a["regex"].as_bool() == Some(true);
+                let mut p = vec![(if regex { "regex" } else { "text" }, a["text"].as_str().unwrap_or("").to_string()),
+                                 ("fast", if a["fast"].as_bool() == Some(true) { "true" } else { "false" }.into())];
+                if let Some(r) = a["region"].as_array() {
+                    p.push(("region", r.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")));
+                }
+                let d = self.json("GET", &format!("/api/find_text{}", query(&p)), None).await?;
+                let lines: Vec<String> = d["matches"].as_array().into_iter().flatten().map(|l| {
+                    let b: Vec<String> = l["box"].as_array().into_iter().flatten().map(|v| format!("{:.3}", v.as_f64().unwrap_or(0.0))).collect();
+                    format!("{}  @[{}]", l["text"].as_str().unwrap_or(""), b.join(", "))
+                }).collect();
+                Out::Text(if lines.is_empty() { "not on screen".into() } else { lines.join("\n") })
+            }
+            "health" => {
+                let d = self.json("GET", "/api/health", None).await?;
+                let mut t = vec![format!("{} · picture {} · input {} · agents {}", if d["ok"] == true { "READY" } else { "NOT READY" },
+                    if d["video"] == true { "ok" } else { "missing" }, if d["input"] == true { "ok" } else { "not connected" },
+                    if d["agents_allowed"] == true { "allowed" } else { "blocked" })];
+                for p in d["problems"].as_array().into_iter().flatten() {
+                    t.push(format!("- {}: {} → {}", p["area"].as_str().unwrap_or(""), p["problem"].as_str().unwrap_or(""), p["fix"].as_str().unwrap_or("")));
+                }
+                Out::Text(t.join("\n"))
+            }
+            "probe" => {
+                let d = self.json("POST", "/api/probe", Some(json!({"buttons": a["buttons"], "hold_ms": u("hold_ms", 100), "timeout_ms": u("timeout_ms", 1500), "source": "mcp"}))).await?;
+                Out::Text(if d["changed"] == true { format!("the screen reacted after {} ms", d["latency_ms"]) }
+                    else { format!("no visible reaction (change {} vs noise {}); the press may not have reached the console, or this screen doesn't react to it", d["diff"], d["noise"]) })
+            }
+            "events" => {
+                let mut p = vec![("limit", u("limit", 30).to_string())];
+                if let Some(s) = a["source"].as_str() { p.push(("source", s.into())); }
+                let d = self.json("GET", &format!("/api/events{}", query(&p)), None).await?;
+                let lines: Vec<String> = d.as_array().into_iter().flatten().map(|e| {
+                    let mut e2 = e.clone();
+                    let (t, src, act) = (crate::logs::local_time(e["t"].as_f64().unwrap_or(0.0)), e["source"].as_str().unwrap_or("").to_string(), e["action"].as_str().unwrap_or("").to_string());
+                    if let Some(o) = e2.as_object_mut() { o.remove("t"); o.remove("source"); o.remove("action"); }
+                    format!("{t} {src}: {act} {e2}")
+                }).collect();
+                Out::Text(if lines.is_empty() { "no inputs yet".into() } else { lines.join("\n") })
+            }
+            "list_clips" => Out::Text(serde_json::to_string_pretty(&self.json("GET", "/api/clips", None).await?)?),
+            "list_reports" => Out::Text(serde_json::to_string_pretty(&self.json("GET", "/api/reports", None).await?)?),
+            "video_info" => Out::Text(serde_json::to_string_pretty(&self.json("GET", "/api/video", None).await?)?),
+            "diagnostics" => Out::Text(self.c.call("GET", &format!("/api/diagnostics?lines={}", u("lines", 40).min(500)), None).await?.text()),
+            "block_agents" => {
+                self.json("POST", "/api/control", Some(json!({"manual_only": true, "source": "mcp"}))).await?;
+                Out::Text("agents are blocked; only the person at the NS2Bench page can turn this off".into())
+            }
+            "screen_log" => {
+                let on = a["on"].as_bool().unwrap_or(true);
+                self.json("POST", "/api/control", Some(json!({"screen_log": on, "source": "mcp"}))).await?;
+                Out::Text(format!("screen log {}", if on { "on" } else { "off" }))
             }
             _ => bail!("unknown tool {name}"),
         })
@@ -316,11 +411,11 @@ mod tests {
     #[test]
     fn tool_schemas_are_valid() {
         let t = super::tools();
-        assert_eq!(t.len(), 23);
+        assert_eq!(t.len(), 34);
         let mut names: Vec<&str> = t.iter().map(|x| x["name"].as_str().unwrap()).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 23);
+        assert_eq!(names.len(), 34);
         assert!(t.iter().all(|x| x["inputSchema"]["type"] == "object"));
     }
 }

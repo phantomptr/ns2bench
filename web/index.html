@@ -52,6 +52,7 @@
     <section class="card logs-card" aria-label="Logs">
       <div class="logs-head">
         <h2>Logs</h2>
+        <div class="chips" id="log-levels" role="group" aria-label="Log level"></div>
         <div class="chips" id="log-sources" role="group" aria-label="Log sources"></div>
         <span class="spacer"></span>
         <input type="search" id="log-filter" placeholder="Filter…" aria-label="Filter logs">
@@ -141,6 +142,7 @@
     <button data-tab="integrations" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16"/></svg>API &amp; MCP</button>
     <button data-tab="install" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Install</button>
     <button data-tab="appearance" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>Appearance</button>
+    <button data-tab="notifications" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>Notifications</button>
     <button data-tab="updates" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>Updates</button>
     <button data-tab="help" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/></svg>Help</button>
     <button data-tab="about" aria-pressed="false"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>About</button>
@@ -241,6 +243,28 @@ ns2bench --help</pre>
       <label class="toggle-row"><input type="checkbox" class="switch" id="a11y-transparency"><span><b>Reduce transparency</b><small>Turns off the frosted-glass blur behind the toolbar and dialogs.</small></span></label>
       <label class="toggle-row"><input type="checkbox" class="switch" id="a11y-contrast"><span><b>High contrast</b><small>Strengthens text, border and focus-ring contrast.</small></span></label>
       <label class="toggle-row"><input type="checkbox" class="switch" id="a11y-dyslexia"><span><b>Dyslexia-friendly font</b><small>Uses Atkinson Hyperlegible or OpenDyslexic if one is installed on this computer (neither comes with the app), with slightly wider letter and line spacing.</small></span></label>
+      </div>
+    </div>
+  </section>
+  <section data-pane="notifications" hidden>
+    <div class="group">
+      <h3>Notifications</h3>
+      <p class="hint">NS2Bench can tell you when something needs you, even while you work in another app.</p>
+      <div class="toggle-list">
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-on"><span><b>Show notifications</b><small>Use your computer’s notification centre.</small></span></label>
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-background"><span><b>Only when NS2Bench is in the background</b><small>Skip them while you’re looking at NS2Bench; the log shows everything anyway.</small></span></label>
+      </div>
+      <div class="field-row"><button type="button" id="notify-test">Send a test notification</button></div>
+      <p class="hint" id="notify-status"></p>
+    </div>
+    <div class="group">
+      <h3>Tell me when</h3>
+      <div class="toggle-list first">
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-bridge"><span><b>The Bridge connects or disconnects</b><small>So you know when controls stop reaching the console, for example when it goes to sleep.</small></span></label>
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-video"><span><b>The picture is lost or comes back</b><small>The capture card stopped sending video: the console may be asleep or a cable came out.</small></span></label>
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-tasks"><span><b>A test or clip finishes</b><small>With the result and where the report or clip was saved.</small></span></label>
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-agent"><span><b>An agent starts driving</b><small>The first time an AI agent or script presses something after a quiet minute.</small></span></label>
+      <label class="toggle-row"><input type="checkbox" class="switch" id="notify-updates"><span><b>An app update is ready</b><small>A new NS2Bench version is available to install.</small></span></label>
       </div>
     </div>
   </section>

@@ -250,7 +250,7 @@ async fn run_board(
                 s.usb_mode = Some(h["mode"].as_str().unwrap_or("standard").to_string());
                 s.devices = h["devices"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
                     .unwrap_or_else(|| vec!["pad".into(), "kbd".into()]);
-                logs.add("bench", format!("NS2Bench Bridge connected: {} usb={} mode={} devices={}",
+                logs.notify("bench", "info", "Bridge connected", format!("NS2Bench Bridge connected: {} usb={} mode={} devices={}",
                     link.describe(), s.usb.clone().unwrap_or_default(), s.usb_mode.clone().unwrap_or_default(), s.devices.join(",")));
             }
             log_seq = h["log_seq"].as_u64().unwrap_or(0).saturating_sub(50);
@@ -305,7 +305,7 @@ async fn run_board(
                                 let seq = e[0].as_u64().unwrap_or(0);
                                 log_seq = log_seq.max(seq);
                                 let src = if e[2] == "kernel" { "kernel" } else { "board" };
-                                logs.add_full(src, e[3].as_str().unwrap_or(""), e[1].as_f64().map(|t| t + shift), "info");
+                                logs.add_guess(src, e[3].as_str().unwrap_or(""), e[1].as_f64().map(|t| t + shift));
                             }
                         } else if let Some(err) = m.get("error") {
                             logs.error("board", format!("error: {err}"));
@@ -318,7 +318,9 @@ async fn run_board(
         if res.is_ok() { return; }
         let was = { let mut s = status.lock().unwrap(); let w = s.connected; s.connected = false; w };
         let detail = match res { Ok(()) => "stopped".to_string(), Err(e) => e.to_string() };
-        if was || status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
+        if was {
+            logs.notify("bench", "error", "Bridge disconnected", format!("NS2Bench Bridge: {detail}"));
+        } else if status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
             logs.error("bench", format!("NS2Bench Bridge: {detail}"));
         }
         status.lock().unwrap().detail = Some(detail);
@@ -444,6 +446,9 @@ impl InputHub {
         let detail = detail.as_object().cloned().unwrap_or_default();
         let ev = Event { t: crate::logs::now(), source: source.into(), action: action.into(), detail: detail.clone() };
         let pretty: Vec<String> = detail.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        if (source == "api" || source == "mcp") && !self.logs.throttled(&format!("agent-active-{source}"), 60.0) {
+            self.logs.notify("bench", "info", "An agent is driving", format!("{source}: an agent started driving the console (Block agents in the Driving card stops it)"));
+        }
         self.logs.add("bench", format!("{source}: {action} {}", pretty.join(" ")));
         let mut evs = self.events.lock().unwrap();
         evs.push_back(ev.clone());
@@ -621,9 +626,12 @@ impl InputHub {
         self.check_agent(source)?;
         let shown: String = text.chars().take(80).collect();
         self.log(source, "type", json!({"text": shown}));
+        // delay_ms is the time per character: half held, half released (each at least the minimum press)
+        let hold = (delay_ms / 2).max(self.min_press()).min(2000);
+        let gap = delay_ms.saturating_sub(hold).max(16);
         for (m, c) in strokes {
-            self.tap(source, m, c, delay_ms).await?;
-            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+            self.tap(source, m, c, hold).await?;
+            tokio::time::sleep(Duration::from_millis(gap)).await;
         }
         Ok(())
     }

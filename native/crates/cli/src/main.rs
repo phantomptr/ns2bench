@@ -60,12 +60,50 @@ enum Cmd {
         png: bool,
         #[arg(long)]
         max_width: Option<u32>,
+        /// crop to x,y,w,h as fractions of the screen, e.g. 0,0.8,1,0.2
+        #[arg(long)]
+        region: Option<String>,
     },
     /// Read the text on screen (OCR); --region x,y,w,h as fractions of the screen
     Read {
         #[arg(long)]
         region: Option<String>,
+        /// faster, less accurate
+        #[arg(long)]
+        fast: bool,
     },
+    /// Find text on screen and print where each match is (box x,y,w,h as fractions)
+    Find {
+        text: String,
+        #[arg(long)]
+        regex: bool,
+        #[arg(long)]
+        region: Option<String>,
+        #[arg(long)]
+        fast: bool,
+    },
+    /// Wait until the screen changes (default) or stops moving (--stable)
+    WaitScreen {
+        /// wait for the picture to settle instead of to change
+        #[arg(long)]
+        stable: bool,
+        #[arg(long, default_value_t = 5000)]
+        timeout_ms: u64,
+        /// with --stable: how long it must stay still
+        #[arg(long, default_value_t = 500)]
+        stable_ms: u64,
+        #[arg(long)]
+        region: Option<String>,
+    },
+    /// Wait, then save a screenshot (e.g. after a loading screen)
+    Wait {
+        /// milliseconds
+        ms: u64,
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// Ready to drive? Picture, input device and agent permission, with what to fix
+    Health,
     /// Wait until text appears (or with --gone, disappears)
     WaitText {
         text: String,
@@ -79,6 +117,9 @@ enum Cmd {
         timeout: f64,
         #[arg(long)]
         region: Option<String>,
+        /// faster, less accurate reading
+        #[arg(long)]
+        fast: bool,
     },
     /// Which known screen is showing
     Where,
@@ -132,11 +173,16 @@ enum Cmd {
         dy: i64,
         #[arg(long, default_value_t = 0, allow_hyphen_values = true)]
         wheel: i64,
+        /// keep buttons down while moving (drag): 1 left, 2 right, 4 middle
+        #[arg(long)]
+        buttons: Option<u8>,
     },
     /// Click a mouse button
     Click {
         #[arg(default_value = "left")]
         button: String,
+        #[arg(long, default_value_t = 60)]
+        hold_ms: u64,
     },
     /// Run several steps in one call from a JSON file (or - for stdin): [{"press":["A"]},{"wait_ms":300}]
     Sequence { file: String },
@@ -158,6 +204,10 @@ enum Cmd {
     Probe {
         #[arg(required = true)]
         buttons: Vec<String>,
+        #[arg(long, default_value_t = 100)]
+        hold_ms: u64,
+        #[arg(long, default_value_t = 1500)]
+        timeout_ms: u64,
     },
     /// Measure the shortest reliable press (HOME menu)
     Calibrate,
@@ -168,8 +218,14 @@ enum Cmd {
         #[arg(long, default_value = "cli")]
         label: String,
     },
-    /// List saved clips
-    Clips,
+    /// List saved clips, or download one: `clips NAME -o file.mp4`
+    Clips {
+        name: Option<String>,
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// List saved test reports
+    Reports,
 
     // ------------------------------------------------------------ configure
     /// Console-facing USB device of a Linux board: standard (controller + keyboard + mouse) or pro (Pro Controller)
@@ -222,8 +278,16 @@ enum Cmd {
         #[arg(long, value_enum)]
         connectivity: Option<OnOff>,
     },
-    /// List capture devices this computer can see
-    Devices,
+    /// List the capture devices the engine sees (--local: this computer, without an engine)
+    Devices {
+        #[arg(long)]
+        local: bool,
+    },
+    /// Turn the screen log on or off (new on-screen text becomes log lines)
+    ScreenLog {
+        #[arg(value_enum)]
+        state: OnOff,
+    },
 
     // ------------------------------------------------------------ debug
     /// Check capture, Bridge, USB, console and network end to end
@@ -240,14 +304,27 @@ enum Cmd {
         contains: Option<String>,
         #[arg(short = 'n', long, default_value_t = 50)]
         lines: u32,
+        /// only this level and above: debug, info, warn, error
+        #[arg(short, long, value_parser = ["debug", "info", "warn", "error"])]
+        level: Option<String>,
         /// keep printing new lines
         #[arg(short, long)]
         follow: bool,
     },
     /// Recent inputs from you and agents
-    Events,
+    Events {
+        /// only ui, api or mcp
+        #[arg(long)]
+        source: Option<String>,
+        #[arg(short = 'n', long, default_value_t = 30)]
+        lines: u32,
+    },
     /// Markdown summary for bug reports
-    Diagnostics,
+    Diagnostics {
+        /// log lines to include
+        #[arg(long, default_value_t = 40)]
+        lines: u32,
+    },
     /// Save a bug-report zip (logs, status, screenshot; secrets removed)
     Bundle {
         #[arg(short, long)]
@@ -318,19 +395,59 @@ async fn run(cli: Cli) -> Res<ExitCode> {
                 println!("agents  {}", if i["manual_only"] == true { "blocked (manual only)" } else { "allowed" });
             }
         }
-        Cmd::Screenshot { output, png, max_width } => {
+        Cmd::Screenshot { output, png, max_width, region } => {
             let mut q = vec![("format", if png { "png" } else { "jpeg" }.to_string())];
             if let Some(w) = max_width { q.push(("max_width", w.to_string())); }
+            if let Some(r) = region { q.push(("region", r)); }
             let r = api(&c, "GET", &format!("/api/screenshot{}", query(&q)), None).await?;
             save(output, format!("ns2bench-{}.{}", stamp(), if png { "png" } else { "jpg" }), &r.body)?;
         }
-        Cmd::Read { region } => {
-            let q: Vec<_> = region.map(|r| ("region", r)).into_iter().collect();
+        Cmd::Read { region, fast } => {
+            let mut q: Vec<_> = region.map(|r| ("region", r)).into_iter().collect();
+            q.push(("fast", if fast { "1" } else { "0" }.to_string()));
             let v = get(&c, &format!("/api/ocr{}", query(&q))).await?;
             if raw { pretty(&v) } else { println!("{}", v["text"].as_str().unwrap_or("")); }
         }
-        Cmd::WaitText { text, regex, gone, timeout, region } => {
-            let mut b = json!({"timeout_ms": timeout * 1000.0, "gone": gone});
+        Cmd::Find { text, regex, region, fast } => {
+            let mut q = vec![(if regex { "regex" } else { "text" }, text), ("fast", fast.to_string())];
+            if let Some(r) = region { q.push(("region", r)); }
+            let v = get(&c, &format!("/api/find_text{}", query(&q))).await?;
+            if raw { pretty(&v) } else {
+                for m in v["matches"].as_array().into_iter().flatten() {
+                    let b: Vec<String> = m["box"].as_array().into_iter().flatten().map(|x| format!("{:.3}", x.as_f64().unwrap_or(0.0))).collect();
+                    println!("{}  @ {}", m["text"].as_str().unwrap_or(""), b.join(","));
+                }
+            }
+            if v["found"] != true { if !raw { eprintln!("not on screen"); } return Ok(ExitCode::FAILURE); }
+        }
+        Cmd::WaitScreen { stable, timeout_ms, stable_ms, region } => {
+            let mut b = json!({"until": if stable { "stable" } else { "change" }, "timeout_ms": timeout_ms, "stable_ms": stable_ms});
+            if let Some(r) = region { b["region"] = r.into(); }
+            let v = post(&c, "/api/wait_screen", b).await?;
+            if raw { pretty(&v) } else if v["ok"] == true {
+                println!("{} after {} ms", if stable { "still" } else { "changed" }, v["waited_ms"]);
+            } else { println!("{} ({} ms)", v["message"].as_str().unwrap_or("timed out"), v["waited_ms"]); }
+            if v["ok"] != true { return Ok(ExitCode::FAILURE); }
+        }
+        Cmd::Wait { ms, output } => {
+            tokio::time::sleep(std::time::Duration::from_millis(ms.min(600_000))).await;
+            let r = api(&c, "GET", "/api/screenshot", None).await?;
+            save(output, format!("ns2bench-{}.jpg", stamp()), &r.body)?;
+        }
+        Cmd::Health => {
+            let v = get(&c, "/api/health").await?;
+            if raw { pretty(&v) } else {
+                println!("{} · picture {} · input {} · agents {}", if v["ok"] == true { "ready" } else { "NOT READY" },
+                    if v["video"] == true { "ok" } else { "missing" }, if v["input"] == true { "ok" } else { "not connected" },
+                    if v["agents_allowed"] == true { "allowed" } else { "blocked" });
+                for p in v["problems"].as_array().into_iter().flatten() {
+                    println!("  {}: {}\n    → {}", p["area"].as_str().unwrap_or(""), p["problem"].as_str().unwrap_or(""), p["fix"].as_str().unwrap_or(""));
+                }
+            }
+            if v["ok"] != true { return Ok(ExitCode::FAILURE); }
+        }
+        Cmd::WaitText { text, regex, gone, timeout, region, fast } => {
+            let mut b = json!({"timeout_ms": timeout * 1000.0, "gone": gone, "fast": fast});
             b[if regex { "regex" } else { "text" }] = text.into();
             if let Some(r) = region { b["region"] = r.into(); }
             let v = post(&c, "/api/wait_text", b).await?;
@@ -353,8 +470,8 @@ async fn run(cli: Cli) -> Res<ExitCode> {
         }
         Cmd::Key { key, modifiers, hold_ms } => ok(&post(&c, "/api/key", json!({"key": key, "modifiers": modifiers, "hold_ms": hold_ms})).await?),
         Cmd::Type { text, delay_ms } => ok(&post(&c, "/api/type", json!({"text": text, "delay_ms": delay_ms})).await?),
-        Cmd::Mouse { dx, dy, wheel } => ok(&post(&c, "/api/mouse", json!({"dx": dx, "dy": dy, "wheel": wheel})).await?),
-        Cmd::Click { button } => ok(&post(&c, "/api/click", json!({"button": button})).await?),
+        Cmd::Mouse { dx, dy, wheel, buttons } => ok(&post(&c, "/api/mouse", json!({"dx": dx, "dy": dy, "wheel": wheel, "buttons": buttons})).await?),
+        Cmd::Click { button, hold_ms } => ok(&post(&c, "/api/click", json!({"button": button, "hold_ms": hold_ms})).await?),
         Cmd::Sequence { file } => {
             let text = if file == "-" {
                 let mut s = String::new();
@@ -399,13 +516,32 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             }
             return Ok(if failed > 0 { ExitCode::FAILURE } else { ExitCode::SUCCESS });
         }
-        Cmd::Probe { buttons } => pretty(&post(&c, "/api/probe", json!({"buttons": buttons})).await?),
+        Cmd::Probe { buttons, hold_ms, timeout_ms } => {
+            let v = post(&c, "/api/probe", json!({"buttons": buttons, "hold_ms": hold_ms, "timeout_ms": timeout_ms})).await?;
+            if raw { pretty(&v) } else if v["changed"] == true { println!("the screen reacted after {} ms", v["latency_ms"]); }
+            else { println!("no visible reaction (change {} vs noise {})", v["diff"], v["noise"]); }
+            if v["changed"] != true { return Ok(ExitCode::FAILURE); }
+        }
         Cmd::Calibrate => pretty(&post(&c, "/api/calibrate", json!({})).await?),
         Cmd::Clip { seconds, label } => {
             let v = post(&c, "/api/clip", json!({"seconds": seconds, "label": label})).await?;
             if raw { pretty(&v) } else { println!("{}", v["path"].as_str().unwrap_or("")); }
         }
-        Cmd::Clips => {
+        Cmd::Clips { name: Some(name), output } => {
+            if name.contains(['/', '\\']) { return Err("give the clip's file name, as `clips` lists it".into()); }
+            let r = api(&c, "GET", &format!("/clips/{name}"), None).await?;
+            save(output, name.clone(), &r.body)?;
+        }
+        Cmd::Reports => {
+            let v = get(&c, "/api/reports").await?;
+            if raw { pretty(&v) } else {
+                for r in v["reports"].as_array().into_iter().flatten() {
+                    println!("{} {}  {}", match r["passed"].as_bool() { Some(true) => "PASS", Some(false) => "FAIL", None => "?   " },
+                        r["test"].as_str().unwrap_or(""), r["path"].as_str().unwrap_or(""));
+                }
+            }
+        }
+        Cmd::Clips { name: None, .. } => {
             let v = get(&c, "/api/clips").await?;
             if raw { pretty(&v) } else {
                 for clip in v.as_array().or_else(|| v["clips"].as_array()).into_iter().flatten() {
@@ -477,8 +613,13 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             });
             ok(&post(&c, "/api/network", b).await?);
         }
-        Cmd::Devices => {
-            let d = ns2bench_core::video::list_devices().await;
+        Cmd::ScreenLog { state } => {
+            let on = matches!(state, OnOff::On);
+            post(&c, "/api/control", json!({"screen_log": on})).await?;
+            println!("screen log {}", if on { "on" } else { "off" });
+        }
+        Cmd::Devices { local } => {
+            let d = if local { ns2bench_core::video::list_devices().await } else { get(&c, "/api/video").await?["devices"].clone() };
             if raw { pretty(&d); return Ok(ExitCode::SUCCESS); }
             for dev in d.as_array().into_iter().flatten() {
                 let formats: Vec<String> = dev["formats"].as_array().into_iter().flatten().take(6)
@@ -503,19 +644,21 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             }
             return Ok(if r["overall"] == "fail" { ExitCode::FAILURE } else { ExitCode::SUCCESS });
         }
-        Cmd::Logs { source, contains, lines, follow } => {
+        Cmd::Logs { source, contains, lines, level, follow } => {
             let mut after = 0u64;
             let mut first = true;
             loop {
                 let mut q = vec![("limit", if first { lines } else { 500 }.to_string()), ("after", after.to_string())];
                 if let Some(s) = &source { q.push(("source", s.clone())); }
                 if let Some(t) = &contains { q.push(("contains", t.clone())); }
+                if let Some(l) = &level { q.push(("level", l.clone())); }
                 let v = get(&c, &format!("/api/logs{}", query(&q))).await?;
                 for e in v["entries"].as_array().into_iter().flatten() {
                     after = after.max(e["seq"].as_u64().unwrap_or(after));
                     if raw { println!("{e}"); } else {
-                        println!("{} {:<8} {}", ns2bench_core::logs::local_time(e["t"].as_f64().unwrap_or(0.0)),
-                            e["source"].as_str().unwrap_or(""), e["text"].as_str().unwrap_or(""));
+                        println!("{} {:<5} {:<8} {}", ns2bench_core::logs::local_time(e["t"].as_f64().unwrap_or(0.0)),
+                            e["level"].as_str().unwrap_or("info").to_uppercase(), e["source"].as_str().unwrap_or(""), e["text"].as_str().unwrap_or(""));
+                        if let Some(h) = e["hint"].as_str() { println!("{:>24}→ {h}", ""); }
                     }
                 }
                 if !follow { break; }
@@ -523,8 +666,19 @@ async fn run(cli: Cli) -> Res<ExitCode> {
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
         }
-        Cmd::Events => pretty(&get(&c, "/api/events").await?),
-        Cmd::Diagnostics => println!("{}", api(&c, "GET", "/api/diagnostics", None).await?.text()),
+        Cmd::Events { source, lines } => {
+            let mut q = vec![("limit", lines.to_string())];
+            if let Some(s) = source { q.push(("source", s)); }
+            let v = get(&c, &format!("/api/events{}", query(&q))).await?;
+            if raw { pretty(&v) } else {
+                for e in v.as_array().into_iter().flatten() {
+                    let mut d = e.clone();
+                    if let Some(o) = d.as_object_mut() { o.remove("t"); o.remove("source"); o.remove("action"); }
+                    println!("{} {:<4} {} {}", ns2bench_core::logs::local_time(e["t"].as_f64().unwrap_or(0.0)), e["source"].as_str().unwrap_or(""), e["action"].as_str().unwrap_or(""), d);
+                }
+            }
+        }
+        Cmd::Diagnostics { lines } => println!("{}", api(&c, "GET", &format!("/api/diagnostics?lines={}", lines.min(2000)), None).await?.text()),
         Cmd::Bundle { output } => {
             let r = api(&c, "GET", "/api/bundle", None).await?;
             save(output, format!("ns2bench-report-{}.zip", stamp()), &r.body)?;

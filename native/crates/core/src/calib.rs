@@ -6,7 +6,7 @@
 use crate::bench::Bench;
 use crate::config::{state_dir, write_json};
 use crate::video::{Frame, FrameHub};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use image::GrayImage;
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
@@ -78,6 +78,68 @@ pub fn diff(a: &GrayImage, b: &GrayImage) -> f64 {
         }
     }
     best
+}
+
+fn region_of(img: &GrayImage, r: Option<[f64; 4]>) -> GrayImage {
+    let Some(r) = r else { return img.clone() };
+    let (w, h) = (img.width() as f64, img.height() as f64);
+    let x = (r[0] * w) as u32;
+    let y = (r[1] * h) as u32;
+    let cw = ((r[2] * w) as u32).max(8).min(img.width() - x.min(img.width() - 8));
+    let ch = ((r[3] * h) as u32).max(6).min(img.height() - y.min(img.height() - 6));
+    image::imageops::crop_imm(img, x.min(img.width() - cw), y.min(img.height() - ch), cw, ch).to_image()
+}
+
+/// Wait until the picture (or part of it) changes from how it looks now ("change"), or
+/// until it stops moving for `stable_ms` ("stable"). The basis of "press, then wait for
+/// the screen to react" without guessing a sleep.
+pub async fn wait_screen(hub: &FrameHub, until: &str, timeout: Duration, stable_ms: u64, region: Option<[f64; 4]>) -> Result<Value> {
+    let t0 = Instant::now();
+    let mut f = hub.latest().filter(|f| f.at.elapsed() < Duration::from_secs(5)).ok_or_else(|| anyhow!("no live video to watch"))?;
+    let shrink_r = |g: GrayImage| region_of(&g, region);
+    let ms = |t: Instant| t.elapsed().as_millis() as u64;
+    match until {
+        "change" => {
+            let base = shrink_r(small(&f).await?);
+            // noise floor: how much the picture moves by itself (video noise, animations)
+            let mut floor = 0.0f64;
+            for _ in 0..2 {
+                if let Ok(nf) = next_frame(hub, f.seq, Duration::from_secs(1)).await {
+                    f = nf;
+                    floor = floor.max(diff(&shrink_r(small(&f).await?), &base));
+                }
+            }
+            let threshold = (floor * 3.0 + 2.0).max(4.0);
+            let mut peak = 0.0f64;
+            while t0.elapsed() < timeout {
+                let Ok(nf) = next_frame(hub, f.seq, Duration::from_millis(500)).await else { continue };
+                f = nf;
+                let d = diff(&shrink_r(small(&f).await?), &base);
+                peak = peak.max(d);
+                if d > threshold {
+                    return Ok(json!({"until": "change", "ok": true, "waited_ms": ms(t0), "diff": (d * 100.0).round() / 100.0, "frame": f.seq}));
+                }
+            }
+            Ok(json!({"until": "change", "ok": false, "waited_ms": ms(t0), "diff": (peak * 100.0).round() / 100.0,
+                      "message": "the screen did not change"}))
+        }
+        "stable" => {
+            let mut prev = shrink_r(small(&f).await?);
+            let mut calm_since = Instant::now();
+            while t0.elapsed() < timeout {
+                let Ok(nf) = next_frame(hub, f.seq, Duration::from_millis(500)).await else { continue };
+                f = nf;
+                let cur = shrink_r(small(&f).await?);
+                if diff(&cur, &prev) >= 1.2 { calm_since = Instant::now(); }
+                prev = cur;
+                if calm_since.elapsed() >= Duration::from_millis(stable_ms) {
+                    return Ok(json!({"until": "stable", "ok": true, "waited_ms": ms(t0), "frame": f.seq}));
+                }
+            }
+            Ok(json!({"until": "stable", "ok": false, "waited_ms": ms(t0), "message": "the screen kept moving"}))
+        }
+        _ => bail!("until must be change or stable"),
+    }
 }
 
 /// Wait until the picture stops moving (menus animate after each press).

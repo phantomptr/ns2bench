@@ -14,6 +14,16 @@ What's new in NS2Bench, written for humans.
   - Install the offline network helper as a service on macOS or Linux.
 - The on-screen Switch 2 looks like the real console: one device with a bezelled screen, Joy-Con attached with coloured rails, and shoulder buttons on the top edge.
 - Settings has a sidebar, and Appearance works like ps5upload. It has theme cards, a Text size setting (70–140%) and Accessibility options: Motion, Reduce transparency, High contrast and a dyslexia-friendly font.
+- Logs have levels: Everything, Info, Problems and Errors. Each level has an icon, and known problems now explain what happened and what to do. Logs are also saved to `~/.ns2bench/logs` (7 days). More things are logged: API calls, refused requests, the picture stopping or running slow, sound problems, and settings changes.
+- Desktop notifications, like ps5upload: when the Bridge or the picture drops, when tests and clips finish, when an agent starts driving, and when an update is ready (Settings → Notifications).
+- Agents and scripts can do more, in the API, MCP and the command line alike:
+  - wait for the screen to change or settle
+  - find text and where it is
+  - take cropped screenshots
+  - get a one-call health check with fixes
+  - read events, clips, test reports and video info
+  - filter logs by level
+- Fixed: agents could switch the USB mode or video settings while Block agents was on. Probes now appear in the input log, and `type` no longer types at half speed.
 - Windows on ARM: a native `win-arm64` installer and command line tool.
 
 ## 0.0.2

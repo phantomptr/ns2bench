@@ -152,7 +152,7 @@ pub async fn run_test(b: &Bench, test: &Value, source: &str, stop_on_fail: bool)
     }
     std::fs::write(dir.join("report.md"), md.join("\n") + "\n")?;
     let msg = format!("test {}: {name} ({duration} s) → {}", if passed { "passed" } else { "FAILED" }, dir.display());
-    if passed { b.logs.add("bench", msg) } else { b.logs.error("bench", msg) }
+    if passed { b.logs.notify("bench", "info", "Test passed", msg) } else { b.logs.notify("bench", "error", "Test failed", msg) }
     Ok(report)
 }
 

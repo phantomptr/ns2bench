@@ -125,11 +125,12 @@ fn main() {
     let mut target: tauri::Url = url.parse().expect("engine url");
     if let Some(token) = cfg.token() { target.query_pairs_mut().append_pair("token", &token); }
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .manage(updates::Updates::default())
         .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action])
         .setup(move |app| {
             app.add_capability(tauri::ipc::CapabilityBuilder::new("engine-updates").local(false).window("main")
-                .remote(format!("{}/*", target.origin().ascii_serialization())).permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action"))?;
+                .remote(format!("{}/*", target.origin().ascii_serialization())).permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("notification:default"))?;
             let mut window = app.config().app.windows.iter().find(|w| w.label == "main")
                 .expect("main window configuration").clone();
             window.url = WebviewUrl::External(target.clone());

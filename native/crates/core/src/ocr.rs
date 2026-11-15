@@ -111,7 +111,7 @@ async fn engine_read(engine: Engine, jpeg: &[u8], fast: bool) -> Result<Vec<Line
     }
 }
 
-fn crop(jpeg: &[u8], r: [f64; 4]) -> Result<Vec<u8>> {
+pub fn crop(jpeg: &[u8], r: [f64; 4]) -> Result<Vec<u8>> {
     let im = image::load_from_memory(jpeg)?;
     let (w, h) = (im.width() as f64, im.height() as f64);
     let x = (r[0] * w).round() as u32;

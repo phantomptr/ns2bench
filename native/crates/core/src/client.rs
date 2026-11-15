@@ -78,7 +78,7 @@ impl Client {
         req += &data;
         sock.write_all(req.as_bytes()).await?;
         let mut raw = vec![];
-        tokio::time::timeout(Duration::from_secs(600), sock.read_to_end(&mut raw)).await
+        tokio::time::timeout(Duration::from_secs(3600), sock.read_to_end(&mut raw)).await
             .map_err(|_| anyhow!("request timed out"))??;
         parse(&raw)
     }
