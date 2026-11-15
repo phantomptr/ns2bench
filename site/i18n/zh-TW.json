@@ -49,7 +49,7 @@
   "download.mac.req": "macOS 14 或更新版本",
   "download.note": "在 macOS 或 Windows 上首次啟動可能會出現警告：請參閱<a href=\"faq/#app-and-updates\">常見問題</a>。Windows 和 Linux 還需要 ffmpeg：<a href=\"setup/#before-you-start-your-computer\">設定指南</a>中有說明。",
   "download.title": "下載",
-  "download.win.req": "Windows 10 或 11，x64",
+  "download.win.req": "Windows 10 或 11，x64 / arm64",
   "download.win.setup": "安裝程式",
   "download.yours": "你的電腦",
   "faq.kicker": "常見問題",

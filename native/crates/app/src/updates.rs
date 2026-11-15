@@ -98,7 +98,7 @@ fn select(m: Manifest, key: &str, current: &str) -> Result<Update> {
     .into();
     Ok(u)
 }
-fn client() -> Result<reqwest::Client> {
+pub(crate) fn client() -> Result<reqwest::Client> {
     Ok(reqwest::Client::builder()
         .user_agent(concat!("NS2Bench/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(10))
@@ -407,7 +407,7 @@ pub async fn update_action(
     Ok(json!(*u))
 }
 /// Lower-case hex of a digest (sha2 0.11 digests don't implement LowerHex).
-fn hex(bytes: &[u8]) -> String {
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 

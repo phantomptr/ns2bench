@@ -176,7 +176,7 @@ Choisissez **Informations complémentaires → Exécuter quand même**. Le progr
 
 ## macOS redemande la Caméra ou le Micro après une mise à jour.
 
-Tant que l’app n’est pas notarisée, chaque mise à jour compte comme une nouvelle app pour macOS, qui peut donc redemander. Autorisez-la encore une fois ; rien d’autre ne change.
+Depuis la 0.0.3, chaque version de NS2Bench porte la même signature : macOS demande une fois et s’en souvient, même après un redémarrage ou une mise à jour. En venant de la 0.0.2 ou plus ancienne, il demande une dernière fois.
 
 ## Comment changer le thème ou la langue ?
 

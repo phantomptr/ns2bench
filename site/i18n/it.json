@@ -49,7 +49,7 @@
   "download.mac.req": "macOS 14 o successivo",
   "download.note": "Il primo avvio su macOS o Windows può mostrare un avviso: vedi le <a href=\"faq/#app-and-updates\">FAQ</a>. Windows e Linux richiedono anche ffmpeg: la <a href=\"setup/#before-you-start-your-computer\">guida alla configurazione</a> spiega come.",
   "download.title": "Download",
-  "download.win.req": "Windows 10 o 11, x64",
+  "download.win.req": "Windows 10 o 11, x64 / arm64",
   "download.win.setup": "Programma di installazione",
   "download.yours": "Il tuo computer",
   "faq.kicker": "FAQ",

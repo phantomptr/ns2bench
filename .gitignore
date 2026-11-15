@@ -64,3 +64,6 @@ npm-debug.log*
 .release_posts/
 _site/
 THIRD-PARTY-LICENSES.txt
+
+# CLI sidecar copied into the app bundle by scripts/app-cli.sh
+/native/crates/app/bin/

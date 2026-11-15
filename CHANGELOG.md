@@ -6,6 +6,14 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- macOS remembers Camera and Microphone permission. The app now has a fixed signature, so it asks once instead of after every update. Updating from 0.0.2 asks one last time.
+- New Settings → Install tab:
+  - Install the `ns2bench` command line tool, which now ships inside the app.
+  - Flash a Raspberry Pi Pico with the Bridge firmware.
+  - Install or update the Bridge on a Linux board over SSH.
+  - Install the offline network helper as a service on macOS or Linux.
+- Windows on ARM: a native `win-arm64` installer and command line tool.
+
 ## 0.0.2
 
 - **Languages:** the Network settings status (service state, interface, DHCP/DNS/connectivity

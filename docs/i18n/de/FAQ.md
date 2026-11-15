@@ -176,7 +176,7 @@ Wähle **Weitere Informationen → Trotzdem ausführen**. Der Installer ist noch
 
 ## macOS fragt nach einem Update erneut nach Kamera oder Mikrofon.
 
-Solange die App nicht notarisiert ist, zählt jedes Update für macOS als neue App, daher kann es erneut fragen. Erlaube es noch einmal; sonst ändert sich nichts.
+Ab 0.0.3 trägt jede NS2Bench-Version dieselbe Signatur, daher fragt macOS einmal und merkt es sich, auch über Neustarts und Updates hinweg. Beim Update von 0.0.2 oder älter fragt es ein letztes Mal.
 
 ## Wie ändere ich Design oder Sprache?
 

@@ -29,8 +29,9 @@ serve: build ## run the native engine (UI at http://127.0.0.1:7630); reads ./ben
 serve-dev: dev ## run the debug build
 	$(NATIVE_DEV) serve
 
-app: ## build the desktop app (Tauri) -> native/target/release/bundle/ (needs: cargo install tauri-cli --version '^2')
-	cd native/crates/app && cargo tauri build
+app: ## build the desktop app (Tauri) with the ns2bench CLI inside -> native/target/release/bundle/ (needs: cargo install tauri-cli --version '^2')
+	scripts/app-cli.sh
+	cd native/crates/app && ../../../scripts/with-signing.sh cargo tauri build --config tauri.cli.conf.json
 
 app-dev: ## run the desktop app from source (debug)
 	$(CARGO) run -p ns2bench-app

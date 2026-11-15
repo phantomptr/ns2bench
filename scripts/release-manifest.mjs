@@ -18,7 +18,7 @@ export async function manifest(dir, tag) {
     assets[platform] = `https://github.com/phantomptr/ns2bench/releases/download/${tag}/${encodeURIComponent(name)}`;
     sha256[platform] = createHash('sha256').update(await readFile(join(dir, name))).digest('hex');
   }
-  for (const platform of ['darwin-aarch64', 'darwin-x86_64', 'windows-x86_64', 'linux-x86_64']) {
+  for (const platform of ['darwin-aarch64', 'darwin-x86_64', 'windows-x86_64', 'windows-aarch64', 'linux-x86_64']) {
     if (!assets[platform]) throw new Error(`Missing installer for ${platform}`);
   }
   return { version: tag.slice(1), pub_date: new Date().toISOString(), notes: process.env.RELEASE_NOTES_TEXT || `NS2Bench ${tag}. See the GitHub release for full release notes.`, assets, sha256 };

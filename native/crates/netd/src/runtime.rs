@@ -349,10 +349,14 @@ fn expand(path: &str) -> PathBuf {
     }
 }
 pub fn main(args: Vec<String>) -> Result<(), String> {
+    if args.iter().any(|s| s == "--version") {
+        println!("ns2bench-netd {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
     let check = args.iter().any(|s| s == "--check");
     let paths: Vec<_> = args.iter().filter(|s| s.as_str() != "--check").collect();
     if paths.len() > 1 || paths.first().is_some_and(|p| p.starts_with('-')) {
-        return Err("usage: ns2bench-netd [--check] [config.json]".into());
+        return Err("usage: ns2bench-netd [--check | --version] [config.json]".into());
     }
     let path = paths
         .first()

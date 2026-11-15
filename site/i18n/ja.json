@@ -49,7 +49,7 @@
   "download.mac.req": "macOS 14 以降",
   "download.note": "macOS や Windows では、初回起動時に警告が出ることがあります。<a href=\"faq/#app-and-updates\">FAQ</a> をご覧ください。Windows と Linux では ffmpeg も必要です。手順は<a href=\"setup/#before-you-start-your-computer\">セットアップガイド</a>にあります。",
   "download.title": "ダウンロード",
-  "download.win.req": "Windows 10 または 11、x64",
+  "download.win.req": "Windows 10 または 11、x64 / arm64",
   "download.win.setup": "インストーラー",
   "download.yours": "お使いのコンピューター",
   "faq.kicker": "FAQ",

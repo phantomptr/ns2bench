@@ -72,6 +72,7 @@ jobs:
           - { os: ubuntu-22.04, platform: linux, arch: x64, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb" }
           - { os: ubuntu-22.04-arm, platform: linux, arch: arm64, target: aarch64-unknown-linux-gnu, bundles: "appimage,deb" }
           - { os: windows-2022, platform: win, arch: x64, target: x86_64-pc-windows-msvc, bundles: "nsis" }
+          - { os: windows-11-arm, platform: win, arch: arm64, target: aarch64-pc-windows-msvc, bundles: "nsis" }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -91,6 +92,9 @@ jobs:
       - name: Linux webview packages
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf file
+      - name: Build the command line tool for the app bundle
+        shell: bash
+        run: scripts/app-cli.sh "${{ matrix.target }}"
       - name: Build the desktop app
         shell: bash
         working-directory: native/crates/app
@@ -98,10 +102,14 @@ jobs:
           # AppImage tooling runs without FUSE on CI runners.
           APPIMAGE_EXTRACT_AND_RUN: "1"
           NO_STRIP: "true"
+          # macOS: a fixed self-signed certificate, so Camera/Microphone permission
+          # survives updates (scripts/with-signing.sh). Ad-hoc if the secret is missing.
+          NS2BENCH_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          NS2BENCH_SIGNING_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
         run: |
           set -euo pipefail
           for try in 1 2; do
-            if npx --yes @tauri-apps/cli@2.12.4 build --ci --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"; then exit 0; fi
+            if ../../../scripts/with-signing.sh npx --yes @tauri-apps/cli@2.12.4 build --ci --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}" --config tauri.cli.conf.json; then exit 0; fi
             echo "::warning::tauri build failed (try $try of 2)"
           done
           exit 1
@@ -146,6 +154,7 @@ jobs:
           - { os: ubuntu-22.04, os_name: linux, arch: x64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-22.04-arm, os_name: linux, arch: arm64, target: aarch64-unknown-linux-gnu }
           - { os: windows-2022, os_name: windows, arch: x64, target: x86_64-pc-windows-msvc }
+          - { os: windows-11-arm, os_name: windows, arch: arm64, target: aarch64-pc-windows-msvc }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -235,7 +244,7 @@ jobs:
           cp LICENSE release/LICENSE
           cp NOTICE release/NOTICE.txt
           node scripts/third-party.mjs release/THIRD-PARTY-LICENSES.txt
-          for name in "NS2Bench-$V-mac-arm64.dmg" "NS2Bench-$V-mac-x64.dmg" "NS2Bench-$V-win-x64-setup.exe" \
+          for name in "NS2Bench-$V-mac-arm64.dmg" "NS2Bench-$V-mac-x64.dmg" "NS2Bench-$V-win-x64-setup.exe" "NS2Bench-$V-win-arm64-setup.exe" \
                       "NS2Bench-$V-linux-x64.AppImage" "NS2Bench-$V-linux-arm64.AppImage" \
                       "NS2Bench-$V-linux-x64.deb" "NS2Bench-$V-linux-arm64.deb" \
                       "ns2bench-board-$V-linux-armv7" "ns2bench-board-$V-linux-arm64" "ns2bench-pico-$V.uf2"; do
@@ -246,7 +255,7 @@ jobs:
             echo
             echo "---"
             echo
-            echo "**Downloads:** macOS \`.dmg\` (Apple silicon: \`mac-arm64\`, Intel: \`mac-x64\`), Windows \`-setup.exe\`, Linux \`.AppImage\` or \`.deb\`."
+            echo "**Downloads:** macOS \`.dmg\` (Apple silicon: \`mac-arm64\`, Intel: \`mac-x64\`), Windows \`-setup.exe\` (\`win-x64\` or \`win-arm64\`), Linux \`.AppImage\` or \`.deb\`."
             echo "Input devices: \`ns2bench-board-*\` for Linux USB-gadget boards, \`ns2bench-pico-*.uf2\` for a Raspberry Pi Pico."
             echo "Setup guide: https://ns2bench.phantomptr.com/setup/ · FAQ: https://ns2bench.phantomptr.com/faq/"
           } >> RELEASE_NOTES.md

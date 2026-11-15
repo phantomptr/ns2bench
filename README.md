@@ -66,7 +66,7 @@ Download the app for your computer from the **[latest release](https://github.co
 |---|---|
 | Mac with Apple silicon | `NS2Bench-<version>-mac-arm64.dmg` |
 | Mac with Intel | `NS2Bench-<version>-mac-x64.dmg` |
-| Windows | `NS2Bench-<version>-win-x64-setup.exe` |
+| Windows | `NS2Bench-<version>-win-x64-setup.exe` (or `win-arm64` for Snapdragon/ARM PCs) |
 | Linux | `NS2Bench-<version>-linux-x64.AppImage` or `.deb` (also `arm64`) |
 
 For the input device: `ns2bench-board-*` (Linux boards, installed with `board/install.sh`) or `ns2bench-pico-*.uf2` (Raspberry Pi Pico). Every file is listed in `SHA256SUMS`, and the app checks the checksum of every update it installs.
@@ -94,7 +94,7 @@ That removes the *quarantine* flag macOS puts on everything downloaded from a br
 | | Needs | Install first |
 |---|---|---|
 | macOS 14+ | nothing else | (optional, for clips) `brew install ffmpeg` |
-| Windows 10/11 x64 | ffmpeg | `winget install Gyan.FFmpeg`; a USB-UART driver (CH340/CP210x) for serial devices |
+| Windows 10/11 x64 or arm64 | ffmpeg | `winget install Gyan.FFmpeg`; a USB-UART driver (CH340/CP210x) for serial devices |
 | Linux x64/arm64 | ffmpeg, `video`/`dialout` groups | the `.deb` pulls in ffmpeg; `sudo usermod -aG video,dialout $USER` |
 
 Details for each system are in the setup guide's **[Before you start](docs/setup/README.md#before-you-start-your-computer)**. If ffmpeg is missing, NS2Bench says so and shows the command for your system.
@@ -141,7 +141,7 @@ More detail, the full HTTP API and the test format are in **[docs/REFERENCE.md](
 
 | | macOS | Windows | Linux |
 |---|---|---|---|
-| Desktop app | ✅ arm64, x64 | ✅ x64 | ✅ x64, arm64 |
+| Desktop app | ✅ arm64, x64 | ✅ x64, arm64 | ✅ x64, arm64 |
 | Capture | ✅ native, shares the card with OBS | ffmpeg (DirectShow) | ffmpeg (V4L2) |
 | Offline console network | ✅ | via a Linux helper or a router | ✅ |
 

@@ -182,7 +182,7 @@ Choose **More info → Run anyway**. The installer isn't signed with a paid cert
 
 ## macOS asks for Camera or Microphone again after an update.
 
-Until the app is notarized, each update counts as a new app to macOS, so it may ask again. Allow it once more; nothing else changes.
+From 0.0.3 on, every NS2Bench build carries the same signature, so macOS asks once and remembers, across restarts and updates. Updating from 0.0.2 or older, it asks one last time.
 
 ## How do I change the theme or language?
 

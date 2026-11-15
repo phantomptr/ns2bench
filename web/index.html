@@ -137,7 +137,7 @@
   <div class="settings-head"><h2 id="settings-title">Settings</h2><button id="settings-close" type="button" aria-label="Close settings">Close</button></div>
   <nav class="settings-tabs" aria-label="Settings sections">
     <button data-tab="devices" aria-pressed="true">Devices</button><button data-tab="network" aria-pressed="false">Network</button>
-    <button data-tab="integrations" aria-pressed="false">API &amp; MCP</button><button data-tab="appearance" aria-pressed="false">Appearance</button><button data-tab="updates" aria-pressed="false">Updates</button><button data-tab="help" aria-pressed="false">Help</button><button data-tab="about" aria-pressed="false">About</button>
+    <button data-tab="integrations" aria-pressed="false">API &amp; MCP</button><button data-tab="install" aria-pressed="false">Install</button><button data-tab="appearance" aria-pressed="false">Appearance</button><button data-tab="updates" aria-pressed="false">Updates</button><button data-tab="help" aria-pressed="false">Help</button><button data-tab="about" aria-pressed="false">About</button>
   </nav>
   <p id="settings-message" role="status" aria-live="polite"></p>
   <section data-pane="devices">
@@ -173,6 +173,29 @@
     <pre id="api-example"></pre><button id="api-copy" type="button">Copy API example</button>
     <h3>MCP connection</h3><p>Add this to your MCP client’s configuration. The client launches the stdio server; keep paths valid on that computer.</p><pre id="mcp-config"></pre><button id="mcp-copy" type="button">Copy MCP configuration</button>
     <details><summary id="mcp-count">Available tools</summary><div id="mcp-tools"></div></details>
+  </section>
+  <section data-pane="install" hidden>
+    <p class="hint">Set up the parts of NS2Bench that live outside this window. Downloads come from the NS2Bench release that matches this app and are checked before use.</p>
+    <h3>Command line tool</h3>
+    <p>Use the ns2bench command to drive the bench from a terminal or a script.</p><pre>ns2bench status
+ns2bench press A
+ns2bench screenshot -o shot.jpg
+ns2bench --help</pre>
+    <p id="cli-status">The command line tool installs from the NS2Bench desktop app.</p>
+    <div class="field-row"><button id="cli-install" type="button" class="primary" disabled>Install command line tool</button><button id="cli-uninstall" type="button" disabled hidden>Remove</button></div>
+    <h3>Pico firmware</h3>
+    <p>Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.</p>
+    <div class="field-row"><button id="pico-flash" type="button" class="primary" disabled>Flash Pico</button></div>
+    <p class="hint" id="pico-status"></p>
+    <h3>Bridge board (Linux)</h3>
+    <p>Installs or updates the Bridge on a Luckfox or Raspberry Pi board over SSH. Set up SSH key sign-in to the board first. The board keeps its current files as backups.</p>
+    <label class="field">SSH host<input id="board-host" placeholder="root@192.168.79.2" autocomplete="off" spellcheck="false" data-no-i18n></label>
+    <div class="field-row"><button id="board-probe" type="button" disabled>Check board</button><button id="board-install" type="button" class="primary" disabled>Install on board</button></div>
+    <p class="hint" id="board-status"></p><pre id="board-log" hidden></pre>
+    <h3>Network helper</h3>
+    <p>Gives the console a private network with no internet: addresses, local names and the connectivity test. Choose the network setup in the Network tab first.</p>
+    <div class="field-row"><button id="netd-install" type="button" class="primary" disabled>Install helper</button><button id="netd-uninstall" type="button" disabled hidden>Remove</button></div>
+    <p class="hint" id="netd-status"></p>
   </section>
   <section data-pane="appearance" hidden>
     <h3>Theme</h3>

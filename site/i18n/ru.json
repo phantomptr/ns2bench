@@ -49,7 +49,7 @@
   "download.mac.req": "macOS 14 или новее",
   "download.note": "При первом запуске на macOS или Windows может появиться предупреждение: см. <a href=\"faq/#app-and-updates\">FAQ</a>. Для Windows и Linux также нужен ffmpeg: как его установить, показано в <a href=\"setup/#before-you-start-your-computer\">руководстве</a>.",
   "download.title": "Скачать",
-  "download.win.req": "Windows 10 или 11, x64",
+  "download.win.req": "Windows 10 или 11, x64 / arm64",
   "download.win.setup": "Установщик",
   "download.yours": "Ваш компьютер",
   "faq.kicker": "FAQ",

@@ -2368,6 +2368,7 @@ dependencies = [
  "anyhow",
  "futures",
  "ns2bench-core",
+ "rand 0.10.3",
  "reqwest",
  "semver",
  "serde",

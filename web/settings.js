@@ -156,6 +156,82 @@ if (invoke) updateAction('status').then(automaticUpdates).catch((e) => message(S
 setInterval(() => automaticUpdates().catch((e) => message(e.message)), 60000);
 setInterval(() => { if (dialog.open && !$('[data-pane="network"]').hidden) network(false).catch((e) => message(e.message)); }, 5000);
 
+// Command line tool: put the ns2bench CLI that ships in the app on the PATH.
+let cli = null;
+function renderCli(note) {
+  const st = $('#cli-status'), inst = $('#cli-install'), rm = $('#cli-uninstall');
+  inst.disabled = !invoke || !cli?.available || !!cli?.system_package; rm.hidden = !cli?.ours || !!cli?.system_package; rm.disabled = !invoke;
+  inst.textContent = cli?.ours ? t('Reinstall') : t('Install command line tool');
+  if (note) { st.textContent = note; return; }
+  if (!invoke) { st.textContent = t('The command line tool installs from the NS2Bench desktop app.'); return; }
+  if (!cli) return;
+  const dir = (cli.target || '').replace(/[\\/]ns2bench(\.exe)?$/, '');
+  if (!cli.available) st.textContent = t('This copy of NS2Bench has no command line tool. Download it from the GitHub release.');
+  else if (cli.system_package) st.textContent = `${t('Installed by the package:')} ${cli.path || '/usr/bin/ns2bench'}`;
+  else if (cli.ours) st.textContent = `${t('Installed:')} ${cli.path} · ${cli.dir_on_path ? t('Open a new terminal and run ns2bench --help.') : `${t('Add this folder to your PATH, or sign out and back in:')} ${dir}`}`;
+  else if (cli.installed) st.textContent = `${t('Another ns2bench is on your PATH:')} ${cli.path}`;
+  else st.textContent = t('Not installed.');
+}
+async function cliAction(action) {
+  if (!invoke) return;
+  renderCli(t(action === 'install' ? 'Installing…' : action === 'uninstall' ? 'Removing…' : 'Checking…'));
+  try { cli = await invoke('cli_action', { action }); renderCli(); }
+  catch (e) { const m = String(e); renderCli(m === 'Cancelled' ? undefined : m); }
+}
+$('#cli-install').onclick = run(() => cliAction('install'));
+$('#cli-uninstall').onclick = run(() => cliAction('uninstall'));
+renderCli();
+if (invoke) cliAction('status');
+
+// Install: Pico firmware, Bridge board over SSH, network helper (desktop app only).
+const component = (name, action, extra = {}) => invoke('component_action', { component: name, action, ...extra });
+const say = (id, text) => { $(id).textContent = text; };
+let installBusy = false;
+async function installStep(buttons, id, busyText, fn) {
+  if (!invoke || installBusy) return;
+  installBusy = true; for (const b of buttons) $(b).disabled = true; say(id, busyText);
+  try { await fn(); } catch (e) { say(id, String(e)); } finally { installBusy = false; renderInstall(); }
+}
+let netd = null;
+function renderInstall() {
+  const off = !invoke || installBusy;
+  $('#pico-flash').disabled = off; $('#board-probe').disabled = off || !$('#board-host').value.trim(); $('#board-install').disabled = $('#board-probe').disabled;
+  $('#netd-install').disabled = off || netd?.supported === false; $('#netd-uninstall').hidden = !netd?.installed; $('#netd-uninstall').disabled = off;
+  if (!invoke) for (const id of ['#pico-status', '#board-status', '#netd-status']) say(id, t('Available in the NS2Bench desktop app.'));
+}
+function renderNetd() {
+  if (!netd) return;
+  if (!netd.supported) { say('#netd-status', t('The network helper runs on macOS and Linux. On Windows, run it on a Linux board or PC (see the setup guide).')); return; }
+  $('#netd-install').textContent = netd.installed ? t('Update helper') : t('Install helper');
+  if (!netd.installed) { say('#netd-status', t('Not installed.')); return; }
+  const v = netd.installed_version && netd.installed_version !== 'older' ? netd.installed_version : t('an older version');
+  say('#netd-status', `${netd.running ? t('Running') : t('Installed, not running')} · ${v}${netd.config ? ` · ${netd.config}` : ''}${netd.app_config && netd.config && netd.config !== netd.app_config ? ` · ${t('The app uses a different settings file:')} ${netd.app_config}` : ''}`);
+}
+$('#board-host').value = ls.get('ns2bench.board.host') || '';
+$('#board-host').oninput = () => { ls.set('ns2bench.board.host', $('#board-host').value.trim()); renderInstall(); };
+$('#pico-flash').onclick = run(() => installStep(['#pico-flash'], '#pico-status', t('Looking for a Pico in BOOTSEL mode… Hold BOOTSEL while you plug it in.'), async () => {
+  say('#pico-status', (await component('pico', 'flash')).message);
+}));
+$('#board-probe').onclick = run(() => installStep(['#board-probe', '#board-install'], '#board-status', t('Connecting…'), async () => {
+  const b = await component('board', 'probe', { host: $('#board-host').value.trim() });
+  say('#board-status', `${b.arch} · ${b.installed ? `${t('Installed:')} ${b.installed}` : t('NS2Bench Bridge is not installed.')}${b.supported ? '' : ` · ${t('This board is not supported.')}`}`);
+}));
+$('#board-install').onclick = run(() => installStep(['#board-probe', '#board-install'], '#board-status', t('Installing… The Bridge restarts, so held buttons are released.'), async () => {
+  const r = await component('board', 'install', { host: $('#board-host').value.trim() });
+  say('#board-status', r.message); $('#board-log').textContent = r.log || ''; $('#board-log').hidden = !r.log;
+}));
+$('#netd-install').onclick = run(() => installStep(['#netd-install', '#netd-uninstall'], '#netd-status', t('Installing…'), async () => {
+  const r = await component('netd', 'install'); netd = r.status; renderNetd(); $('#netd-status').textContent += ` · ${r.message}`;
+}));
+$('#netd-uninstall').onclick = run(() => installStep(['#netd-install', '#netd-uninstall'], '#netd-status', t('Removing…'), async () => {
+  const r = await component('netd', 'uninstall'); netd = r.status; renderNetd();
+}));
+renderInstall();
+if (invoke) {
+  component('netd', 'status').then((v) => { netd = v; renderNetd(); renderInstall(); }).catch((e) => say('#netd-status', String(e)));
+  component('pico', 'status').then((v) => { if (v.drive) say('#pico-status', `${t('Pico ready:')} ${v.drive}`); }).catch(() => {});
+}
+
 // Help: bug report bundle, diagnostics, and a prefilled GitHub issue.
 const helpNote = (t) => { $('#help-note').textContent = t; };
 $('#help-bundle').onclick = () => { location.href = authURL('/api/bundle'); helpNote('Bug report saved to your Downloads folder.'); };

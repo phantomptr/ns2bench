@@ -8,6 +8,7 @@
 # An existing board token is never overwritten (the host would lose access); a token is
 # only uploaded when the board has none. The USB gadget itself is not rebuilt: a new
 # gadget.sh takes effect on the next mode switch or boot.
+# The on-board steps live in remote-install.sh (shared with the desktop app's installer).
 set -eu
 HOST=${1:?usage: install.sh <ssh-host> <binary> [token-file]}
 BIN=${2:?binary path required}
@@ -36,22 +37,5 @@ if ! $SSH "test -s $DEST/token"; then
     echo "uploaded token"
 fi
 
-$SSH "set -e; cd $DEST
-for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new quirks/*.new; do sh -n \"\$f\"; done
-bash -n restore-default-gadget.sh.new
-chmod 755 ns2bench-board.new
-./ns2bench-board.new version
-for f in ns2bench-board gadget.sh ns2bench-hidd.sh; do [ ! -e \"\$f\" ] || cp -p \"\$f\" \"\$f.bak\"; done
-for q in quirks/*.new; do b=\${q%.new}; [ ! -e \"\$b\" ] || cp -p \"\$b\" \"\$b.bak\"; mv \"\$q\" \"\$b\"; done
-for f in swap.sh restore-default-gadget.sh; do [ ! -e \"\$f\" ] || cp -p \"\$f\" \"\$f.bak\"; done
-chmod 755 ns2bench-board.new gadget.sh.new ns2bench-hidd.sh.new swap.sh.new restore-default-gadget.sh.new S98ns2bench-swap.new
-mv swap.sh.new swap.sh
-mv restore-default-gadget.sh.new restore-default-gadget.sh
-# boot hook for SD swap: installed once, never replaced
-if [ -e /etc/init.d/S98ns2bench-swap ]; then rm -f S98ns2bench-swap.new; else mv S98ns2bench-swap.new /etc/init.d/S98ns2bench-swap; fi
-mv gadget.sh.new gadget.sh
-mv ns2bench-hidd.sh.new ns2bench-hidd.sh
-./ns2bench-hidd.sh stop >/dev/null
-mv ns2bench-board.new ns2bench-board
-./ns2bench-hidd.sh start"
+$SSH sh -s < "$HERE/remote-install.sh"
 echo "done. previous files are kept on the board as *.bak"
