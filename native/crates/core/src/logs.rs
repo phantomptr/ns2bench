@@ -184,3 +184,10 @@ pub fn pretty(line: &str) -> String {
 pub fn stamp() -> String {
     chrono::Local::now().format("%Y%m%d-%H%M%S").to_string()
 }
+
+/// Local wall-clock time (HH:MM:SS) of a log timestamp.
+pub fn local_time(t: f64) -> String {
+    chrono::DateTime::from_timestamp(t as i64, 0)
+        .map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string())
+        .unwrap_or_default()
+}

@@ -1,6 +1,6 @@
 # Third-party licenses
 
-NS2Bench is MIT licensed ([`LICENSE`](../LICENSE)). It includes material derived from:
+NS2Bench is licensed under the GPL-3.0-or-later ([`LICENSE`](../LICENSE)) with the section 7 attribution terms in [`NOTICE`](../NOTICE). It includes MIT-licensed material derived from:
 
 | File | Covers |
 |---|---|

@@ -1,6 +1,31 @@
 NS2Bench
-Copyright (c) 2026 PhantomPtr. MIT License (see LICENSE).
+Copyright (C) 2026 PhantomPtr <https://github.com/phantomptr/ns2bench>
 
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version. It is
+distributed WITHOUT ANY WARRANTY; see LICENSE for details.
+
+Additional terms (GNU GPL version 3, section 7)
+-----------------------------------------------
+Under section 7 of the GNU General Public License version 3, the following terms
+apply to NS2Bench and to every work based on it:
+
+ (b) Attribution. You must preserve the author attribution
+     "NS2Bench, created by PhantomPtr (https://github.com/phantomptr/ns2bench)"
+     in the Appropriate Legal Notices displayed by the program (for example the
+     About screen) and in the documentation (for example the README) of any
+     conveyed copy or modified version.
+
+ (c) Modified versions must be marked in reasonable ways as different from the
+     original version, and must not be presented as the original NS2Bench.
+
+ (e) This license does not grant rights to use the name "NS2Bench" or its logo as
+     a trademark for a modified version, except to describe its origin as required
+     by term (b).
+
+Third-party material
+--------------------
 This product includes material derived from GP2040-CE
 (https://github.com/OpenStickCommunity/GP2040-CE), MIT License,
 Copyright (c) 2024 OpenStickCommunity and (c) 2021 Jason Skuby.
@@ -9,6 +34,9 @@ golden fixtures (Switch 2 Pro Controller descriptors, command replies, flash tab
 
 Protocol notes were informed by ndeadly/switch2_controller_research (reference only;
 no code or text copied).
+
+Every release includes THIRD-PARTY-LICENSES.txt with the licenses of the open-source
+packages compiled into the binaries.
 
 Nintendo Switch is a trademark of Nintendo. NS2Bench is not affiliated with or
 endorsed by Nintendo.

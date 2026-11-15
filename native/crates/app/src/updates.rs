@@ -345,6 +345,22 @@ async fn install(path: &Path) -> Result<()> {
     }
     Ok(())
 }
+/// Headless updates: `ns2bench-app update check|install`. Same checks as the UI:
+/// manifest, platform asset, SHA-256 before and after download, then the
+/// platform installer (which restarts the app once this process exits).
+pub async fn cli(action: &str) -> Result<Value> {
+    let mut u = check().await?;
+    if action == "check" || !u.available {
+        return Ok(json!(u));
+    }
+    ensure!(action == "install", "usage: ns2bench-app update check|install");
+    download(&mut u).await?;
+    let path = u.path.clone().context("download produced no file")?;
+    verify(&path, u.hash.as_deref().context("checksum missing")?).await?;
+    install(&path).await?;
+    Ok(json!(u))
+}
+
 #[tauri::command]
 pub async fn update_action(
     action: String,

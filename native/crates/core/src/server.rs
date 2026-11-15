@@ -283,7 +283,7 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
             return Err(bad("only the person at the NS2Bench page can turn off manual-only mode"));
         }
         b.hub.manual_only.store(on, std::sync::atomic::Ordering::Relaxed);
-        b.hub.log("ui", "manual_only", json!({"on": on}));
+        b.hub.log(&source_of(&h, &body), "manual_only", json!({"on": on}));
         if on { b.hub.clear_agent(); }
     }
     Ok(Json(b.status()))

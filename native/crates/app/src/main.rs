@@ -65,6 +65,18 @@ async fn running(cfg: &ns2bench_core::Config) -> bool {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("update") {
+        let action = args.get(2).map(String::as_str).unwrap_or("check");
+        let rt = tokio::runtime::Runtime::new().expect("runtime");
+        match rt.block_on(updates::cli(action)) {
+            Ok(v) => println!("{v}"),
+            Err(e) => {
+                eprintln!("NS2Bench update: {e}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     if args.get(1).map(String::as_str) == Some("mcp") {
         let rt = tokio::runtime::Runtime::new().expect("runtime");
         if let Err(e) = rt.block_on(ns2bench_core::mcp::run(load_config())) {

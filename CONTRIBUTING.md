@@ -45,6 +45,10 @@ node --test tests/web/*.test.mjs        # UI end to end (needs: cargo build -p n
   in `~/.ns2bench/` or are git-ignored.
 - Add a line under `## Unreleased` in `CHANGELOG.md`, written for users.
 
+## License of contributions
+
+NS2Bench is GPL-3.0-or-later. By sending a pull request you agree that your contribution is licensed under the same terms.
+
 ## Questions
 
 Ask on [Discord](https://discord.gg/fzK3xddtrM) or open a discussion issue.

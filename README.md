@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/phantomptr/ns2bench/releases"><img src="https://img.shields.io/github/v/release/phantomptr/ns2bench?display_name=tag&sort=semver&color=blue" alt="Latest release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3-green" alt="GPL-3.0 license" /></a>
   <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="macOS, Windows, Linux" />
   <img src="https://img.shields.io/badge/console-Nintendo%20Switch%202-brightgreen" alt="Nintendo Switch 2" />
   <a href="https://discord.gg/fzK3xddtrM"><img src="https://img.shields.io/badge/discord-join-5865F2" alt="Discord" /></a>
@@ -71,13 +71,23 @@ Download the app for your computer from the **[latest release](https://github.co
 
 For the input device: `ns2bench-board-*` (Linux boards, installed with `board/install.sh`) or `ns2bench-pico-*.uf2` (Raspberry Pi Pico). Every file is listed in `SHA256SUMS`, and the app checks the checksum of every update it installs.
 
-### First-launch warnings
+### First-launch warnings (and why they're there)
 
-The app isn't signed with a paid developer certificate yet, so your system may warn you once:
+NS2Bench isn't signed with paid Apple or Microsoft certificates yet. Gatekeeper (macOS) and SmartScreen (Windows) treat unsigned downloads as suspicious until you allow them once.
 
-- **macOS:** if it says the app "is damaged" or "can't be checked", run `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`, then open it. Allow **Camera** (the capture card's picture), **Microphone** (console sound) and **Local Network** (the input device) when asked.
-- **Windows:** SmartScreen may show "Windows protected your PC": choose **More info → Run anyway**.
-- **Linux:** make the AppImage executable (`chmod +x NS2Bench-*.AppImage`).
+**macOS**: "NS2Bench is damaged and can't be opened" or "cannot be opened because Apple cannot check it":
+
+```bash
+xattr -dr com.apple.quarantine /Applications/NS2Bench.app
+```
+
+That removes the *quarantine* flag macOS puts on everything downloaded from a browser. Or: right-click NS2Bench in Applications → **Open** → **Open**, or System Settings → Privacy & Security → **Open Anyway**. Either way, once per install. Then allow **Camera** (the capture card's picture), **Microphone** (console sound) and **Local Network** (the input device) when asked.
+
+**Windows**: "Windows protected your PC":
+- Click **More info** → **Run anyway**. It's shown only until SmartScreen trusts the file.
+- If a policy blocks "Run anyway": right-click the installer → **Properties** → tick **Unblock** → **OK**.
+
+**Linux**: no warning. `chmod +x NS2Bench-*.AppImage` and run it, or install the `.deb`.
 
 ### System requirements
 
@@ -141,9 +151,31 @@ Tested on hardware so far: macOS capture (UGREEN 15389) and a Luckfox Pico Max b
 
 The engine listens on `127.0.0.1:7630`. The MCP server (23 tools: see, drive, navigate, test, debug) is the same binary run with `mcp`; it talks to the running engine, so you see everything an agent does. Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
+## Command line
+
+`ns2bench` does everything the API and MCP do, from a terminal or a script. It talks to the running app (or `ns2bench serve`), so you see every action in the window.
+
+```sh
+ns2bench status                              # video, Bridge, console USB, agents
+ns2bench press A --hold-ms 120               # also: hold, release, stick, key, type, mouse, click
+ns2bench navigate system_settings            # go somewhere and verify it
+ns2bench read --region 0,0,0.5,0.2           # on-screen text
+ns2bench wait-text "Airplane Mode" --timeout 10
+ns2bench test examples/tests/settings-smoke.json
+ns2bench clip --seconds 20                   # also: screenshot, bundle, diagnostics
+ns2bench logs --follow --source network      # also: events, doctor --probe
+ns2bench input --backend serial --serial-port /dev/ttyACM0 --baud 921600
+```
+
+Add `--json` for raw output, `--url` / `--token` (or `NS2BENCH_URL` / `NS2BENCH_TOKEN`) for another engine. `ns2bench --help` lists every command. Get it from each release (`ns2bench-cli-<version>-<os>-<arch>`) or build it with `make build`. The desktop app itself also runs `ns2bench-app mcp` (the MCP server) and `ns2bench-app update check|install` (update from a terminal).
+
 ## FAQ
 
 Common questions (setup, capture cards, input devices, the offline network, agents, troubleshooting) are answered in **[FAQ.md](FAQ.md)** and on the [website](https://ns2bench.phantomptr.com/faq/).
+
+## Roadmap
+
+What's next (waking from sleep, a test recorder, visual checks, more input devices, multi-console) is in [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 
@@ -189,7 +221,9 @@ Thanks to the console research and homebrew communities whose open documentation
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Each release also includes `THIRD-PARTY-LICENSES.txt` with the license and notice texts of every open-source package compiled into the binaries (`node scripts/third-party.mjs` builds it).
+GNU General Public License v3.0 or later (GPL-3.0-or-later). See [LICENSE](LICENSE).
+
+Under GPLv3 section 7, [NOTICE](NOTICE) adds terms for every copy and modified version: keep the attribution **"NS2Bench, created by PhantomPtr"** in the app's About screen and in the documentation, mark modified versions as modified, and don't use the NS2Bench name or logo for them. Derived GP2040-CE material stays under its MIT license ([`LICENSES/`](LICENSES/)). Each release also includes `THIRD-PARTY-LICENSES.txt` with the license and notice texts of every open-source package compiled into the binaries (`node scripts/third-party.mjs` builds it).
 
 ## Author
 

@@ -58,8 +58,8 @@
       }
     },
     "publisher": "PhantomPtr",
-    "copyright": "Copyright © 2026 PhantomPtr. MIT License.",
-    "license": "MIT",
+    "copyright": "Copyright © 2026 PhantomPtr. GPL-3.0-or-later.",
+    "license": "GPL-3.0-or-later",
     "homepage": "https://ns2bench.phantomptr.com"
   }
 }

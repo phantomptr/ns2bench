@@ -3,107 +3,384 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NS2Bench · See, hear and drive a Nintendo Switch 2 from your computer</title>
-<meta name="description" content="Free, open-source bench for the Nintendo Switch 2: live video and sound, keyboard/gamepad/AI-agent input through a USB input device, repeatable tests. The console stays offline.">
+<title data-i18n="meta.title">NS2Bench · See, hear and drive a Nintendo Switch 2 from your computer</title>
+<meta name="description" data-i18n-attr="content:meta.description" content="Free, open-source bench for the Nintendo Switch 2: live video and sound, keyboard, gamepad and AI-agent input through a USB input device, repeatable tests. The console stays offline.">
 <meta name="color-scheme" content="light dark">
 <meta property="og:title" content="NS2Bench">
-<meta property="og:description" content="See, hear and drive a Nintendo Switch 2 from your computer, by hand or by AI agents. The console stays offline.">
+<meta property="og:description" data-i18n-attr="content:meta.og" content="See, hear and drive a Nintendo Switch 2 from your computer, by hand or by AI agents. The console stays offline.">
 <meta property="og:image" content="https://ns2bench.phantomptr.com/assets/og.png">
 <meta property="og:url" content="https://ns2bench.phantomptr.com/">
+<meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" id="canonical" href="https://ns2bench.phantomptr.com/">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
-<script>try{const t=localStorage.getItem('ns2bench.site.theme');if(t)document.documentElement.dataset.theme=t;}catch{}</script>
+<!-- The language and theme, decided before anything is drawn (the same list as app.js): a
+     translated page waits for its words instead of flashing English. -->
+<script>
+  (function () {
+    var codes = ["en","zh-CN","zh-TW","ja","ko","es","pt-BR","fr","de","it","ru"];
+    var pick = function (c) {
+      if (!c) return null;
+      c = String(c).toLowerCase();
+      for (var i = 0; i < codes.length; i++) if (codes[i].toLowerCase() === c) return codes[i];
+      if (/^zh-(tw|hk|mo|hant)/.test(c)) return "zh-TW";
+      if (/^zh/.test(c)) return "zh-CN";
+      if (/^pt/.test(c)) return "pt-BR";
+      var p = c.split("-")[0];
+      return codes.indexOf(p) >= 0 ? p : null;
+    };
+    var lang = null, root = document.documentElement;
+    try { lang = pick(new URLSearchParams(location.search).get("lang")) || pick(localStorage.getItem("ns2bench.site.lang")); } catch (e) {}
+    if (!lang) {
+      var nav = navigator.languages || [navigator.language];
+      for (var j = 0; j < nav.length && !lang; j++) lang = pick(nav[j]);
+    }
+    lang = lang || "en";
+    root.lang = lang;
+    if (/[?&]lang=/.test(location.search)) {
+      var link = document.getElementById("canonical");
+      if (link) link.href = link.href.split("?")[0] + "?lang=" + lang;
+    }
+    if (lang !== "en") {
+      root.classList.add("i18n-wait");
+      setTimeout(function () { root.classList.remove("i18n-wait"); }, 2500);
+    }
+    try { var t = localStorage.getItem("ns2bench.site.theme"); if (t) root.dataset.theme = t; } catch (e) {}
+  })();
+</script>
 </head>
 <body>
+<a class="skip" href="#main" data-i18n="nav.skip">Skip to content</a>
+
 <header class="top">
-  <a class="brand" href="./" aria-label="NS2Bench home"><span class="mark" aria-hidden="true"></span><span>NS2Bench</span></a>
-  <nav aria-label="Site">
-    <a href="#features">Features</a><a href="setup/">Setup</a><a href="#agents">Agents</a><a href="faq/">FAQ</a><a href="#download">Download</a><a href="#thanks">Support</a>
-    <a href="https://github.com/phantomptr/ns2bench" rel="noopener">GitHub</a>
-  </nav>
-  <button id="theme" type="button" aria-label="Switch between light and dark" title="Switch between light and dark">◐</button>
+  <div class="wrap top-row">
+    <a class="brand" href="./" data-i18n-attr="aria-label:nav.home" aria-label="NS2Bench home"><span class="mark" aria-hidden="true"></span><span>NS2Bench</span></a>
+    <nav class="nav" data-i18n-attr="aria-label:nav.sections" aria-label="Sections">
+      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="setup/" data-i18n="nav.setup">Setup</a>
+      <a href="#agents" data-i18n="nav.agents">Agents</a>
+      <a href="faq/" data-i18n="nav.faq">FAQ</a>
+      <a href="#download" data-i18n="nav.download">Download</a>
+      <a href="#thanks" data-i18n="nav.support">Support</a>
+    </nav>
+    <div class="top-actions">
+      <a class="btn small coffee" href="#thanks" data-i18n-attr="title:nav.coffee_title" title="NS2Bench is free. A coffee for me, or tokens for the AI that writes the code, keeps it going.">☕ <span data-i18n="nav.coffee">Coffee or tokens</span></a>
+      <label class="lang" data-i18n-attr="title:nav.language" title="Language">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-9-9h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3Z"/></svg>
+        <select id="lang" data-i18n-attr="aria-label:nav.language" aria-label="Language"><option value="en">English</option></select>
+      </label>
+      <a class="icon-btn" href="https://github.com/phantomptr/ns2bench" data-i18n-attr="aria-label:nav.github" aria-label="NS2Bench on GitHub" title="GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      </a>
+      <button class="icon-btn" id="theme" type="button" data-i18n-attr="aria-label:nav.theme_label;title:nav.theme_title" aria-label="Switch light or dark" title="Light or dark">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+    </div>
+  </div>
 </header>
 
-<main>
-<section class="hero">
-  <div class="hero-text">
-    <h1>See, hear and drive a Nintendo Switch 2 from your computer.</h1>
-    <p class="lead">By hand or by AI agents. Live video and sound, keyboard, mouse and gamepad input, repeatable tests. The console stays offline. Free and open source.</p>
-    <p class="cta">
-      <a class="button primary" id="dl-main" href="https://github.com/phantomptr/ns2bench/releases/latest">Download</a>
-      <a class="button" href="setup/">Setup guide</a>
-    </p>
-    <p class="small" id="dl-note">macOS · Windows · Linux · <span data-version>v__VERSION__</span></p>
-  </div>
-  <picture class="hero-shot">
-    <source media="(prefers-color-scheme: light)" srcset="assets/shots/main-light.webp">
-    <img src="assets/shots/main-dark.webp" alt="NS2Bench showing the console's System Settings with on-screen Joy-Con, the Driving and Video panels and logs" width="1440" height="900">
-  </picture>
-</section>
+<main id="main">
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="wrap hero-row">
+      <div class="hero-text">
+        <p class="eyebrow"><span data-i18n="hero.eyebrow">Free and open source</span> · <span data-version>v__VERSION__</span></p>
+        <h1 data-i18n="hero.title">See, hear and drive a <span class="grad">Nintendo Switch 2</span> from your computer.</h1>
+        <p class="lead" data-i18n="hero.lead">By hand or by AI agents. Live video and sound, keyboard, mouse and gamepad input, and repeatable tests. The console stays offline.</p>
+        <div class="hero-cta">
+          <a class="btn primary" id="dl-main" href="https://github.com/phantomptr/ns2bench/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+            <span id="dl-main-label" data-i18n="hero.download">Download</span>
+          </a>
+          <a class="btn" href="setup/" data-i18n="hero.setup">Setup guide</a>
+        </div>
+        <p class="fine" data-i18n="hero.fine">For macOS, Windows and Linux. You need a USB HDMI capture card; an input device is optional.</p>
+      </div>
+      <figure class="shot">
+        <img class="only-light" src="assets/shots/main-light.webp" data-i18n-attr="alt:alt.main" alt="NS2Bench showing the console's System Settings with on-screen Joy-Con, the Driving and Video panels and logs" width="1600" height="1000">
+        <img class="only-dark" src="assets/shots/main-dark.webp" data-i18n-attr="alt:alt.main" alt="NS2Bench showing the console's System Settings with on-screen Joy-Con, the Driving and Video panels and logs" width="1600" height="1000">
+      </figure>
+    </div>
+    <ul class="wrap badges" data-i18n-attr="aria-label:badges.label" aria-label="At a glance">
+      <li data-i18n="badges.video"><b>1080p60</b> video and sound</li>
+      <li data-i18n="badges.mcp"><b>23</b> MCP tools for agents</li>
+      <li data-i18n="badges.langs"><b>11</b> languages</li>
+      <li data-i18n="badges.offline"><b>0</b> internet for the console</li>
+    </ul>
+  </section>
 
-<section id="features" aria-labelledby="features-h">
-  <h2 id="features-h">What it does</h2>
-  <div class="grid">
-    <article><h3>See and hear</h3><p>1080p60 video and sound from any USB HDMI capture card. Screenshots, 30-second clips and on-screen text reading. On macOS it shares the card with OBS.</p></article>
-    <article><h3>Drive</h3><p>Keyboard, mouse or your own gamepad, through a small input device on the console's USB port. On-screen Joy-Con light up with every press.</p></article>
-    <article><h3>Let agents drive</h3><p>An HTTP API and an MCP server with 23 tools. You see every agent action live, and one switch blocks agent input.</p></article>
-    <article><h3>Test</h3><p>Repeatable JSON tests with screenshots and a clip of the moments before any failure. A doctor tells you which part is broken.</p></article>
-    <article><h3>Offline by design</h3><p>An optional console network answers only the connectivity test. No forwarding, no NAT, no internet, and it can't be turned off.</p></article>
-    <article><h3>Yours</h3><p>Light, Peach, Dark and OLED themes and 11 languages. Everything stays on your computer; nothing is uploaded.</p></article>
-  </div>
-</section>
+  <section class="section" id="features" aria-labelledby="features-title">
+    <div class="wrap">
+      <p class="kicker" data-i18n="features.kicker">What it does</p>
+      <h2 id="features-title" data-i18n="features.title">Your Switch 2, on your desk</h2>
+      <p class="section-lead" data-i18n="features.lead">Everything a TV sees and a controller presses, on your computer. Nothing is installed on the console and nothing is uploaded.</p>
+      <div class="grid features">
+        <article class="card">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+          <h3 data-i18n="features.see.title">See and hear</h3>
+          <p data-i18n="features.see.text">1080p60 video and sound from any USB HDMI capture card. Screenshots, 30-second clips and on-screen text reading. On macOS it shares the card with OBS.</p>
+        </article>
+        <article class="card">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg></span>
+          <h3 data-i18n="features.drive.title">Drive</h3>
+          <p data-i18n="features.drive.text">Keyboard, mouse or your own gamepad, through a small input device on the console's USB port. On-screen Joy-Con light up with every press.</p>
+        </article>
+        <article class="card">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13v1M15 13v1M2 14h2M20 14h2"/></svg></span>
+          <h3 data-i18n="features.agents.title">Let agents drive</h3>
+          <p data-i18n="features.agents.text">An HTTP API and an MCP server with 23 tools. You see every agent action live, and one switch blocks agent input.</p>
+        </article>
+        <article class="card">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 11 3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></span>
+          <h3 data-i18n="features.test.title">Test</h3>
+          <p data-i18n="features.test.text">Repeatable JSON tests with screenshots and a clip of the moments before any failure. A doctor tells you which part is broken.</p>
+        </article>
+        <article class="card">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <h3 data-i18n="features.offline.title">Offline by design</h3>
+          <p data-i18n="features.offline.text">An optional console network answers only the connectivity test. No forwarding, no NAT, no internet, and that can't be turned off.</p>
+        </article>
+        <article class="card">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18"/></svg></span>
+          <h3 data-i18n="features.yours.title">Yours</h3>
+          <p data-i18n="features.yours.text">Light, Peach, Dark and OLED themes and 11 languages. Free and open source under the GPL-3.0 license.</p>
+        </article>
+      </div>
 
-<section id="connect" aria-labelledby="connect-h">
-  <h2 id="connect-h">How it connects</h2>
-  <figure class="diagram"><img src="setup/overview.svg" alt="Console in its dock: HDMI to a capture card on the computer, an input device on the console's USB port, NS2Bench on the computer for you and your agents" loading="lazy"></figure>
-  <div class="grid">
-    <a class="card-link" href="setup/#linux-usb-gadget-board"><h3>Linux board</h3><p>Luckfox, Raspberry Pi Zero 2 W, Pi 4/5. Every button, including C, GL and GR in Pro Controller mode. Keyboard and mouse.</p></a>
-    <a class="card-link" href="setup/#raspberry-pi-pico"><h3>Raspberry Pi Pico</h3><p>The cheapest controller option, with a 3.3 V USB-to-UART adapter. Keyboard and mouse too.</p></a>
-    <a class="card-link" href="setup/#ch9329-module"><h3>CH9329</h3><p>A keyboard and mouse for the console, no controller.</p></a>
-    <a class="card-link" href="setup/#view-only"><h3>View only</h3><p>Just a capture card: watch, record, take screenshots and read text.</p></a>
-  </div>
-</section>
+      <div class="tour">
+        <div class="tour-row">
+          <div class="tour-text">
+            <h3 data-i18n="tour.yours.title">Make it yours</h3>
+            <p data-i18n="tour.yours.text">The app looks and speaks the way you like, and remembers it.</p>
+            <ul class="ticks">
+              <li data-i18n="tour.yours.t1">Four themes: Light, Peach, Dark and OLED.</li>
+              <li data-i18n="tour.yours.t2">11 languages, the same as this site.</li>
+              <li data-i18n="tour.yours.t3">Clips, screenshots and logs stay on your computer.</li>
+            </ul>
+          </div>
+          <figure class="shot tilt-r">
+            <img src="assets/shots/main-oled-ja.webp" data-i18n-attr="alt:alt.oled" alt="NS2Bench in the OLED theme, in Japanese" width="1600" height="1000" loading="lazy">
+          </figure>
+        </div>
+        <div class="tour-row flip">
+          <div class="tour-text">
+            <h3 data-i18n="tour.settings.title">Set up in minutes</h3>
+            <p data-i18n="tour.settings.text">Pick the capture card and the input device in Settings. The doctor checks every part and tells you what to fix.</p>
+            <ul class="ticks">
+              <li data-i18n="tour.settings.t1">The Video panel lists only what your card offers. Sound comes through the same card.</li>
+              <li data-i18n="tour.settings.t2">Input settings change without restarting the app.</li>
+              <li data-i18n="tour.settings.t3">Updates are checked daily and verified before they install.</li>
+            </ul>
+          </div>
+          <figure class="shot tilt-l">
+            <img class="only-light" src="assets/shots/settings-devices-light.webp" data-i18n-attr="alt:alt.devices" alt="NS2Bench Settings: the capture card and the input device" width="1600" height="1000" loading="lazy">
+            <img class="only-dark" src="assets/shots/settings-devices-dark.webp" data-i18n-attr="alt:alt.devices" alt="NS2Bench Settings: the capture card and the input device" width="1600" height="1000" loading="lazy">
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<section id="agents" aria-labelledby="agents-h">
-  <h2 id="agents-h">For AI agents</h2>
-  <p>The MCP server is built into the app. Add it to Claude Code, Codex, opencode or any MCP client, then ask your agent to open a menu, read the screen or run a test, and watch it work.</p>
-  <pre><code>claude mcp add ns2bench -- /Applications/NS2Bench.app/Contents/MacOS/ns2bench-app mcp</code></pre>
-  <p class="small">Settings → API &amp; MCP in the app shows the exact configuration for your computer. <a href="https://github.com/phantomptr/ns2bench/blob/main/docs/REFERENCE.md#agents-mcp-and-http-api">Tools and HTTP API</a>.</p>
-</section>
+  <section class="section alt" id="connect" aria-labelledby="connect-title">
+    <div class="wrap">
+      <p class="kicker" data-i18n="connect.kicker">How it connects</p>
+      <h2 id="connect-title" data-i18n="connect.title">Eyes and hands</h2>
+      <p class="section-lead" data-i18n="connect.lead">The console's HDMI goes into a USB capture card on your computer. For input, a small device plugs into the console's USB port. Pick the one that suits you.</p>
+      <figure class="diagram"><img src="setup/overview.svg" data-i18n-attr="alt:alt.diagram" alt="Console in its dock: HDMI to a capture card on the computer, an input device on the console's USB port, NS2Bench on the computer for you and your agents" width="900" height="590" loading="lazy"></figure>
+      <div class="grid community">
+        <a class="card link-card" href="setup/#linux-usb-gadget-board">
+          <h3 data-i18n="connect.board.title">Linux board</h3>
+          <p data-i18n="connect.board.text">Luckfox, Raspberry Pi Zero 2 W, Pi 4/5. Every button, including C, GL and GR in Pro Controller mode. Keyboard and mouse too.</p>
+          <span class="go" data-i18n="connect.guide">Setup guide →</span>
+        </a>
+        <a class="card link-card" href="setup/#raspberry-pi-pico">
+          <h3 data-i18n="connect.pico.title">Raspberry Pi Pico</h3>
+          <p data-i18n="connect.pico.text">The cheapest controller option, with a 3.3 V USB-to-UART adapter. Keyboard and mouse too.</p>
+          <span class="go" data-i18n="connect.guide">Setup guide →</span>
+        </a>
+        <a class="card link-card" href="setup/#ch9329-module">
+          <h3 data-i18n="connect.ch9329.title">CH9329</h3>
+          <p data-i18n="connect.ch9329.text">A keyboard and mouse for the console, no controller.</p>
+          <span class="go" data-i18n="connect.guide">Setup guide →</span>
+        </a>
+        <a class="card link-card" href="setup/#view-only">
+          <h3 data-i18n="connect.view.title">View only</h3>
+          <p data-i18n="connect.view.text">Just a capture card: watch, record, take screenshots and read text.</p>
+          <span class="go" data-i18n="connect.guide">Setup guide →</span>
+        </a>
+      </div>
+    </div>
+  </section>
 
-<section id="download" aria-labelledby="download-h">
-  <h2 id="download-h">Download <span class="small" data-version>v__VERSION__</span></h2>
-  <table class="downloads">
-    <thead><tr><th>Computer</th><th>File</th></tr></thead>
-    <tbody>
-      <tr><td>Mac with Apple silicon</td><td><a data-asset="mac-arm64.dmg" href="#">.dmg (arm64)</a></td></tr>
-      <tr><td>Mac with Intel</td><td><a data-asset="mac-x64.dmg" href="#">.dmg (x64)</a></td></tr>
-      <tr><td>Windows 10/11</td><td><a data-asset="win-x64-setup.exe" href="#">setup.exe (x64)</a></td></tr>
-      <tr><td>Linux</td><td><a data-asset="linux-x64.AppImage" href="#">AppImage (x64)</a> · <a data-asset="linux-x64.deb" href="#">.deb (x64)</a> · <a data-asset="linux-arm64.AppImage" href="#">AppImage (arm64)</a> · <a data-asset="linux-arm64.deb" href="#">.deb (arm64)</a></td></tr>
-      <tr><td>Input device</td><td><a data-file="ns2bench-board-__VERSION__-linux-armv7" href="#">Linux board (ARMv7)</a> · <a data-file="ns2bench-board-__VERSION__-linux-arm64" href="#">Linux board (ARM64)</a> · <a data-file="ns2bench-pico-__VERSION__.uf2" href="#">Pico firmware (.uf2)</a></td></tr>
-    </tbody>
-  </table>
-  <p class="small">All files and checksums: <a href="https://github.com/phantomptr/ns2bench/releases/latest">latest release</a>. First launch on macOS or Windows may show a warning: see the <a href="faq/#app-and-updates">FAQ</a>.</p>
-</section>
+  <section class="section" id="agents" aria-labelledby="agents-title">
+    <div class="wrap">
+      <div class="tour-row">
+        <div class="tour-text">
+          <p class="kicker" data-i18n="agents.kicker">For AI agents</p>
+          <h2 id="agents-title" data-i18n="agents.title">Let agents play, test and explore</h2>
+          <p data-i18n="agents.lead">The MCP server is built into the app. Add it to Claude Code, Codex, opencode or any MCP client, then ask your agent to open a menu, read the screen or run a test, and watch it work.</p>
+          <ul class="ticks">
+            <li data-i18n="agents.t1">23 MCP tools and an HTTP API on your own computer.</li>
+            <li data-i18n="agents.t2">You see every agent action live, as it happens.</li>
+            <li data-i18n="agents.t3">One switch blocks agent input whenever you want.</li>
+          </ul>
+          <div class="copy"><code id="cmd-mcp">claude mcp add ns2bench -- /Applications/NS2Bench.app/Contents/MacOS/ns2bench-app mcp</code><button class="btn small" type="button" data-copy="cmd-mcp" data-i18n="common.copy">Copy</button></div>
+          <p class="muted small" data-i18n="agents.note">Settings → API &amp; MCP in the app shows the exact configuration for your computer. <a href="https://github.com/phantomptr/ns2bench/blob/main/docs/REFERENCE.md#agents-mcp-and-http-api">Tools and HTTP API</a>.</p>
+        </div>
+        <figure class="shot tilt-r">
+          <img src="assets/shots/settings-integrations-dark.webp" data-i18n-attr="alt:alt.integrations" alt="NS2Bench Settings: API and MCP, with the configuration for agents" width="1600" height="1000" loading="lazy">
+        </figure>
+      </div>
+    </div>
+  </section>
 
-<section id="thanks" aria-labelledby="thanks-h">
-  <h2 id="thanks-h">Thanks &amp; support</h2>
-  <p>NS2Bench is free and open source, made by <strong>PhantomPtr</strong>. If it helps you, you can support its development.</p>
-  <p class="cta"><a class="button primary" href="https://ko-fi.com/B0B81S0WUA" rel="noopener">Support on Ko-fi</a> <a class="button" href="https://discord.gg/fzK3xddtrM" rel="noopener">Join the Discord</a> <a class="button" href="https://x.com/phantomptr" rel="noopener">Follow on X</a></p>
-  <div class="coins">
-    <figure><img src="assets/donate/btc.svg" alt="BTC QR code" loading="lazy"><figcaption>BTC<br><code>bc1q36gxkvd3wfxy9azm8hft3rru9m6m9hjvn7u20n</code></figcaption></figure>
-    <figure><img src="assets/donate/eth.svg" alt="ETH QR code" loading="lazy"><figcaption>ETH<br><code>0x2e787654db543B69FB011E16995C274dFAfc2286</code></figcaption></figure>
-    <figure><img src="assets/donate/sol.svg" alt="SOL QR code" loading="lazy"><figcaption>SOL<br><code>G1q5XCCn3mePYpcx7uY17CwDsUaAZTcty56huUDvVqjG</code></figcaption></figure>
-    <figure><img src="assets/donate/xrp.svg" alt="XRP QR code" loading="lazy"><figcaption>XRP (no tag)<br><code>rEVq3si3sm9NuWNuZiUZFKsUtwC3w9SrjR</code></figcaption></figure>
-  </div>
-</section>
+  <section class="section alt" id="download" aria-labelledby="download-title">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="download-title"><span data-i18n="download.title">Download</span> <span class="tag" data-version>v__VERSION__</span></h2>
+          <p class="section-lead" data-i18n="download.lead">The newest release for every computer. The app tells you when there is a new one.</p>
+        </div>
+        <a class="btn small" href="https://github.com/phantomptr/ns2bench/releases/latest" data-i18n="download.all">All files and checksums</a>
+      </div>
+      <div class="grid downloads">
+        <div class="card dl" data-os="mac">
+          <span class="tag" hidden data-i18n="download.yours">Your computer</span>
+          <div class="dl-head">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg></span>
+            <div><h3>macOS</h3><p class="muted" data-i18n="download.mac.req">macOS 14 or newer</p></div>
+          </div>
+          <div class="dl-files">
+            <a class="dl-file" data-asset="mac-arm64.dmg" href="https://github.com/phantomptr/ns2bench/releases/latest"><span data-i18n="download.mac.arm">Apple silicon</span><small>.dmg</small></a>
+            <a class="dl-file" data-asset="mac-x64.dmg" href="https://github.com/phantomptr/ns2bench/releases/latest"><span data-i18n="download.mac.intel">Intel</span><small>.dmg</small></a>
+          </div>
+        </div>
+        <div class="card dl" data-os="win">
+          <span class="tag" hidden data-i18n="download.yours">Your computer</span>
+          <div class="dl-head">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 5.5 10.5 4.5v7H3zM13 4.2 21 3v8.5h-8zM3 12.5h7.5v7L3 18.5zM13 12.5h8V21l-8-1.2z"/></svg></span>
+            <div><h3>Windows</h3><p class="muted" data-i18n="download.win.req">Windows 10 or 11, x64</p></div>
+          </div>
+          <div class="dl-files">
+            <a class="dl-file" data-asset="win-x64-setup.exe" href="https://github.com/phantomptr/ns2bench/releases/latest"><span data-i18n="download.win.setup">Installer</span><small>setup.exe</small></a>
+          </div>
+        </div>
+        <div class="card dl" data-os="linux">
+          <span class="tag" hidden data-i18n="download.yours">Your computer</span>
+          <div class="dl-head">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg></span>
+            <div><h3>Linux</h3><p class="muted" data-i18n="download.linux.req">x64 and arm64</p></div>
+          </div>
+          <div class="dl-files">
+            <a class="dl-file" data-asset="linux-x64.AppImage" href="https://github.com/phantomptr/ns2bench/releases/latest"><span>AppImage</span><small>x64</small></a>
+            <a class="dl-file" data-asset="linux-x64.deb" href="https://github.com/phantomptr/ns2bench/releases/latest"><span>.deb</span><small>x64</small></a>
+            <a class="dl-file" data-asset="linux-arm64.AppImage" href="https://github.com/phantomptr/ns2bench/releases/latest"><span>AppImage</span><small>arm64</small></a>
+            <a class="dl-file" data-asset="linux-arm64.deb" href="https://github.com/phantomptr/ns2bench/releases/latest"><span>.deb</span><small>arm64</small></a>
+          </div>
+        </div>
+        <div class="card dl">
+          <div class="dl-head">
+            <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+            <div><h3 data-i18n="download.device.title">Input device</h3><p class="muted" data-i18n="download.device.req">Optional, for driving the console</p></div>
+          </div>
+          <div class="dl-files">
+            <a class="dl-file" data-file="ns2bench-board-__VERSION__-linux-armv7" href="https://github.com/phantomptr/ns2bench/releases/latest"><span data-i18n="download.device.board">Linux board</span><small>ARMv7</small></a>
+            <a class="dl-file" data-file="ns2bench-board-__VERSION__-linux-arm64" href="https://github.com/phantomptr/ns2bench/releases/latest"><span data-i18n="download.device.board">Linux board</span><small>ARM64</small></a>
+            <a class="dl-file" data-file="ns2bench-pico-__VERSION__.uf2" href="https://github.com/phantomptr/ns2bench/releases/latest"><span data-i18n="download.device.pico">Pico firmware</span><small>.uf2</small></a>
+          </div>
+        </div>
+      </div>
+      <p class="more" data-i18n="download.note">First launch on macOS or Windows may show a warning: see the <a href="faq/#app-and-updates">FAQ</a>. Windows and Linux also need ffmpeg: the <a href="setup/#before-you-start-your-computer">setup guide</a> shows how.</p>
+    </div>
+  </section>
+
+  <section class="section" id="thanks" aria-labelledby="thanks-title">
+    <div class="wrap">
+      <div class="thanks-hero">
+        <span class="thanks-heart" aria-hidden="true">♥</span>
+        <h2 id="thanks-title" data-i18n="thanks.title">Thank you</h2>
+        <p class="section-lead" data-i18n="thanks.lead">NS2Bench is free and open source, made by PhantomPtr. A coffee for me, or tokens for the AI that writes the code, keeps it going.</p>
+      </div>
+      <h3 class="thanks-sub" data-i18n="thanks.support">Support NS2Bench</h3>
+      <div class="thanks-ways">
+        <div class="card thanks-kofi">
+          <div class="thanks-way-head">
+            <span class="thanks-icon" aria-hidden="true">☕</span>
+            <div>
+              <h3>Ko-fi</h3>
+              <p class="muted" data-i18n="thanks.kofi_sub">Card or PayPal, once or monthly</p>
+            </div>
+          </div>
+          <p data-i18n="thanks.kofi_body">The easiest way: a coffee, or whatever you like. It pays for test hardware, capture cards and the next release.</p>
+          <a class="btn coffee-btn" href="https://ko-fi.com/B0B81S0WUA">♥ <span data-i18n="thanks.kofi_button">Support on Ko-fi</span></a>
+        </div>
+        <div class="card thanks-crypto">
+          <div class="thanks-way-head">
+            <div>
+              <h3 data-i18n="thanks.crypto_title">Crypto</h3>
+              <p class="muted" data-i18n="thanks.crypto_sub">Straight to my hardware wallet</p>
+            </div>
+            <div class="coin-tabs" role="tablist" id="coin-tabs" data-i18n-attr="aria-label:thanks.coin_tabs" aria-label="Choose a coin"></div>
+          </div>
+          <div class="coin-panel" role="tabpanel" id="coin-panel">
+            <img id="coin-qr" class="coin-qr" src="assets/donate/btc.svg" width="148" height="148" alt="Bitcoin QR code">
+            <div class="coin-info">
+              <p class="coin-name" id="coin-name">Bitcoin</p>
+              <p class="muted small" id="coin-network">Network: Bitcoin</p>
+              <div class="coin-address-row">
+                <code id="coin-address" class="coin-address">bc1q36gxkvd3wfxy9azm8hft3rru9m6m9hjvn7u20n</code>
+                <button type="button" class="btn small" id="coin-copy" data-i18n="common.copy">Copy</button>
+              </div>
+              <p class="coin-warn" id="coin-warn">Send only BTC on the Bitcoin network. Anything else can't be recovered.</p>
+              <p class="muted small" id="coin-note" hidden data-i18n="thanks.xrp_no_tag">No destination tag needed: this is my own wallet, not an exchange.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="muted thanks-note" data-i18n="thanks.note">Please support the people behind the tools you use too. Thank you, all of you.</p>
+    </div>
+  </section>
+
+  <section class="section alt" id="community" aria-labelledby="community-title">
+    <div class="wrap">
+      <h2 id="community-title" data-i18n="community.title">Community</h2>
+      <div class="grid community">
+        <a class="card link-card" href="https://discord.gg/fzK3xddtrM">
+          <h3>Discord</h3>
+          <p data-i18n="community.discord">Help, setup questions and ideas. Release announcements land here first.</p>
+        </a>
+        <a class="card link-card" href="https://github.com/phantomptr/ns2bench/issues/new/choose">
+          <h3 data-i18n="community.bug.title">Report a problem</h3>
+          <p data-i18n="community.bug.text">Open an issue on GitHub. The doctor's report and the logs help a lot.</p>
+        </a>
+        <a class="card link-card" href="https://x.com/phantomptr">
+          <h3>X</h3>
+          <p data-i18n="community.x">Follow @phantomptr for releases.</p>
+        </a>
+        <a class="card link-card" href="faq/">
+          <h3 data-i18n="community.faq.title">Questions?</h3>
+          <p data-i18n="community.faq.text">The FAQ covers setup, capture, input devices, the offline network and agents.</p>
+        </a>
+      </div>
+    </div>
+  </section>
 </main>
 
-<footer>
-  <p>MIT License · <a href="https://github.com/phantomptr/ns2bench">GitHub</a> · <a href="faq/">FAQ</a> · <a href="setup/">Setup</a> · <a href="https://github.com/phantomptr/ns2bench/issues/new/choose">Report a problem</a></p>
-  <p class="small">Not affiliated with or endorsed by Nintendo. Nintendo Switch is a trademark of Nintendo.</p>
+<footer class="foot">
+  <div class="wrap foot-row">
+    <span data-i18n="foot.made">Created by <a href="https://phantomptr.com/">PhantomPtr</a>. NS2Bench is free software under the GPL-3.0 license.</span>
+    <nav class="foot-links" data-i18n-attr="aria-label:foot.links" aria-label="More">
+      <a href="https://github.com/phantomptr/ns2bench">GitHub</a>
+      <a href="setup/" data-i18n="nav.setup">Setup</a>
+      <a href="faq/" data-i18n="nav.faq">FAQ</a>
+      <a href="https://github.com/phantomptr/ns2bench/issues/new/choose" data-i18n="community.bug.title">Report a problem</a>
+    </nav>
+  </div>
+  <div class="wrap foot-row">
+    <span class="muted" data-i18n="foot.nintendo">Not affiliated with or endorsed by Nintendo. Nintendo Switch is a trademark of Nintendo.</span>
+  </div>
 </footer>
-<script src="app.js"></script>
+<script src="app.js" defer></script>
 </body>
 </html>

@@ -18,7 +18,7 @@ No. NS2Bench never gives the console internet access. Capture and USB input need
 
 ## Is it free?
 
-Yes. NS2Bench is free and open source under the MIT license. If it's useful, you can [support it](README.md#support).
+Yes. NS2Bench is free and open source under the GPL-3.0 license. You can use, change and share it; if you share a changed version, publish its source and keep the credit "NS2Bench, created by PhantomPtr" (see NOTICE). If it's useful, you can [support it](README.md#support).
 
 ## Is it affiliated with Nintendo?
 
@@ -120,6 +120,10 @@ Choose **Your keyboard sends → Keyboard & mouse** in the Driving panel. The co
 
 A board powered from the console's USB loses power and restarts when the console wakes. NS2Bench reconnects by itself. Presses made while the Bridge is offline are dropped, never replayed later.
 
+## Can NS2Bench wake the console from sleep?
+
+Not yet. The Switch 2 has no Wake-on-LAN, and a board powered from the console's USB port switches off with the console (tested: the Bridge drops about 7 seconds after Sleep Mode; after you wake the console, the board boots and NS2Bench reconnects by itself, ready within about 30 seconds). Two ways being explored: power the board separately (a USB power splitter that doesn't feed power back into the console) so it stays awake, or HDMI-CEC "Match TV Power State", where a CEC device on the HDMI side wakes the console. Until then, wake it with its power button.
+
 # Offline console network
 
 ## Do I need a network?
@@ -164,7 +168,13 @@ The app checks GitHub releases daily and shows when an update is available. Ever
 
 ## macOS says the app is damaged or can't be checked.
 
-The app isn't notarized yet. Run `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` once, then open it.
+The app isn't notarized yet, so macOS quarantines the download. Run this once in Terminal, then open the app:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/NS2Bench.app
+```
+
+Or right-click NS2Bench in Applications → **Open** → **Open**, or use System Settings → Privacy & Security → **Open Anyway**.
 
 ## Windows says it protected my PC.
 

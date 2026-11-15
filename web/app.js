@@ -282,7 +282,9 @@ hint();
 function showStatus(s) {
   const v = $('#pill-video'), i = $('#pill-input');
   const live = s.video.age_s !== null && s.video.age_s < 3;
-  v.textContent = live ? `${t('video')} ${s.video.fps} fps` : `${t('video')} · ${s.video.error ?? t('waiting')}`;
+  // Whole numbers only: changing widths made the toolbar jump between one and two rows.
+  v.textContent = live ? `${t('video')} ${Math.round(s.video.fps)} fps` : `${t('video')} · ${s.video.error ?? t('waiting')}`;
+  v.title = s.video.error ?? `${t('video')} ${s.video.fps} fps`;
   v.className = live ? 'pill ok' : 'pill bad';
   const inp = s.input;
   const wasReady = bridgeStatus?.connected && bridgeStatus?.usb === 'configured';
@@ -291,7 +293,7 @@ function showStatus(s) {
   if (!inputUnavailable()) inputWarning.hidden = true;
   const extra = inp.usb_mode === 'pro' ? ` · ${t('Pro Controller')}` : inp.devices?.includes('mouse') ? ` · ${t('keyboard + mouse')}` : '';
   const usb = inp.usb === 'configured' ? t('console ready') : t('console not ready');
-  i.textContent = inp.connected ? `Bridge ${inp.rtt_ms ?? '?'} ms · ${usb}${extra}`
+  i.textContent = inp.connected ? `Bridge ${inp.rtt_ms == null ? '?' : Math.max(1, Math.round(inp.rtt_ms))} ms · ${usb}${extra}`
     : `Bridge · ${inp.backend === 'none' ? t('not set up') : t('offline, reconnecting')}`;
   i.title = `NS2Bench Bridge (${inp.backend}): ${inp.detail ?? inp.usb ?? 'waiting'}`;
   i.className = inp.connected && inp.usb === 'configured' ? 'pill ok' : 'pill bad';

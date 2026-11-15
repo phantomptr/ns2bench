@@ -1,5 +1,5 @@
 //! Switch 2 Pro Controller over wired USB, as a Linux FunctionFS gadget function.
-//! Protocol and data follow GP2040-CE's Switch 2 Pro driver (MIT, see NOTICE) and
+//! Protocol and data follow GP2040-CE's Switch 2 Pro driver (MIT, see NOTICE and LICENSES/) and
 //! ndeadly/switch2_controller_research.
 //! Interface 0 = HID (interrupt IN/OUT, report 0x09 input, 0x02 rumble out); interface 1 = vendor
 //! (bulk OUT/IN carrying the command protocol). Runs at full speed.

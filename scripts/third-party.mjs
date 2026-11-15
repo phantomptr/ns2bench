@@ -27,7 +27,7 @@ const parts = [
   'NS2Bench third-party licenses',
   '==============================',
   '',
-  `NS2Bench is MIT licensed (see LICENSE). Its binaries include the ${list.length} open-source`,
+  `NS2Bench is GPL-3.0-or-later (see LICENSE and NOTICE). Its binaries include the ${list.length} open-source`,
   'Rust packages below. Each is listed with its declared license and the license and',
   'notice files shipped in its source. GP2040-CE-derived data is covered in LICENSES/.',
   '',

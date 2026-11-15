@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
     # Not VERSION: a release dispatches this once its files exist, so links never point at a missing release.
-    paths: ['site/**', 'docs/**', 'FAQ.md', 'scripts/site-build.mjs', '.github/workflows/pages.yml']
+    paths: ['site/**', 'docs/**', 'FAQ.md', 'scripts/site-build.mjs', 'scripts/site-i18n.mjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
