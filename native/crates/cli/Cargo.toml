@@ -4,6 +4,7 @@ description = "See, hear and drive a game console by hand or by AI agents (HTTP 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "ns2bench"

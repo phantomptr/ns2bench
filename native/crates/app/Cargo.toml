@@ -4,6 +4,7 @@ description = "NS2Bench desktop app: the bench UI in a native window with the en
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "ns2bench-app"

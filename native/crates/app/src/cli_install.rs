@@ -37,6 +37,7 @@ fn path_dirs() -> Vec<PathBuf> {
 }
 
 /// The `ns2bench` a terminal would run, if any.
+#[allow(clippy::needless_return)] // one platform's block returns early
 fn on_path() -> Option<PathBuf> {
     #[cfg(windows)]
     {
@@ -110,6 +111,7 @@ pub fn status() -> Value {
     })
 }
 
+#[allow(clippy::needless_return)] // one platform's block returns early
 pub fn install() -> anyhow::Result<Value> {
     use anyhow::{bail, Context};
     let src = bundled().context("This copy of NS2Bench doesn't include the command line tool. Download it from the GitHub release.")?;
@@ -192,6 +194,7 @@ fn admin_link(src: &Path, dst: &Path) -> anyhow::Result<()> {
     anyhow::bail!("Could not create {}: {}", dst.display(), err.trim())
 }
 
+#[allow(clippy::needless_return)] // one platform's block returns early
 pub fn uninstall() -> anyhow::Result<Value> {
     use anyhow::{bail, Context};
     #[cfg(windows)]

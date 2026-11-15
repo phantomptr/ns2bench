@@ -280,6 +280,7 @@ fn netd_status() -> Value {
     })
 }
 
+#[cfg(target_os = "macos")]
 fn xml(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }

@@ -4,6 +4,7 @@ description = "Interface-bound offline DHCP, local DNS and connectivity-test res
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 
 [dependencies]
 libc = "0.2"
