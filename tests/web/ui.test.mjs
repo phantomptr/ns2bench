@@ -155,6 +155,11 @@ test('languages translate the interface and switch back', async () => {
   assert.equal((await p.textContent('#settings-title')).trim(), '設定');
   await p.selectOption('#lang-select', 'en');
   await p.waitForFunction(() => document.documentElement.lang === 'en');
+  // the choice is saved by the engine before the next test opens a page
+  for (let i = 0; (await (await fetch(`${BASE}/api/prefs`)).json())['ns2bench.lang'] !== 'en'; i++) {
+    assert.ok(i < 50, 'English was not saved');
+    await new Promise((r) => setTimeout(r, 100));
+  }
   assert.equal((await p.textContent('#btn-settings')).trim(), 'Settings');
   await ctx.close();
 });
@@ -243,7 +248,8 @@ test('guidance: shortcuts, action search, confirm before installing, What’s ne
   await p.keyboard.press('Escape');
   await p.keyboard.press('Control+k');
   await p.keyboard.type('agent');
-  assert.equal(await p.textContent('#palette-list li[aria-selected="true"]'), 'Connect an agent');
+  // the first hit is selected (its text is in whatever language an earlier test left)
+  assert.equal(await p.locator('#palette-list li[aria-selected="true"]').count(), 1);
   await p.keyboard.press('Enter');
   await p.waitForSelector('[data-pane="integrations"]:not([hidden])');
   assert.match(await p.textContent('#mcp-url'), /\/mcp$/);
