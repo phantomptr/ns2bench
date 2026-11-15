@@ -186,7 +186,7 @@ async fn download(u: &mut Update) -> Result<()> {
         }
         file.sync_all().await?;
         ensure!(
-            format!("{:x}", hash.finalize()) == u.hash.as_deref().unwrap_or(""),
+            hex(&hash.finalize()) == u.hash.as_deref().unwrap_or(""),
             "SHA-256 mismatch; installer discarded"
         );
         Ok(())
@@ -216,7 +216,7 @@ async fn verify(path: &Path, expected: &str) -> Result<()> {
         hash.update(&buf[..n]);
     }
     ensure!(
-        format!("{:x}", hash.finalize()) == expected,
+        hex(&hash.finalize()) == expected,
         "Downloaded installer changed; download it again"
     );
     Ok(())
@@ -383,6 +383,11 @@ pub async fn update_action(
     }
     Ok(json!(*u))
 }
+/// Lower-case hex of a digest (sha2 0.11 digests don't implement LowerHex).
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
