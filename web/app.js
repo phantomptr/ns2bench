@@ -559,8 +559,10 @@ const visible = (e) => (!logState.source || e.source === logState.source) && ran
   && (!logState.filter || e.text.toLowerCase().includes(logState.filter) || (e.hint || '').toLowerCase().includes(logState.filter));
 function row(e) {
   const li = document.createElement('li');
-  li.className = `lv-${LEVELS.includes(e.level) ? e.level : 'info'}`;
-  li.innerHTML = `<span class="ts"></span><span class="lv" title="${e.level}">${icon(LEVELS.includes(e.level) ? e.level : 'info')}</span><span class="sv"></span><span class="tx"></span>`;
+  const level = LEVELS.includes(e.level) ? e.level : 'info';
+  li.className = `lv-${level}`;
+  li.innerHTML = `<span class="ts"></span><span class="lv">${icon(level)}</span><span class="sv"></span><span class="tx"></span>`;
+  li.children[1].title = level;
   li.children[0].textContent = fmtTime(e.t);
   li.children[2].textContent = sourceLabel(e.source); li.children[2].dataset.s = e.source;
   li.children[3].textContent = e.text;

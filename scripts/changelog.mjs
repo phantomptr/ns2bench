@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'CHANGELOG.md');
-const esc = (v) => v.replace(/\./g, '\\.');
+const esc = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export function section(text, version) {
   const m = text.match(new RegExp(`^## ${esc(version)}\\s*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, 'm'));

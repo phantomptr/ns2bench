@@ -9,8 +9,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const web = join(root, 'web');
 const dir = join(web, 'i18n');
 
-const decode = (s) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
+// &amp; last, so "&amp;lt;" stays the text "&lt;" instead of becoming "<".
+const decode = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
 // Worth translating: has letters, is not code, an identifier or a pure key name.
 const wanted = (s) => /\p{L}{2}/u.test(s) && !/^[A-Za-z0-9]{25,}$/.test(s) && !/^[A-Z0-9_]+$/.test(s) && !/[{}=]|;$|^\/|https?:|^[\w-]+\.(js|css|svg|json)$/.test(s)
   && !['NS2Bench', 'MCP', 'HTTP API', 'FPS', 'WASD', 'TFGH', 'Bksp', 'Enter', 'Escape', 'POST', 'GameChat', 'VideoDecoder',
