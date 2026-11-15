@@ -252,7 +252,7 @@ test('guidance: shortcuts, action search, confirm before installing, What’s ne
   assert.equal(await p.locator('#palette-list li[aria-selected="true"]').count(), 1);
   await p.keyboard.press('Enter');
   await p.waitForSelector('[data-pane="integrations"]:not([hidden])');
-  assert.match(await p.textContent('#mcp-url'), /\/mcp$/);
+  await p.waitForFunction(() => /\/mcp$/.test(document.querySelector('#mcp-url').textContent), null, { timeout: 5000 });
   // nothing is installed without saying what happens first
   await p.click('[data-tab="install"]');
   await p.fill('#board-host', 'board.example');
