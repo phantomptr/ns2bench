@@ -132,11 +132,16 @@ async fn button(s: &Value) -> (bool, String) {
     if cmd.is_empty() {
         return (false, "no power-button command set (Settings → Devices → Power and wake)".into());
     }
-    let c = if cfg!(windows) {
+    #[cfg(windows)]
+    let c = {
+        // cmd.exe reads its command line as typed: passed as a normal argument, Rust would
+        // escape the quotes in it (\"…\"), which cmd doesn't understand.
         let mut c = Command::new("cmd");
-        c.args(["/C", cmd]);
+        c.arg("/C").raw_arg(cmd);
         c
-    } else {
+    };
+    #[cfg(not(windows))]
+    let c = {
         let mut c = Command::new("/bin/sh");
         c.args(["-c", cmd]);
         c
