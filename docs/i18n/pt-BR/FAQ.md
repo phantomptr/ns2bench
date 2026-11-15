@@ -10,7 +10,7 @@ Desenvolvedores testando software em hardware real, quem quer automatizar verifi
 
 ## Ele modifica meu console?
 
-Não. O NS2Bench só faz o que uma TV e um controle com fio fazem: recebe HDMI e aperta botões via USB. Nada é instalado no console. Funciona com qualquer Switch 2 do jeito que sai da caixa, em qualquer versão do sistema: sem jailbreak, sem modificações e sem homebrew.
+Não. O NS2Bench só faz o que uma TV e um controle com fio fazem: recebe HDMI e aperta botões via USB. Nada é instalado no console. Funciona com qualquer Switch 2 do jeito que sai da caixa, em qualquer versão do sistema: não é preciso jailbreak, modificações nem homebrew. Um console com jailbreak também funciona.
 
 ## O console fica online?
 
@@ -126,7 +126,12 @@ Uma placa alimentada pela USB do console perde energia e reinicia quando o conso
 
 ## O NS2Bench consegue tirar o console do repouso?
 
-Ainda não. O Switch 2 não tem Wake-on-LAN, e uma placa alimentada pela porta USB do console desliga junto com ele (testado: o Bridge cai uns 7 segundos após o Modo de Repouso; depois que você acorda o console, a placa inicia e o NS2Bench reconecta sozinho, pronto em cerca de 30 segundos). Duas opções estão sendo estudadas: alimentar a placa separadamente (um divisor de energia USB que não devolva energia ao console) para ela ficar ligada, ou o HDMI-CEC "Sincronizar com o estado de energia da TV", em que um dispositivo CEC no lado HDMI acorda o console. Até lá, acorde-o pelo botão de energia. Ao acordar o console, a placa inicia sozinha e o NS2Bench se reconecta em cerca de 30 segundos.
+Sim, com uma ajudinha. Uma tela escurecida acorda com qualquer toque, e o NS2Bench faz isso sozinho. Modo de Repouso, travamento ou console desligado precisam de uma destas opções, configuradas em **Configurações → Dispositivos → Energia e despertar**:
+
+- **HDMI-CEC (nada mecânico):** um adaptador USB-CEC (por exemplo, da Pulse-Eight) no cabo HDMI entre a base e a placa de captura envia o "ligar" que uma TV enviaria. Ative no console **Configurações do console → Saída de TV → Sincronizar com o estado de energia da TV** e instale o libcec no computador (`brew install libcec` no Mac). Ele também pode colocar o console em repouso.
+- **Um comando de botão de energia:** para um apertador de botão como o SwitchBot, um webhook do Home Assistant ou um relé. É a única forma de voltar de um travamento ou do console desligado.
+
+Depois, **Acordar o console** (na tela sem imagem, na busca, na API `POST /api/power`, na ferramenta MCP `power` e em `ns2bench power wake`) tenta o CEC, depois o botão de energia se você permitir, e depois um toque. O Switch 2 não tem Wake-on-LAN, e uma placa alimentada pela porta USB do console desliga uns 7 segundos após o Modo de Repouso; ela inicia de novo quando o console acorda, e o NS2Bench reconecta sozinho em cerca de 30 segundos.
 
 # Rede offline do console
 

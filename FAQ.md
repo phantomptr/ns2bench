@@ -10,7 +10,7 @@ Developers testing software on real hardware, people automating repetitive check
 
 ## Does it modify my console?
 
-No. NS2Bench only does what a TV and a wired controller do: it receives HDMI and presses buttons over USB. Nothing is installed on the console. It works with any Switch 2 exactly as it comes out of the box, on any system version: no jailbreak, no mods and no homebrew.
+No. NS2Bench only does what a TV and a wired controller do: it receives HDMI and presses buttons over USB. Nothing is installed on the console. It works with any Switch 2 as it comes out of the box, on any system version: no jailbreak, mods or homebrew needed. A jailbroken console works too.
 
 ## Does the console go online?
 

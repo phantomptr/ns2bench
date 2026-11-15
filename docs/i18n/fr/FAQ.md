@@ -10,7 +10,7 @@ Aux développeurs qui testent un logiciel sur du vrai matériel, aux personnes q
 
 ## Modifie-t-il ma console ?
 
-Non. NS2Bench fait seulement ce que font une télé et une manette filaire : il reçoit le HDMI et appuie sur des boutons via USB. Rien n’est installé sur la console. Il fonctionne avec n’importe quelle Switch 2 telle qu’elle sort de sa boîte, quelle que soit la version du système : pas de jailbreak, pas de modification, pas de homebrew.
+Non. NS2Bench fait seulement ce que font une télé et une manette filaire : il reçoit le HDMI et appuie sur des boutons via USB. Rien n’est installé sur la console. Il fonctionne avec n’importe quelle Switch 2 telle qu’elle sort de sa boîte, quelle que soit la version du système : aucun jailbreak, aucune modification ni aucun homebrew n’est nécessaire. Une console jailbreakée fonctionne aussi.
 
 ## La console va-t-elle en ligne ?
 
@@ -126,7 +126,12 @@ Une carte alimentée par l’USB de la console perd son alimentation et redémar
 
 ## NS2Bench peut-il sortir la console de veille ?
 
-Pas encore. La Switch 2 n’a pas de Wake-on-LAN, et une carte alimentée par le port USB de la console s’éteint avec elle (testé : le Bridge se coupe environ 7 secondes après la mise en veille ; quand vous réveillez la console, la carte démarre et NS2Bench se reconnecte tout seul, prêt en 30 secondes environ). Deux pistes sont à l’étude : alimenter la carte séparément (un répartiteur d’alimentation USB qui ne renvoie pas de courant vers la console) pour qu’elle reste allumée, ou HDMI-CEC « Synchroniser avec l’état d’alimentation du téléviseur », où un appareil CEC côté HDMI réveille la console. En attendant, réveillez-la avec son bouton d’alimentation. Quand vous réveillez la console, la carte redémarre seule et NS2Bench se reconnecte en 30 secondes environ.
+Oui, avec un peu d’aide. Un écran assombri se réveille à la moindre pression, ce que NS2Bench fait tout seul. La mise en veille, un plantage ou une console éteinte demandent l’une de ces solutions, à régler dans **Réglages → Appareils → Alimentation et réveil** :
+
+- **HDMI-CEC (rien de mécanique) :** un adaptateur USB-CEC (par exemple de Pulse-Eight) placé sur le câble HDMI entre la station d’accueil et la carte d’acquisition envoie le « allumer » qu’enverrait un téléviseur. Activez sur la console **Paramètres de la console → Sortie TV → Synchroniser avec l’état d’alimentation du téléviseur**, et installez libcec sur l’ordinateur (`brew install libcec` sur Mac). Cela permet aussi de mettre la console en veille.
+- **Une commande de bouton d’alimentation :** pour un presse-bouton comme un SwitchBot, un webhook Home Assistant ou un relais. C’est le seul moyen de revenir après un plantage ou une console éteinte.
+
+Ensuite, **Réveiller la console** (dans l’écran sans image, la recherche, l’API `POST /api/power`, l’outil MCP `power` et `ns2bench power wake`) essaie CEC, puis le bouton d’alimentation si vous l’autorisez, puis une pression. La Switch 2 n’a pas de Wake-on-LAN, et une carte alimentée par le port USB de la console s’éteint environ 7 secondes après la mise en veille ; elle redémarre quand la console se réveille, et NS2Bench se reconnecte tout seul en 30 secondes environ.
 
 # Réseau hors ligne pour la console
 

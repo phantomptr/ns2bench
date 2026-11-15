@@ -80,7 +80,7 @@
   "hero.download_mac": "下载 Mac 版",
   "hero.download_win": "下载 Windows 版",
   "hero.eyebrow": "免费开源",
-  "hero.fine": "支持 macOS、Windows 和 Linux。需要一张 USB HDMI 采集卡；输入设备可选。 适用于未改动的原装 Switch 2：无需越狱或改机。",
+  "hero.fine": "支持 macOS、Windows 和 Linux。需要一张 USB HDMI 采集卡；输入设备可选。 无需越狱：原装或已越狱的 Switch 2 都能用。",
   "hero.lead": "亲手操作，或交给 AI 智能体。实时画面与声音，键盘、鼠标和手柄输入，以及可重复的测试。主机始终离线。",
   "hero.setup": "设置指南",
   "hero.title": "在电脑上看、听、操控 <span class=\"grad\">Nintendo Switch 2</span>。",

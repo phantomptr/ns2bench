@@ -10,7 +10,7 @@ A sviluppatori che testano software su hardware reale, a chi automatizza control
 
 ## Modifica la mia console?
 
-No. NS2Bench fa solo ciò che fanno una TV e un controller con cavo: riceve l’HDMI e preme pulsanti via USB. Sulla console non viene installato nulla. Funziona con qualsiasi Switch 2 così com’è appena tolta dalla scatola, con qualsiasi versione di sistema: niente jailbreak, niente modifiche e niente homebrew.
+No. NS2Bench fa solo ciò che fanno una TV e un controller con cavo: riceve l’HDMI e preme pulsanti via USB. Sulla console non viene installato nulla. Funziona con qualsiasi Switch 2 così com’è appena tolta dalla scatola, con qualsiasi versione di sistema: non servono jailbreak, modifiche né homebrew. Funziona anche una console con jailbreak.
 
 ## La console va online?
 
@@ -126,7 +126,12 @@ Una scheda alimentata dalla USB della console perde l’alimentazione e si riavv
 
 ## NS2Bench può risvegliare la console dallo standby?
 
-Non ancora. Switch 2 non ha il Wake-on-LAN, e una scheda alimentata dalla porta USB della console si spegne insieme a lei (testato: il Bridge cade circa 7 secondi dopo la modalità standby; quando riattivi la console, la scheda si avvia e NS2Bench si riconnette da solo, pronto in circa 30 secondi). Si stanno valutando due strade: alimentare la scheda separatamente (uno splitter di alimentazione USB che non rimandi corrente alla console) così che resti accesa, oppure HDMI-CEC "Sincronizza con lo stato di accensione della TV", in cui un dispositivo CEC sul lato HDMI risveglia la console. Fino ad allora, riattivala con il suo pulsante di accensione. Quando riattivi la console, la scheda si avvia da sola e NS2Bench si ricollega in circa 30 secondi.
+Sì, con un piccolo aiuto. Uno schermo oscurato si riattiva con qualsiasi pressione, e NS2Bench lo fa da solo. La modalità standby, un crash o la console spenta richiedono una di queste soluzioni, da impostare in **Impostazioni → Dispositivi → Alimentazione e riattivazione**:
+
+- **HDMI-CEC (niente di meccanico):** un adattatore USB-CEC (per esempio di Pulse-Eight) sul cavo HDMI tra la base e la scheda di acquisizione invia l'"accendi" che invierebbe una TV. Attiva sulla console **Impostazioni della console → Uscita TV → Sincronizza con lo stato di accensione della TV** e installa libcec sul computer (`brew install libcec` su Mac). Può anche mettere la console in standby.
+- **Un comando del pulsante di accensione:** per un premi-pulsante come SwitchBot, un webhook di Home Assistant o un relè. È l'unico modo per tornare da un crash o dalla console spenta.
+
+Poi **Riattiva la console** (nella schermata senza immagine, nella ricerca, nell'API `POST /api/power`, nello strumento MCP `power` e con `ns2bench power wake`) prova CEC, poi il pulsante di accensione se lo consenti, poi una pressione. Switch 2 non ha il Wake-on-LAN, e una scheda alimentata dalla porta USB della console si spegne circa 7 secondi dopo la modalità standby; si riavvia quando la console si risveglia, e NS2Bench si ricollega da solo in circa 30 secondi.
 
 # Rete offline per la console
 

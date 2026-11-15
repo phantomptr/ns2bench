@@ -10,7 +10,7 @@ Para desarrolladores que prueban software en hardware real, personas que automat
 
 ## ¿Modifica mi consola?
 
-No. NS2Bench solo hace lo que hacen un televisor y un mando con cable: recibe HDMI y pulsa botones por USB. No se instala nada en la consola. Funciona con cualquier Switch 2 tal como viene de fábrica, con cualquier versión del sistema: sin jailbreak, sin modificaciones y sin homebrew.
+No. NS2Bench solo hace lo que hacen un televisor y un mando con cable: recibe HDMI y pulsa botones por USB. No se instala nada en la consola. Funciona con cualquier Switch 2 tal como viene de fábrica, con cualquier versión del sistema: no hace falta jailbreak, modificaciones ni homebrew. Una consola con jailbreak también funciona.
 
 ## ¿La consola se conecta a internet?
 
@@ -126,7 +126,12 @@ Una placa alimentada por el USB de la consola se queda sin corriente y se reinic
 
 ## ¿Puede NS2Bench despertar la consola del reposo?
 
-Todavía no. La Switch 2 no tiene Wake-on-LAN, y una placa alimentada por el puerto USB de la consola se apaga con ella (probado: Bridge se desconecta unos 7 segundos después del modo de reposo; al despertar la consola, la placa arranca y NS2Bench se reconecta solo, listo en unos 30 segundos). Se están explorando dos vías: alimentar la placa por separado (un divisor de alimentación USB que no devuelva corriente a la consola) para que siga despierta, o HDMI-CEC "Sincronizar con el estado de encendido del televisor", donde un dispositivo CEC en el lado HDMI despierta la consola. Mientras tanto, despiértala con su botón de encendido. Al despertar la consola, la placa arranca sola y NS2Bench se vuelve a conectar en unos 30 segundos.
+Sí, con un poco de ayuda. Una pantalla atenuada se activa con cualquier pulsación, y eso NS2Bench lo hace solo. El modo de reposo, un bloqueo o la consola apagada necesitan una de estas opciones, configuradas en **Ajustes → Dispositivos → Encendido y activación**:
+
+- **HDMI-CEC (nada mecánico):** un adaptador USB-CEC (por ejemplo, de Pulse-Eight) en el cable HDMI entre la base y la capturadora envía el "encender" que enviaría un televisor. Activa en la consola **Configuración de la consola → Salida de TV → Sincronizar con el estado de encendido del televisor** e instala libcec en el ordenador (`brew install libcec` en un Mac). También puede poner la consola en reposo.
+- **Un comando de botón de encendido:** para un pulsador de botones como SwitchBot, un webhook de Home Assistant o un relé. Es la única forma de recuperarla tras un bloqueo o si está apagada.
+
+Después, **Activar la consola** (en la pantalla sin imagen, la búsqueda, la API `POST /api/power`, la herramienta MCP `power` y `ns2bench power wake`) prueba CEC, luego el botón de encendido si lo permites, y luego una pulsación. La Switch 2 no tiene Wake-on-LAN, y una placa alimentada por el puerto USB de la consola se apaga unos 7 segundos después del modo de reposo; vuelve a arrancar cuando la consola despierta, y NS2Bench se reconecta solo en unos 30 segundos.
 
 # Red sin conexión para la consola
 

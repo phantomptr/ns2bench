@@ -10,7 +10,7 @@ Für Entwickler, die Software auf echter Hardware testen, für Leute, die wieder
 
 ## Verändert es meine Konsole?
 
-Nein. NS2Bench macht nur, was ein Fernseher und ein kabelgebundener Controller machen: Es empfängt HDMI und drückt Tasten über USB. Auf der Konsole wird nichts installiert. Es funktioniert mit jeder Switch 2 genau so, wie sie aus der Verpackung kommt, mit jeder Systemversion: kein Jailbreak, keine Mods und kein Homebrew.
+Nein. NS2Bench macht nur, was ein Fernseher und ein kabelgebundener Controller machen: Es empfängt HDMI und drückt Tasten über USB. Auf der Konsole wird nichts installiert. Es funktioniert mit jeder Switch 2 genau so, wie sie aus der Verpackung kommt, mit jeder Systemversion: Jailbreak, Mods oder Homebrew sind nicht nötig. Eine gejailbreakte Konsole funktioniert ebenfalls.
 
 ## Geht die Konsole online?
 
@@ -126,7 +126,12 @@ Ein Board, das über den USB der Konsole versorgt wird, verliert Strom und start
 
 ## Kann NS2Bench die Konsole aus dem Standby wecken?
 
-Noch nicht. Die Switch 2 hat kein Wake-on-LAN, und ein Board, das über den USB-Port der Konsole versorgt wird, schaltet sich mit der Konsole ab (getestet: Die Bridge fällt etwa 7 Sekunden nach dem Standby-Modus weg; wenn du die Konsole weckst, startet das Board und NS2Bench verbindet sich von selbst neu, bereit nach etwa 30 Sekunden). Zwei Wege werden untersucht: das Board separat mit Strom versorgen (ein USB-Stromsplitter, der keinen Strom in die Konsole zurückspeist), damit es wach bleibt, oder HDMI-CEC „An TV-Betriebszustand anpassen“, bei dem ein CEC-Gerät auf der HDMI-Seite die Konsole weckt. Bis dahin weck sie mit ihrem Power-Knopf. Wenn du die Konsole aufweckst, startet das Board von selbst und NS2Bench verbindet sich in etwa 30 Sekunden wieder.
+Ja, mit etwas Hilfe. Ein abgedunkelter Bildschirm wird mit jedem Tastendruck wach, das erledigt NS2Bench selbst. Standby-Modus, ein Absturz oder ausgeschaltete Konsole brauchen eine dieser Möglichkeiten, einzurichten unter **Einstellungen → Geräte → Strom und Aufwecken**:
+
+- **HDMI-CEC (nichts Mechanisches):** Ein USB-CEC-Adapter (zum Beispiel von Pulse-Eight) im HDMI-Kabel zwischen Dock und Capture-Karte sendet das „Einschalten“, das auch ein Fernseher senden würde. Aktiviere an der Konsole **Systemeinstellungen → TV-Ausgabe → An TV-Betriebszustand anpassen** und installiere libcec auf dem Computer (`brew install libcec` auf einem Mac). Damit lässt sich die Konsole auch in den Standby schicken.
+- **Ein Power-Knopf-Befehl:** für einen Tastendrücker wie SwitchBot, einen Home-Assistant-Webhook oder ein Relais. Nur so kommt die Konsole nach einem Absturz oder aus dem ausgeschalteten Zustand zurück.
+
+Dann versucht **Konsole aufwecken** (im Bildschirm ohne Bild, in der Suche, über die API `POST /api/power`, das MCP-Werkzeug `power` und `ns2bench power wake`) zuerst CEC, dann den Power-Knopf, falls du ihn erlaubst, und dann einen Tastendruck. Die Switch 2 hat kein Wake-on-LAN, und ein Board, das über den USB-Port der Konsole versorgt wird, schaltet sich etwa 7 Sekunden nach dem Standby-Modus ab; es startet wieder, wenn die Konsole aufwacht, und NS2Bench verbindet sich in etwa 30 Sekunden von selbst neu.
 
 # Offline-Netzwerk für die Konsole
 

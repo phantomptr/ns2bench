@@ -80,7 +80,7 @@
   "hero.download_mac": "Mac 版をダウンロード",
   "hero.download_win": "Windows 版をダウンロード",
   "hero.eyebrow": "無料・オープンソース",
-  "hero.fine": "macOS、Windows、Linux に対応。USB HDMI キャプチャーカードが必要です。入力デバイスはオプションです。 改造していない Switch 2 でそのまま使えます。ジェイルブレイクや改造は不要です。",
+  "hero.fine": "macOS、Windows、Linux に対応。USB HDMI キャプチャーカードが必要です。入力デバイスはオプションです。 ジェイルブレイク不要：改造していない Switch 2 でも、ジェイルブレイク済みでも使えます。",
   "hero.lead": "自分の手でも、AI エージェントでも。リアルタイムの映像と音声、キーボード・マウス・ゲームパッドによる入力、繰り返し実行できるテスト。本体はオフラインのままです。",
   "hero.setup": "セットアップガイド",
   "hero.title": "<span class=\"grad\">Nintendo Switch 2</span> を、コンピューターで見て、聴いて、操作する。",

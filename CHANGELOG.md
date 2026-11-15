@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- The README, FAQ and website now say it plainly: no jailbreak needed, and a jailbroken Switch 2 works too.
+
 - **Wake the console from Sleep Mode or a crash.** Settings → Devices → **Power and wake**: HDMI-CEC through a USB-CEC adapter (nothing mechanical; the console's Match TV Power State must be on), and a power-button command for a SwitchBot-style presser, a Home Assistant webhook or a relay. **Wake the console** is on the no-picture screen, in the Ctrl+K search, in the API (`POST /api/power`), as the `power` MCP tool and as `ns2bench power wake|sleep|button`. Only you can set the command; agents can only ask for a wake or a press. Run the check says whether a way to wake is set up.
 
 ## 0.0.7
