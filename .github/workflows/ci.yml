@@ -112,8 +112,12 @@ jobs:
           test -s firmware/pico/ns2bench-pico.uf2
 
   ui:
-    name: UI end to end (engine + Chromium)
-    runs-on: ubuntu-24.04
+    name: UI end to end (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -125,10 +129,16 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             native/target
-          key: ui-${{ hashFiles('native/Cargo.lock') }}
-          restore-keys: ui-
+          key: ui-${{ runner.os }}-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: ui-${{ runner.os }}-
       - name: ffmpeg (synthetic video source)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get update && sudo apt-get install -y ffmpeg ;;
+            macOS) brew install ffmpeg ;;
+            Windows) choco install ffmpeg -y --no-progress && printf '%s\n' 'C:/ProgramData/chocolatey/bin' >> "$GITHUB_PATH" ;;
+          esac
       - name: Build the engine
         working-directory: native
         run: cargo build --locked -p ns2bench
@@ -137,4 +147,5 @@ jobs:
           npm i --no-save --no-package-lock playwright@1.65.0
           npx playwright install --with-deps chromium
       - name: UI tests
+        shell: bash
         run: node --test tests/web/*.test.mjs
