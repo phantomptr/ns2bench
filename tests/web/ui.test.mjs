@@ -55,6 +55,8 @@ async function page(opts = {}) {
   p.on('pageerror', (e) => errors.push(String(e)));
   p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|Failed to load resource/.test(m.text())) errors.push(m.text()); });
   await p.goto(BASE + (opts.path || '/'));
+  // saved choices from an earlier page are applied with one reload: wait until that is over
+  await p.waitForFunction(() => window.__ns2benchPrefs === 'ready', null, { timeout: 15000 });
   return { p, errors, ctx };
 }
 

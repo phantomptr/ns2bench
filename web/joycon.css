@@ -93,13 +93,14 @@
 .joycon .pill .face { width: 100%; height: 100%; border-radius: calc(var(--sh) * 0.42) calc(var(--sh) * 0.42) 2px 2px;
   background: linear-gradient(180deg, #44474f, #2c2e33 var(--st), #2c2e33); box-shadow: inset 0 1px 0 rgb(255 255 255 / .12), inset 0 0 0 1px var(--edge);
   grid-auto-flow: column; gap: calc(var(--j) * 0.04); }
-.joycon.left .pill:first-child, .joycon.right .pill:last-child { flex: 0 0 45%; }
-/* the trigger: as tall as the tab plus the body's corner, its outer side one arc down to the body's edge */
+.joycon.left .pill:first-child, .joycon.right .pill:last-child { flex: 0 0 46%; }
+/* the trigger: the body's own corner curve, lifted by one tab height, so the band around the
+   corner has the same roundness as the Joy-Con and runs out at its outer edge */
 .joycon.left .pill:first-child .face, .joycon.right .pill:last-child .face {
-  align-self: start; height: calc(var(--st) + var(--j) * 0.44);
-  grid-template-rows: var(--st); align-content: start; box-sizing: border-box; }
-.joycon.left .pill:first-child .face { padding-left: calc(var(--j) * 0.1); border-radius: calc(var(--j) * 0.22) calc(var(--sh) * 0.42) 0 0 / calc(var(--st) + var(--j) * 0.44) calc(var(--sh) * 0.42) 0 0; }
-.joycon.right .pill:last-child .face { padding-right: calc(var(--j) * 0.1); border-radius: calc(var(--sh) * 0.42) calc(var(--j) * 0.22) 0 0 / calc(var(--sh) * 0.42) calc(var(--st) + var(--j) * 0.44) 0 0; }
+  align-self: start; height: calc(var(--st) + var(--j) * 0.44); box-sizing: border-box;
+  grid-template-rows: var(--st); align-content: start; gap: calc(var(--j) * 0.025); }
+.joycon.left .pill:first-child .face { padding-left: calc(var(--j) * 0.13); border-radius: calc(var(--j) * 0.44) calc(var(--sh) * 0.42) 0 0; }
+.joycon.right .pill:last-child .face { padding-right: calc(var(--j) * 0.13); border-radius: calc(var(--sh) * 0.42) calc(var(--j) * 0.44) 0 0; }
 .joycon .key.pill:hover:not(.unavailable) .face { background: linear-gradient(180deg, #50545d, #363840 var(--st), #363840); }
 .joycon .key.pill.on .face { transform: translateY(calc(var(--st) * 0.08)); }
 .joycon .pill .g.letter, .console.show-keys .joycon .pill .g.letter { font-size: calc(var(--d) * 0.42); }

@@ -289,6 +289,7 @@ hint();
 
 // ------------------------------------------------------------ status, activity, tools
 function showStatus(s) {
+  if (s.version && $('#brand-version').textContent !== `v${s.version}`) $('#brand-version').textContent = `v${s.version}`;
   const v = $('#pill-video'), i = $('#pill-input');
   const live = s.video.age_s !== null && s.video.age_s < 3;
   // Whole numbers only: changing widths made the toolbar jump between one and two rows.

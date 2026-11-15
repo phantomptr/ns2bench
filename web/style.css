@@ -113,6 +113,10 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 @media (width < 1200px) { .bar .thanks span { display: none; } .bar .thanks { padding: 0 9px; } }
 
 .bar .brand { flex: none; }
+/* the version under the name, like ps5upload */
+.brand .name { display: grid; gap: 2px; }
+.brand .ver { font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); letter-spacing: .02em; }
+.brand .ver:empty { display: none; }
 #pill-video { flex-shrink: 0; }
 .spacer { flex: 1; }
 .bar .pill { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; padding: 3px 10px; border-radius: 999px; border: 1px solid transparent; background: var(--field);

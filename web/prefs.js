@@ -32,17 +32,17 @@ addEventListener('pagehide', () => { if (timer) { clearTimeout(timer); save(); }
 // At start: the saved file wins. If this browser had something else (a new browser, cleared
 // storage, or changes made in the app), take the saved values and load once more with them.
 apiFetch('/api/prefs').then((r) => (r.ok ? r.json() : null)).then((saved) => {
-  if (!saved) return;
+  if (!saved) { window.__ns2benchPrefs = 'ready'; return; }
   ready = true;
   const local = snapshot();
   const differs = Object.keys(saved).filter((k) => mine(k) && local[k] !== saved[k]);
   if (!Object.keys(saved).length || Object.keys(local).some((k) => !(k in saved))) later();   // first run, or new local-only choices
-  if (!differs.length) return;
+  if (!differs.length) { window.__ns2benchPrefs = 'ready'; return; }
   let again = false;
   try {
     again = sessionStorage.getItem('ns2bench.prefs.loaded') === '1';
     sessionStorage.setItem('ns2bench.prefs.loaded', '1');
     for (const k of differs) Storage.prototype.setItem.call(localStorage, k, saved[k]);
-  } catch { return; }
-  if (!again) location.reload();
-}).catch(() => {});
+  } catch { window.__ns2benchPrefs = 'ready'; return; }
+  if (!again) location.reload(); else window.__ns2benchPrefs = 'ready';
+}).catch(() => { window.__ns2benchPrefs = 'ready'; });

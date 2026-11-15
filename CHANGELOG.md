@@ -8,6 +8,7 @@ What's new in NS2Bench, written for humans.
 
 - New round buttons in the top bar, like ps5upload: reconnect the picture, sound and status; open Updates (a dot shows when one is ready); a bell that lists recent notifications with an unread count; and the light/dark switch.
 - Your choices are remembered like in ps5upload: theme, text size, language, layout and notification settings are saved in `~/.ns2bench/ui.json`, so they are the same in the app and in a browser and survive a cleared browser.
+- The version is shown under the NS2Bench name in the top bar.
 - A **Thank you** button in the top bar and in Help, for anyone who wants to support NS2Bench.
 - The on-screen ZL and ZR now wrap around the Joy-Con's corner with no gap, and L and R are longer.
 
