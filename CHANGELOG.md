@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.9
+
 - **Update progress:** Settings → Updates shows a progress bar (MB and percent) while an update downloads, and offers **Install and restart** when it's ready.
 - **Windows:** a serial input device (Pico, CH9329) that is plugged in but never answers no longer ties up a thread for good, as on macOS and Linux.
 - Waking is safer:
