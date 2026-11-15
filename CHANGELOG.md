@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.2
+
 - **Languages:** the Network settings status (service state, interface, DHCP/DNS/connectivity
   switches, helper errors) is now translated in every language.
 - **FAQ:** the answer about sleep now says, in every language, that the input board boots and
