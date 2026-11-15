@@ -9,7 +9,7 @@
   "alt.devices": "NS2Bench 설정: 캡처 카드와 입력 장치",
   "alt.diagram": "독에 꽂힌 본체: HDMI는 컴퓨터의 캡처 카드로, 입력 장치는 본체의 USB 포트에 연결. 컴퓨터의 NS2Bench를 나와 에이전트가 사용",
   "alt.integrations": "NS2Bench 설정: API와 MCP, 에이전트용 설정",
-  "alt.main": "본체의 설정 화면, 화면 속 Joy-Con, 조작 및 비디오 패널과 로그를 보여 주는 NS2Bench",
+  "alt.main": "본체의 HOME 메뉴, 화면 속 Joy-Con, 조작 및 비디오 패널과 로그를 보여 주는 NS2Bench",
   "alt.oled": "OLED 테마와 일본어로 표시된 NS2Bench",
   "badges.label": "한눈에 보기",
   "badges.langs": "<b>11</b>개 언어",

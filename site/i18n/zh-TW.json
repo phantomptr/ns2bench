@@ -9,7 +9,7 @@
   "alt.devices": "NS2Bench 設定：擷取卡與輸入裝置",
   "alt.diagram": "主機插在底座上：HDMI 接到電腦上的擷取卡，輸入裝置插在主機的 USB 連接埠，電腦上的 NS2Bench 供你與你的代理使用",
   "alt.integrations": "NS2Bench 設定：API 與 MCP，以及供代理使用的設定",
-  "alt.main": "NS2Bench 顯示主機的系統設定，附帶螢幕上的 Joy-Con、操控與影像面板以及記錄",
+  "alt.main": "NS2Bench 顯示主機的 HOME 選單，附帶螢幕上的 Joy-Con、操控與影像面板以及記錄",
   "alt.oled": "OLED 主題、日文介面的 NS2Bench",
   "badges.label": "一覽",
   "badges.langs": "<b>11</b> 種語言",

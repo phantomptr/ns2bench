@@ -9,7 +9,7 @@
   "alt.devices": "Réglages de NS2Bench : la carte d'acquisition et le périphérique d'entrée",
   "alt.diagram": "Console sur sa station d'accueil : HDMI vers une carte d'acquisition sur l'ordinateur, un périphérique d'entrée sur le port USB de la console, NS2Bench sur l'ordinateur pour vous et vos agents",
   "alt.integrations": "Réglages de NS2Bench : API et MCP, avec la configuration pour les agents",
-  "alt.main": "NS2Bench affichant les Paramètres de la console avec les Joy-Con à l'écran, les panneaux Pilotage et Vidéo et les journaux",
+  "alt.main": "NS2Bench affichant le menu HOME de la console avec les Joy-Con à l'écran, les panneaux Pilotage et Vidéo et les journaux",
   "alt.oled": "NS2Bench avec le thème OLED, en japonais",
   "badges.label": "En bref",
   "badges.langs": "<b>11</b> langues",

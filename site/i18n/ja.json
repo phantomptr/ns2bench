@@ -9,7 +9,7 @@
   "alt.devices": "NS2Bench の設定:キャプチャーカードと入力デバイス",
   "alt.diagram": "ドックに置いた本体:HDMI はコンピューターのキャプチャーカードへ、入力デバイスは本体の USB ポートへ。コンピューター上の NS2Bench をあなたとエージェントが使います",
   "alt.integrations": "NS2Bench の設定:API と MCP、エージェント用の設定",
-  "alt.main": "本体の設定画面、画面上の Joy-Con、操作パネルと映像パネル、ログを表示した NS2Bench",
+  "alt.main": "本体の HOME メニュー、画面上の Joy-Con、操作パネルと映像パネル、ログを表示した NS2Bench",
   "alt.oled": "OLED テーマ・日本語表示の NS2Bench",
   "badges.label": "ひと目でわかる",
   "badges.langs": "<b>11</b> 言語",

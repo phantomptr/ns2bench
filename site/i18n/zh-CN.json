@@ -9,7 +9,7 @@
   "alt.devices": "NS2Bench 设置：采集卡与输入设备",
   "alt.diagram": "主机插在底座上：HDMI 接到电脑上的采集卡，输入设备插在主机的 USB 端口，电脑上的 NS2Bench 供你和你的智能体使用",
   "alt.integrations": "NS2Bench 设置：API 与 MCP，以及供智能体使用的配置",
-  "alt.main": "NS2Bench 显示主机的系统设置，附带屏幕 Joy-Con、操控与视频面板以及日志",
+  "alt.main": "NS2Bench 显示主机的 HOME 菜单，附带屏幕 Joy-Con、操控与视频面板以及日志",
   "alt.oled": "OLED 主题、日语界面的 NS2Bench",
   "badges.label": "一览",
   "badges.langs": "<b>11</b> 种语言",

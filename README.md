@@ -56,7 +56,7 @@ Good for:
 
 ## A quick look
 
-<img width="1080" alt="NS2Bench with the console's System Settings on screen, dark theme" src="site/assets/shots/main-dark.webp" />
+<img width="1080" alt="NS2Bench with the console's HOME menu on screen, dark theme" src="site/assets/shots/main-dark.webp" />
 
 <img width="1080" alt="NS2Bench in light theme" src="site/assets/shots/main-light.webp" />
 
