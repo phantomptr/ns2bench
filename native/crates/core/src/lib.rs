@@ -34,7 +34,17 @@ pub async fn serve(cfg: Config) -> anyhow::Result<()> {
     let app = server::router(bench.clone());
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     server::SERVING.store(true, std::sync::atomic::Ordering::Relaxed);
-    println!("NS2Bench: open {}/  (native engine)", cfg.url());
+    // Without the desktop app there is no window to trust, so the page proves it is the person
+    // at the bench with a key from the link printed here (never logged, never served by the API):
+    // another program that can reach the port can watch and use the API, but can't pose as you.
+    if !server::has_ui_key() {
+        let key = std::env::var("NS2BENCH_UI_KEY").ok().filter(|k| k.len() >= 8 && k.chars().all(|c| c.is_ascii_alphanumeric()))
+            .unwrap_or_else(|| rand::random::<[u8; 16]>().iter().map(|b| format!("{b:02x}")).collect());
+        server::set_ui_key(key.clone());
+        println!("NS2Bench: open {}/?ui={key}  (native engine; this link lets your browser drive)", cfg.url());
+    } else {
+        println!("NS2Bench: open {}/  (native engine)", cfg.url());
+    }
     let b2 = bench.clone();
     axum::serve(listener, app).with_graceful_shutdown(async move {
         let _ = tokio::signal::ctrl_c().await;

@@ -61,6 +61,10 @@ pub fn set_ui_key(key: String) {
     let _ = UI_KEY.set(key);
 }
 
+pub fn has_ui_key() -> bool {
+    UI_KEY.get().is_some()
+}
+
 fn ui_key_ok(given: Option<&str>) -> bool {
     match UI_KEY.get() {
         Some(k) => given.is_some_and(|g| same(g.as_bytes(), k.as_bytes())),

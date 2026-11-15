@@ -112,7 +112,7 @@ const inputWarning = $('#input-warning');
 function inputUnavailable() {
   if (ws?.readyState !== WebSocket.OPEN) return 'NS2Bench connection lost. Reconnecting automatically.';
   if (!bridgeStatus || performance.now() - bridgeSeen > 3000) return 'Waiting for NS2Bench Bridge status.';
-  if (!canDrive) return 'This browser tab can watch but not drive: the NS2Bench app is open, use its window.';
+  if (!canDrive) return 'This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.';
   if (!bridgeStatus.connected) return bridgeStatus.backend === 'none'
     ? 'NS2Bench Bridge is not configured. Set up an input device to send controls.'
     : 'NS2Bench Bridge is offline or starting. Check device power and its connection. Reconnecting automatically.';
@@ -120,7 +120,7 @@ function inputUnavailable() {
   return '';
 }
 function warnInput(reason = inputUnavailable()) {
-  const message = `${reason} Input was not sent; try again when ready.`;
+  const message = `${t(reason)} ${t('Input was not sent; try again when ready.')}`;
   if (inputWarning.textContent !== message) inputWarning.textContent = message;
   inputWarning.hidden = false;
 }
@@ -226,6 +226,8 @@ function releaseAll() {
 const screenEl = $('#screen');
 screenEl.addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && kbMode === 'pad') { screenEl.blur(); return; }
+  // Keyboard & mouse mode sends every key, Esc and Tab included: this chord is the way out.
+  if (e.code === 'KeyU' && e.ctrlKey && e.altKey) { e.preventDefault(); held.clear(); document.exitPointerLock?.(); screenEl.blur(); return; }
   e.preventDefault();
   if (inputUnavailable()) { warnInput(); return; }
   held.add(e.code);
@@ -276,7 +278,7 @@ document.addEventListener('pointerlockchange', () => {
 const hint = () => {
   $('#capture-hint').textContent = kbMode === 'pad'
     ? 'Click the screen to drive with the keyboard · Shift+click to aim with the mouse · Esc to release'
-    : 'Click the screen to send keyboard & mouse to the console · Esc releases the mouse';
+    : 'Click the screen to send keyboard & mouse to the console · Esc releases the mouse · Ctrl+Alt+U releases the keyboard';
 };
 document.querySelectorAll('input[name=kbmode]').forEach((r) => {
   r.checked = r.value === kbMode;
@@ -381,7 +383,7 @@ function addEvent(ev) {
   li.querySelector('.what').textContent = `${time} ${what}`;
   $('#log').prepend(li);
   while ($('#log').children.length > 100) $('#log').lastChild.remove();
-  if (agent && ev.source !== 'error') $('#driver').textContent = `Last agent input: ${ev.source} (${what})`;
+  if (agent && ev.source !== 'error') $('#driver').textContent = `${t('Last agent input:')} ${ev.source} (${what})`;
 }
 
 $('#usb-mode').addEventListener('change', async (e) => {
@@ -517,7 +519,7 @@ function fillFps(want) {
   if (![...vsel.fps.options].some((o) => o.selected)) vsel.fps.value = String(Math.min(max, 60));
 }
 async function loadVideo() {
-  $('#v-note').textContent = 'loading devices…';
+  $('#v-note').textContent = t('Loading devices…');
   const d = await (await fetch('/api/video')).json();
   vdevices = d.devices.filter((x) => x.formats?.length || x.raw);
   const s = d.settings;
@@ -533,7 +535,7 @@ $('#v-apply').addEventListener('click', async () => {
   const [width, height] = vsel.size.value.split('x').map(Number);
   const body = { device: vsel.device.value, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
   const r = await fetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  $('#v-note').textContent = r.ok ? 'applied' : await r.text();
+  $('#v-note').textContent = r.ok ? t('Applied') : await r.text();
   setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
 });
 loadVideo().catch((e) => { $('#v-note').textContent = String(e); });
@@ -634,7 +636,7 @@ async function copyText(btn, text) {
   }
   const label = btn.querySelector('span');
   const old = label?.textContent;
-  btn.classList.add('done'); if (label) label.textContent = 'Copied';
+  btn.classList.add('done'); if (label) label.textContent = t('Copied');
   setTimeout(() => { btn.classList.remove('done'); if (label) label.textContent = old; }, 1400);
 }
 const logText = () => logState.entries.filter(visible)

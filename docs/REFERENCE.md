@@ -170,7 +170,7 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 
 While **Block agents** (manual-only) is on, agent requests that press, type, click, run tests, probes or calibration, save a clip, switch the USB mode, or change video, input, network or screen-log settings get `409`. Only the NS2Bench page can turn it off (`403` for anyone else), and only the page can change the Bridge address or token file (`403`). Requests from other web pages are refused (`403`) and logged.
 
-The desktop app proves which requests come from its own window with a key it creates at each launch. `ns2bench serve` on its own has no such window, so there any local program that can reach the port can also act as the page: use `server.token` if other users or untrusted programs share the computer.
+The desktop app proves which requests come from its own window with a key it creates at each launch. `ns2bench serve` prints a link ending in `?ui=…` when it starts; a browser opened with that link is the person at the bench (it can drive and turn Block agents off), and any other page or program can watch and use the API as an agent. Set `NS2BENCH_UI_KEY` to choose the key yourself. Use `server.token` as well if other users or untrusted programs share the computer.
 
 Buttons: `A B X Y L R ZL ZR PLUS MINUS HOME CAPTURE LSTICK RSTICK UP DOWN LEFT RIGHT`, plus `C GL GR` in Pro mode.
 

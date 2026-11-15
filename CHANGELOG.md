@@ -6,6 +6,12 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- `ns2bench serve` now prints a link ending in `?ui=…`. Open that link to drive from your browser. A page opened without it can watch but not drive, so other programs on the computer can no longer pose as you. The desktop app is unchanged.
+- Fixed: a serial input device (Pico, CH9329) that was plugged in but never answered slowly used up the engine's threads on macOS and Linux. The port is also set up more reliably on macOS.
+- Keyboard & mouse mode: Ctrl+Alt+U gives the keyboard back to the app, so you can leave the picture without a mouse.
+- Joy-Con tooltips appear in the right place at every Text size.
+- More of the interface is translated: Joy-Con button names, input warnings, update status and a few short messages.
+
 ## 0.0.5
 
 - New round buttons in the top bar, like ps5upload: reconnect the picture, sound and status; open Updates (a dot shows when one is ready); a bell that lists recent notifications with an unread count; and the light/dark switch.

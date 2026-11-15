@@ -134,7 +134,7 @@ claude mcp add ns2bench -- /Applications/NS2Bench.app/Contents/MacOS/ns2bench-ap
 
 ```sh
 cp examples/bench.example.json bench.json      # your capture device and input device (never committed)
-make serve                                     # engine + UI at http://127.0.0.1:7630
+make serve                                     # engine + UI: open the link it prints (http://127.0.0.1:7630/?ui=…)
 make app                                       # desktop app (needs: cargo install tauri-cli --version '^2')
 make test                                      # every Rust test
 ```

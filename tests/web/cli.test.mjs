@@ -12,6 +12,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const exe = join(root, 'native/target/debug', process.platform === 'win32' ? 'ns2bench.exe' : 'ns2bench');
 const PORT = 7450 + (process.pid % 200);
 const URL = `http://127.0.0.1:${PORT}`;
+const UI_KEY = 'testuikey1234';
 let engine, home;
 
 const cli = (...args) => {
@@ -28,7 +29,7 @@ before(async () => {
     video: { backend: 'ffmpeg', width: 640, height: 360, fps: 15, quality: 70,
       ffmpeg_input: ['-re', '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=15'] },
   }));
-  engine = spawn(exe, ['serve'], { env: { ...process.env, HOME: home, USERPROFILE: home, NS2BENCH_CONFIG: cfg }, stdio: 'ignore' });
+  engine = spawn(exe, ['serve'], { env: { ...process.env, HOME: home, USERPROFILE: home, NS2BENCH_CONFIG: cfg, NS2BENCH_UI_KEY: UI_KEY }, stdio: 'ignore' });
   const end = Date.now() + 20000;
   for (;;) {
     try { if ((await fetch(`${URL}/api/status`)).ok) break; } catch { /* starting */ }
@@ -132,7 +133,7 @@ test('agents cannot switch USB mode or video while blocked', async () => {
 
 test('the page still works while agents are blocked, and agents cannot redirect the Bridge token', async () => {
   const json = { 'Content-Type': 'application/json' };
-  const page = { ...json, Origin: URL, 'X-NS2Bench-Source': 'ui' };
+  const page = { ...json, Origin: URL, 'X-NS2Bench-Source': 'ui', 'X-NS2Bench-UI': UI_KEY };
   // the page's own requests are the person at the bench, not an agent
   const log = await fetch(`${URL}/api/control`, { method: 'POST', headers: page, body: JSON.stringify({ screen_log: false }) });
   assert.equal(log.status, 200);

@@ -16,6 +16,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const exe = join(root, 'native/target/debug', process.platform === 'win32' ? 'ns2bench.exe' : 'ns2bench');
 const PORT = 7650 + (process.pid % 200);
 const BASE = `http://127.0.0.1:${PORT}`;
+const UI_KEY = 'testuikey1234';
 let engine, home, browser;
 
 async function waitFor(fn, ms = 20000) {
@@ -37,7 +38,7 @@ before(async () => {
     video: { backend: 'ffmpeg', width: 640, height: 360, fps: 15, quality: 70,
       ffmpeg_input: ['-re', '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=15'] },
   }));
-  engine = spawn(exe, ['serve'], { env: { ...process.env, HOME: home, USERPROFILE: home, NS2BENCH_CONFIG: cfg }, stdio: 'ignore' });
+  engine = spawn(exe, ['serve'], { env: { ...process.env, HOME: home, USERPROFILE: home, NS2BENCH_CONFIG: cfg, NS2BENCH_UI_KEY: UI_KEY }, stdio: 'ignore' });
   await waitFor(async () => (await fetch(`${BASE}/api/status`)).ok);
   browser = await chromium.launch();
 });
@@ -54,7 +55,8 @@ async function page(opts = {}) {
   const errors = [];
   p.on('pageerror', (e) => errors.push(String(e)));
   p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|Failed to load resource/.test(m.text())) errors.push(m.text()); });
-  await p.goto(BASE + (opts.path || '/'));
+  // the link `ns2bench serve` prints: this browser is the person at the bench
+  await p.goto(BASE + (opts.path || '/') + (opts.noKey ? '' : `${(opts.path || '').includes('?') ? '&' : '?'}ui=${UI_KEY}`));
   // saved choices from an earlier page are applied with one reload: wait until that is over
   await p.waitForFunction(() => window.__ns2benchPrefs === 'ready', null, { timeout: 15000 });
   return { p, errors, ctx };
@@ -215,4 +217,19 @@ test('choices are saved by the engine and come back in a fresh browser', async (
   // scripts can't rewrite the page's preferences
   const r = await fetch(`${BASE}/api/prefs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"ns2bench.theme":"\\"dark\\""}' });
   assert.equal(r.status, 403);
+});
+
+test('a page opened without the link from `ns2bench serve` can watch but is not the person at the bench', async () => {
+  const { p, ctx } = await page({ noKey: true });
+  await p.waitForFunction(() => document.querySelector('#pill-video')?.textContent.includes('fps'), null, { timeout: 15000 });
+  // Block agents on is allowed for anyone; turning it off needs the key
+  const on = await p.evaluate(async () => (await fetch('/api/control', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"manual_only":true}' })).status);
+  assert.equal(on, 200);
+  const off = await p.evaluate(async () => (await fetch('/api/control', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"manual_only":false}' })).status);
+  assert.equal(off, 403);
+  await ctx.close();
+  const keyed = await page();
+  const ok = await keyed.p.evaluate(async (k) => (await fetch('/api/control', { method: 'POST', headers: { 'content-type': 'application/json', 'X-NS2Bench-UI': k }, body: '{"manual_only":false}' })).status, UI_KEY);
+  assert.equal(ok, 200);
+  await keyed.ctx.close();
 });

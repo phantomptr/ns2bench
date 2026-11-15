@@ -122,7 +122,7 @@ for (const [id, key, fallback] of [['#update-auto-check', 'check', true], ['#upd
 }
 const invoke = window.__TAURI__?.core?.invoke;
 function renderUpdate() {
-  $('#update-status').textContent = update ? `Installed ${update.current_version}${update.latest_version ? ` · Latest ${update.latest_version}` : ''} · ${update.message}` : 'Updates are available in the NS2Bench desktop app.';
+  $('#update-status').textContent = update ? `${t('Installed')} ${update.current_version}${update.latest_version ? ` · ${t('Latest')} ${update.latest_version}` : ''} · ${t(update.message)}` : 'Updates are available in the NS2Bench desktop app.';
   $('#update-notes').textContent = update?.notes || '';
   $('#update-check').disabled = busy || !invoke;
   $('#update-download').disabled = busy || !update?.available || update.downloaded || update.manual;

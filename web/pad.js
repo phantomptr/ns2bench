@@ -24,6 +24,10 @@ function make(tag, cls, html = '') {
   return e;
 }
 
+// Marks text for the translation catalog (scripts/i18n.mjs). The page keeps the English text;
+// web/i18n.js swaps it for the chosen language wherever it is shown.
+const t = (english) => english;
+
 function key(name, label, glyph, cls, unavailable = false) {
   const b = make('button', `key ${cls}${unavailable ? ' unavailable' : ''}`,
     `<span class="face">${glyph}<span class="kl"></span></span>`);
@@ -38,9 +42,9 @@ function key(name, label, glyph, cls, unavailable = false) {
 function stick(which) {
   const s = make('div', `stick ${which}`, '<div class="base"><div class="thumb"></div></div><div class="sl"></div>');
   s.dataset.stick = which;
-  s.dataset.label = `${which === 'left' ? 'Left' : 'Right'} stick`;
+  s.dataset.label = which === 'left' ? t('Left stick') : t('Right stick');
   s.setAttribute('role', 'slider');
-  s.setAttribute('aria-label', `${s.dataset.label}: drag to tilt, tap to press`);
+  s.setAttribute('aria-label', which === 'left' ? t('Left stick: drag to tilt, tap to press') : t('Right stick: drag to tilt, tap to press'));
   return s;
 }
 
@@ -63,20 +67,20 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
   lsh.append(key('ZL', 'ZL', letter('ZL'), 'pill'), key('L', 'L', letter('L'), 'pill'));
   rsh.append(key('R', 'R', letter('R'), 'pill'), key('ZR', 'ZR', letter('ZR'), 'pill'));
   lbody.append(
-    key('MINUS', 'Minus', GLYPH.MINUS, 'mini minus'),
+    key('MINUS', t('Minus'), GLYPH.MINUS, 'mini minus'),
     stick('left'),
-    cluster('dirs', [key('UP', 'Up', tri(0), 'n'), key('LEFT', 'Left', tri(-90), 'w'),
-      key('RIGHT', 'Right', tri(90), 'e'), key('DOWN', 'Down', tri(180), 's')]),
-    key('CAPTURE', 'Capture', GLYPH.CAPTURE, 'mini capture'),
-    key('GL', 'GL (back button, Pro Controller mode)', letter('GL'), 'grip gl'));
+    cluster('dirs', [key('UP', t('Up'), tri(0), 'n'), key('LEFT', t('Left'), tri(-90), 'w'),
+      key('RIGHT', t('Right'), tri(90), 'e'), key('DOWN', t('Down'), tri(180), 's')]),
+    key('CAPTURE', t('Capture'), GLYPH.CAPTURE, 'mini capture'),
+    key('GL', t('GL (back button, Pro Controller mode)'), letter('GL'), 'grip gl'));
   rbody.append(
-    key('PLUS', 'Plus', GLYPH.PLUS, 'mini plus'),
+    key('PLUS', t('Plus'), GLYPH.PLUS, 'mini plus'),
     cluster('abxy', [key('X', 'X', letter('X'), 'n'), key('Y', 'Y', letter('Y'), 'w'),
       key('A', 'A', letter('A'), 'e'), key('B', 'B', letter('B'), 's')]),
     stick('right'),
     key('HOME', 'HOME', GLYPH.HOME, 'mini home'),
     key('C', 'C · GameChat', letter('C'), 'mini cbtn macro'),
-    key('GR', 'GR (back button, Pro Controller mode)', letter('GR'), 'grip gr'));
+    key('GR', t('GR (back button, Pro Controller mode)'), letter('GR'), 'grip gr'));
 
   const roots = [leftRoot, rightRoot];
   const all = (sel) => roots.flatMap((r) => [...r.querySelectorAll(sel)]);
@@ -100,14 +104,17 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
   const showTip = (el) => {
     const pro = leftRoot.closest('.pro');
     const why = el.classList.contains('macro') && !pro
-      ? 'Opens GameChat from the HOME menu (switch to Pro Controller mode for a real C button)'
+      ? t('Opens GameChat from the HOME menu (switch to Pro Controller mode for a real C button)')
       : el.classList.contains('grip') && !pro ? 'Only in Pro Controller mode' : '';
     const k = hints[el.dataset.stick || el.dataset.b];
     tip.innerHTML = `<b>${el.dataset.label}</b>` + (why ? `<span class="none">${why}</span>`
       : k ? `<span>${k.map((x) => `<kbd>${x}</kbd>`).join('')}</span>` : '');
     const r = el.getBoundingClientRect();
-    tip.style.left = `${r.left + r.width / 2}px`;
-    tip.style.top = `${r.top - 8}px`;
+    // Text size zooms the page. Where the browser measures in zoomed pixels, convert back to the
+    // page's own (the ratio is 1 where it doesn't).
+    const zoom = el.offsetWidth ? r.width / el.offsetWidth : 1;
+    tip.style.left = `${(r.left + r.width / 2) / zoom}px`;
+    tip.style.top = `${r.top / zoom - 8}px`;
     tip.classList.add('show');
   };
   for (const el of all('.key, .stick')) {

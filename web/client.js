@@ -15,9 +15,21 @@ if (fromUrl) {
   u.searchParams.delete('token');
   history.replaceState(null, '', u);
 }
-// The desktop app gives its own window a per-launch key (never stored): with it, this
-// page counts as the person at the bench (can turn Block agents off, drive by socket).
-const UI = typeof window.__NS2BENCH_UI__ === 'string' ? window.__NS2BENCH_UI__ : '';
+// The key that makes this page the person at the bench (can drive by socket, turn Block agents
+// off). The desktop app gives it to its own window; with `ns2bench serve` it comes in the link
+// the engine prints (?ui=…) and is kept for this tab only, out of the address bar.
+const uiKey = {
+  get() { try { return sessionStorage.getItem('ns2bench.ui') || ''; } catch { return ''; } },
+  set(v) { try { sessionStorage.setItem('ns2bench.ui', v); } catch { /* storage blocked: this page load only */ } },
+};
+const uiFromUrl = new URLSearchParams(location.search).get('ui');
+if (uiFromUrl) {
+  uiKey.set(uiFromUrl);
+  const u = new URL(location.href);
+  u.searchParams.delete('ui');
+  history.replaceState(null, '', u);
+}
+const UI = typeof window.__NS2BENCH_UI__ === 'string' ? window.__NS2BENCH_UI__ : (uiFromUrl || uiKey.get());
 export function setToken(value) { token = value.trim(); session.set(token); location.reload(); }
 export function authURL(path) {
   const url = new URL(path, location.href);
