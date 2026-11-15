@@ -189,7 +189,7 @@ Thanks to the console research and homebrew communities whose open documentation
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Each release also includes `THIRD-PARTY-LICENSES.txt` with the license and notice texts of every open-source package compiled into the binaries (`node scripts/third-party.mjs` builds it).
 
 ## Author
 

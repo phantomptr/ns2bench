@@ -56,6 +56,10 @@
           "ffmpeg"
         ]
       }
-    }
+    },
+    "publisher": "PhantomPtr",
+    "copyright": "Copyright © 2026 PhantomPtr. MIT License.",
+    "license": "MIT",
+    "homepage": "https://ns2bench.phantomptr.com"
   }
 }
