@@ -76,6 +76,42 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 .ibtn.done { border-color: var(--ok); color: var(--ok); }
 @media (width < 1500px) { .bar .ibtn span { display: none; } }
 .bar button { padding: 5px 12px; flex: none; }
+/* Round quick actions, like ps5upload: reconnect, updates, notifications, theme. */
+.quick { display: flex; gap: 6px; flex: none; }
+.bar .round { position: relative; width: 32px; height: 32px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
+.round .i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.round.spin .i { animation: round-spin .7s ease; }
+@keyframes round-spin { to { transform: rotate(360deg); } }
+.round.badge::after { top: 1px; right: 1px; }
+.round .count { position: absolute; top: -6px; right: -8px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 999px;
+  background: var(--bad); color: #fff; font: 700 11px/18px system-ui, -apple-system, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--bg); }
+.inbox { position: fixed; z-index: 40; top: 52px; right: 14px; width: min(360px, calc(100vw - 28px)); max-height: min(70vh, 520px); overflow: auto;
+  padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: 0 18px 50px -12px rgb(0 0 0 / .5); }
+.inbox[hidden] { display: none; }
+.inbox-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.inbox ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.inbox li { padding: 8px 10px; border-radius: 10px; background: var(--field); border-left: 3px solid transparent; }
+.inbox li.new { border-left-color: var(--accent); }
+.inbox li b { display: block; font-size: 13px; }
+.inbox li span { display: block; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.inbox li time { font-size: 11px; color: var(--muted); float: right; margin-left: 8px; }
+.inbox .hint { margin: 6px 2px; }
+.inbox .linkish { margin-top: 8px; border: 0; background: none; color: var(--accent); padding: 4px 2px; cursor: pointer; }
+/* The one warm button: a thank-you, not one more setting. */
+.thanks { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 32px; box-sizing: border-box; padding: 0 14px; border-radius: 999px;
+  color: #fff; font-weight: 600; font-size: 13px; text-decoration: none; white-space: nowrap;
+  background-image: linear-gradient(135deg, #ff3d6e 0%, #ff6a4d 55%, #ff9a3c 100%);
+  box-shadow: 0 6px 18px -6px rgb(255 61 110 / .65), inset 0 1px 0 rgb(255 255 255 / .25);
+  transition: transform .16s cubic-bezier(.2, .8, .2, 1), box-shadow .16s, filter .16s; }
+.thanks:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgb(255 61 110 / .75), inset 0 1px 0 rgb(255 255 255 / .25); }
+.thanks:active { transform: none; }
+.thanks:focus-visible { outline: 2px solid #ff3d6e; outline-offset: 2px; }
+.thanks .heart { width: 14px; height: 14px; fill: currentColor; animation: thanks-beat 2.8s ease-in-out infinite; }
+@keyframes thanks-beat { 0%, 70%, 100% { transform: scale(1); } 76% { transform: scale(1.22); } 82% { transform: scale(1); } 88% { transform: scale(1.14); } }
+:root[data-motion="none"] .thanks .heart, :root[data-motion="none"] .round.spin .i { animation: none; }
+@media (prefers-reduced-motion: reduce) { .thanks .heart, .round.spin .i { animation: none; } }
+@media (width < 1200px) { .bar .thanks span { display: none; } .bar .thanks { padding: 0 9px; } }
+
 .bar .brand { flex: none; }
 #pill-video { flex-shrink: 0; }
 .spacer { flex: 1; }

@@ -6,6 +6,10 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- New round buttons in the top bar, like ps5upload: reconnect the picture, sound and status; open Updates (a dot shows when one is ready); a bell that lists recent notifications with an unread count; and the light/dark switch.
+- A **Thank you** button in the top bar and in Help, for anyone who wants to support NS2Bench.
+- The on-screen ZL and ZR now wrap around the Joy-Con's corner with no gap, and L and R are longer.
+
 ## 0.0.4
 
 - Fixed: with **Block agents** on, the app's own window was refused too. Switching the USB mode, changing video or input settings, saving a clip and the screen-text log now work for the person at the window while agents stay blocked.

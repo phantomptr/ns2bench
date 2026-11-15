@@ -82,6 +82,24 @@ test('every settings tab opens; status pills open the right tab', async () => {
   await ctx.close();
 });
 
+test('toolbar: notifications list, update and reconnect buttons, Thank you link', async () => {
+  const { p, errors, ctx } = await page();
+  // the engine's start-up notifications (if any) are listed; opening the bell marks them read
+  await p.click('#btn-bell');
+  assert.equal(await p.isVisible('#inbox'), true);
+  await p.keyboard.press('Escape');
+  assert.equal(await p.isVisible('#inbox'), false);
+  assert.equal(await p.isVisible('#bell-count'), false);
+  await p.click('#btn-update');
+  await p.waitForSelector('[data-pane="updates"]:not([hidden])');
+  await p.click('#settings-close');
+  await p.click('#btn-refresh');
+  await p.waitForFunction(() => document.querySelector('#pill-video')?.textContent.includes('fps'), null, { timeout: 15000 });
+  assert.equal(await p.getAttribute('#btn-thanks', 'href'), 'https://ns2bench.phantomptr.com/#thanks');
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test('themes apply and the toolbar toggle remembers light/dark choices', async () => {
   const { p, ctx } = await page({ colorScheme: 'dark' });
   await p.click('#btn-settings');

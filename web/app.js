@@ -638,6 +638,16 @@ async function copyText(btn, text) {
 const logText = () => logState.entries.filter(visible)
   .map((e) => `${new Date(e.t * 1000).toISOString()} ${e.level.toUpperCase()} [${e.source}] ${e.text}${e.hint ? `\n    → ${e.hint}` : ''}`).join('\n');
 $('#log-copy').addEventListener('click', (e) => copyText(e.currentTarget, logText()));
+// Reconnect everything the page listens to (after sleep, a cable change or an engine restart).
+$('#btn-refresh').addEventListener('click', (e) => {
+  const b = e.currentTarget;
+  b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin');
+  if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`);
+  live.reconnect();
+  ws?.close();                                   // reopens by itself and reloads status and missed logs
+  if (audioCtx) { soundOff(); soundOn().catch(() => { soundOff(); setSoundButton(false); }); }
+});
+$('#btn-update').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'updates' })));
 $('#btn-help').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'help' })));
 // click a log line to copy it
 logview.addEventListener('click', (e) => {
@@ -665,7 +675,9 @@ function loadLogs() {
   const last = logState.entries.reduce((m, e) => Math.max(m, e.seq ?? 0), 0);
   return fetch(`/api/logs?limit=2000&level=debug${last ? `&after=${last}` : ''}`).then((r) => r.json()).then((d) => {
     const have = new Set(logState.entries.map((e) => e.seq));
-    logState.entries.push(...d.entries.filter((e) => !have.has(e.seq)));
+    const fresh = d.entries.filter((e) => !have.has(e.seq));
+    fresh.forEach((e) => fromLog(e, false));     // earlier notifications fill the bell's list
+    logState.entries.push(...fresh);
     logState.entries.sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
     logState.counts = {};
     for (const k in logState.levelCounts) logState.levelCounts[k] = 0;

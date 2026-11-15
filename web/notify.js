@@ -45,9 +45,61 @@ export async function notify(title, body, { force = false } = {}) {
   } catch { /* the system refused; nothing else to do */ }
 }
 
-/** Called for every live log entry. */
-export function fromLog(e) {
-  if (e.notify) notify(e.notify, e.hint ? `${e.text}\n${e.hint}` : e.text);
+// ---------------------------------------------------------------- inbox (the bell in the toolbar)
+// Everything worth a notification is also listed in the app, whatever the desktop
+// notification settings say. "Unread" is anything newer than the last time the list was opened.
+const inbox = { items: [], seen: 0 };
+try { inbox.seen = Number(localStorage.getItem('ns2bench.inbox.seen')) || 0; } catch { /* private mode */ }
+function renderInbox() {
+  const unread = inbox.items.filter((i) => i.t > inbox.seen).length;
+  const count = $('#bell-count');
+  if (count) { count.hidden = !unread; count.textContent = unread > 9 ? '9+' : String(unread); }
+  const list = $('#inbox-list');
+  if (!list || $('#inbox').hidden) return;
+  list.replaceChildren(...inbox.items.map((i) => {
+    const li = document.createElement('li');
+    if (i.t > inbox.seen) li.className = 'new';
+    const time = Object.assign(document.createElement('time'), { textContent: new Date(i.t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+    li.append(time, Object.assign(document.createElement('b'), { textContent: t(i.title) }), Object.assign(document.createElement('span'), { textContent: i.text }));
+    return li;
+  }));
+  $('#inbox-empty').hidden = inbox.items.length > 0;
+  $('#inbox-clear').hidden = !inbox.items.length;
+}
+/** Add one notification to the inbox (newest first, at most 50, each once). */
+export function inboxAdd(title, text, time = Date.now() / 1000) {
+  if (inbox.items.some((i) => i.t === time && i.title === title)) return;
+  inbox.items.push({ title, text, t: time });
+  inbox.items.sort((a, b) => b.t - a.t);
+  inbox.items.length = Math.min(inbox.items.length, 50);
+  renderInbox();
+}
+function closeInbox() {
+  if ($('#inbox').hidden) return;
+  // opened and read: everything up to now is seen
+  inbox.seen = Math.max(inbox.seen, ...inbox.items.map((i) => i.t));
+  try { localStorage.setItem('ns2bench.inbox.seen', String(inbox.seen)); } catch { /* private mode */ }
+  $('#inbox').hidden = true;
+  $('#btn-bell').setAttribute('aria-expanded', 'false');
+  renderInbox();
+}
+$('#btn-bell')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!$('#inbox').hidden) return closeInbox();
+  $('#inbox').hidden = false;
+  $('#btn-bell').setAttribute('aria-expanded', 'true');
+  renderInbox();
+});
+$('#inbox-clear')?.addEventListener('click', () => { inbox.seen = Math.max(inbox.seen, ...inbox.items.map((i) => i.t)); inbox.items = []; renderInbox(); });
+$('#inbox-settings')?.addEventListener('click', () => { closeInbox(); document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'notifications' })); });
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#inbox, #btn-bell')) closeInbox(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeInbox(); });
+
+/** Called for every log entry: `live` ones may also raise a desktop notification. */
+export function fromLog(e, live = true) {
+  if (!e.notify) return;
+  inboxAdd(e.notify, e.text, e.t);
+  if (live) notify(e.notify, e.hint ? `${e.text}\n${e.hint}` : e.text);
 }
 
 function status() {
