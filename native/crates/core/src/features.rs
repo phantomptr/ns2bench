@@ -138,6 +138,8 @@ pub fn routes(r: Router<S>) -> Router<S> {
         .route("/api/health", get(get_health))
         .route("/api/reports", get(get_reports))
         .route("/api/prefs", get(get_prefs).post(post_prefs))
+        .route("/api/power", get(crate::power::get_power).post(crate::power::post_power))
+        .route("/api/power/settings", post(crate::power::set_power))
         .route("/api/changelog", get(|| async { ([(header::CONTENT_TYPE, "text/markdown; charset=utf-8")], CHANGELOG) }))
         .route("/api/serial_ports", get(|| async { Json(json!({"ports": serial_ports()})) }))
 }

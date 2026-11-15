@@ -488,3 +488,5 @@ dialog.palette { padding: 8px; top: 12vh; margin-top: 0; }
 .status.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); }
 .check:has(.check-act) { grid-template-columns: 24px 1fr auto; }
 .copyblock code .w { white-space: nowrap; }
+#power-result { white-space: pre-line; }
+#power-result[hidden], #power-cec-fields[hidden] { display: none; }

@@ -34,6 +34,8 @@ enum Stick { Left, Right }
 enum Mode { Standard, Pro }
 #[derive(Clone, Copy, ValueEnum, PartialEq)]
 enum OnOff { On, Off }
+#[derive(Clone, Copy, ValueEnum, PartialEq)]
+enum PowerAction { Wake, Sleep, Button }
 
 #[derive(Subcommand)]
 enum Cmd {
@@ -282,6 +284,11 @@ enum Cmd {
     Devices {
         #[arg(long)]
         local: bool,
+    },
+    /// Wake the console, put it to sleep (HDMI-CEC) or press its power button (a presser you set up)
+    Power {
+        #[arg(value_enum, default_value = "wake")]
+        action: PowerAction,
     },
     /// Turn the screen log on or off (new on-screen text becomes log lines)
     ScreenLog {
@@ -616,6 +623,18 @@ async fn run(cli: Cli) -> Res<ExitCode> {
                 "connectivity": on(connectivity).unwrap_or_else(|| keep("connectivity")),
             });
             ok(&post(&c, "/api/network", b).await?);
+        }
+        Cmd::Power { action } => {
+            let a = match action { PowerAction::Wake => "wake", PowerAction::Sleep => "sleep", PowerAction::Button => "button" };
+            let v = post(&c, "/api/power", json!({"action": a})).await?;
+            if raw { pretty(&v); } else {
+                println!("{}", v["message"].as_str().or(v["detail"].as_str()).unwrap_or("done"));
+                for s in v["steps"].as_array().into_iter().flatten() {
+                    println!("  {} {}{}", if s["ok"] == true { "✓" } else { "✕" }, s["step"].as_str().unwrap_or(""),
+                        s["detail"].as_str().filter(|x| !x.is_empty()).map(|x| format!(": {x}")).unwrap_or_default());
+                }
+            }
+            if v["ok"] != true { return Ok(ExitCode::from(1)); }
         }
         Cmd::ScreenLog { state } => {
             let on = matches!(state, OnOff::On);

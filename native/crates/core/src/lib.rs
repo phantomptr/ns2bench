@@ -9,6 +9,7 @@ pub mod doctor;
 pub mod dvr;
 pub mod nav;
 pub mod ocr;
+pub mod power;
 pub mod testrun;
 pub mod config;
 pub mod features;

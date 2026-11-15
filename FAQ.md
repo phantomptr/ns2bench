@@ -126,7 +126,12 @@ A board powered from the console's USB loses power and restarts when the console
 
 ## Can NS2Bench wake the console from sleep?
 
-Not yet. The Switch 2 has no Wake-on-LAN, and a board powered from the console's USB port switches off with the console (tested: the Bridge drops about 7 seconds after Sleep Mode; after you wake the console, the board boots and NS2Bench reconnects by itself, ready within about 30 seconds). Two ways being explored: power the board separately (a USB power splitter that doesn't feed power back into the console) so it stays awake, or HDMI-CEC "Match TV Power State", where a CEC device on the HDMI side wakes the console. Until then, wake it with its power button.
+Yes, with a little help. A dimmed screen wakes with any press, which NS2Bench does by itself. Sleep Mode, a crash or power-off need one of these, set in **Settings → Devices → Power and wake**:
+
+- **HDMI-CEC (nothing mechanical):** a USB-CEC adapter (for example Pulse-Eight) in the HDMI cable between the dock and the capture card sends the "power on" a TV would send. Turn on the console's **System Settings → TV Output → Match TV Power State**, and install libcec on the computer (`brew install libcec` on a Mac). It can also put the console to sleep.
+- **A power-button command:** for a button presser such as a SwitchBot, a Home Assistant webhook or a relay. This is the only way back from a crash or power-off.
+
+Then **Wake the console** (in the no-picture screen, the search, the API `POST /api/power`, the `power` MCP tool and `ns2bench power wake`) tries CEC, then the power button if you allow it, then a press. The Switch 2 has no Wake-on-LAN, and a board powered from the console's USB port switches off about 7 seconds after Sleep Mode; it boots again when the console wakes, and NS2Bench reconnects by itself within about 30 seconds.
 
 # Offline console network
 

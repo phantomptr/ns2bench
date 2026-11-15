@@ -97,6 +97,8 @@ pub fn tools() -> Vec<Value> {
         tool("diagnostics", "A short Markdown summary of versions, devices, settings and recent errors (for bug reports).", json!({"lines": int("log lines to include, default 40")}), &[]),
         tool("block_agents", "Turn on Block agents (manual-only): stop all agent input, including your own, and let only the person at the bench drive. Only that person can turn it off.", json!({}), &[]),
         tool("screen_log", "Turn the screen log on or off: once a second, newly visible on-screen text is added to the logs (source \"screen\").", json!({"on": boolean("on or off")}), &["on"]),
+        tool("power", "Wake the console (from a dimmed screen, Sleep Mode or, with a power-button presser set up, a crash), put it to sleep (needs HDMI-CEC), or press its power button. Use wake when screenshots are black or the Bridge is offline because the console slept. Says which steps ran and whether the picture is back.",
+            json!({"action": {"type": "string", "enum": ["wake", "sleep", "button"], "description": "wake (default), sleep or button"}}), &[]),
     ]
 }
 
@@ -327,6 +329,15 @@ impl Mcp {
                 self.json("POST", "/api/control", Some(json!({"screen_log": on, "source": "mcp"}))).await?;
                 Out::Text(format!("screen log {}", if on { "on" } else { "off" }))
             }
+            "power" => {
+                let d = self.json("POST", "/api/power", Some(json!({"action": a["action"].as_str().unwrap_or("wake"), "source": "mcp"}))).await?;
+                let mut t = d["message"].as_str().or(d["detail"].as_str()).unwrap_or(if d["ok"] == true { "done" } else { "failed" }).to_string();
+                for s in d["steps"].as_array().into_iter().flatten() {
+                    t += &format!("\n{} {}{}", if s["ok"] == true { "ok  " } else { "FAIL" }, s["step"].as_str().unwrap_or(""),
+                        s["detail"].as_str().filter(|x| !x.is_empty()).map(|x| format!(": {x}")).unwrap_or_default());
+                }
+                Out::Text(t)
+            }
             _ => bail!("unknown tool {name}"),
         })
     }
@@ -442,11 +453,11 @@ mod tests {
     #[test]
     fn tool_schemas_are_valid() {
         let t = super::tools();
-        assert_eq!(t.len(), 34);
+        assert_eq!(t.len(), 35);
         let mut names: Vec<&str> = t.iter().map(|x| x["name"].as_str().unwrap()).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 34);
+        assert_eq!(names.len(), 35);
         assert!(t.iter().all(|x| x["inputSchema"]["type"] == "object"));
     }
 }

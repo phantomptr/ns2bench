@@ -122,6 +122,17 @@ pub async fn run(b: &Bench, probe: bool) -> Value {
         None => out.push(check("calibration", "warn", "never measured", "Go to the HOME menu, then Settings → Devices → Calibrate (or POST /api/calibrate).")),
     }
 
+    // waking from sleep or a crash (optional: a dimmed screen wakes with any press)
+    let p = crate::power::settings();
+    let ways: Vec<&str> = [(p["cec"] == true, "HDMI-CEC"), (!p["button_command"].as_str().unwrap_or("").is_empty(), "power-button command")]
+        .into_iter().filter(|(on, _)| *on).map(|(_, n)| n).collect();
+    out.push(if ways.is_empty() {
+        check("power and wake", "skip", "nothing set up: NS2Bench can wake a dimmed screen, not Sleep Mode or a crash",
+            "Settings → Devices → Power and wake: HDMI-CEC or a power-button command.")
+    } else {
+        check("power and wake", "ok", ways.join(" + "), "")
+    });
+
     // offline console network, if configured
     if !b.cfg.raw["network"].is_null() {
         if cfg!(target_os = "macos") {

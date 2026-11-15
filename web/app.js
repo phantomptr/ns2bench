@@ -766,6 +766,7 @@ for (const b of document.querySelectorAll('#welcome .step')) {
 $('#welcome-hide').addEventListener('click', () => { welcomeAsked = false; store.set('welcomeHidden', true); $('#welcome').hidden = true; });
 $('#welcome-devices').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'devices' })));
 $('#no-picture-video').addEventListener('click', (e) => { e.stopPropagation(); $('#pill-video').click(); });
+$('#no-picture-wake').addEventListener('click', (e) => { e.stopPropagation(); document.dispatchEvent(new CustomEvent('ns2bench:wake')); });
 $('#no-picture-check').addEventListener('click', (e) => {
   e.stopPropagation();
   document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'help' }));
@@ -793,6 +794,8 @@ const ACTIONS = [
   ['Reconnect the picture, sound and status', 'refresh reload retry', () => $('#btn-refresh').click()],
   ['Switch between light and dark', 'theme dark light mode', () => $('#btn-theme').click()],
   ['Video settings', 'capture card device resolution fps', () => $('#pill-video').click()],
+  ['Wake the console', 'power on sleep wake cec black screen', () => document.dispatchEvent(new CustomEvent('ns2bench:wake'))],
+  ['Power and wake', 'power button switchbot cec sleep', () => { settingsTab('devices')(); setTimeout(() => $('#power-settings').scrollIntoView({ block: 'center' }), 300); }],
   ['Input device (Bridge)', 'devices bridge pico ch9329 serial input', settingsTab('devices')],
   ['Calibrate presses', 'calibrate press length timing', () => { settingsTab('devices')(); setTimeout(() => $('#calibrate').scrollIntoView({ block: 'center' }), 300); }],
   ['Console network', 'network dhcp dns offline', settingsTab('network')],

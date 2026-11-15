@@ -165,3 +165,26 @@ test('MCP over HTTP: agents add the engine by address', async () => {
   const info = await (await fetch(`${URL}/api/integrations`)).json();
   assert.equal(info.mcp_url, `${URL}/mcp`);
 });
+
+test('power: only the page sets the command; wake and the power button run it', async () => {
+  const json = { 'Content-Type': 'application/json' };
+  const page = { ...json, Origin: URL, 'X-NS2Bench-Source': 'ui', 'X-NS2Bench-UI': UI_KEY };
+  const st = await (await fetch(`${URL}/api/power`)).json();
+  assert.equal(st.can_press_button, false);
+  // an agent can't set what runs on this computer
+  const agent = await fetch(`${URL}/api/power/settings`, { method: 'POST', headers: json, body: JSON.stringify({ button_command: 'echo hi' }) });
+  assert.equal(agent.status, 403);
+  const marker = join(home, 'pressed');
+  const cmd = process.platform === 'win32' ? `echo pressed> "${marker}"` : `echo pressed > '${marker}'`;
+  const set = await fetch(`${URL}/api/power/settings`, { method: 'POST', headers: page, body: JSON.stringify({ button_command: cmd, wake_with_button: false }) });
+  assert.equal(set.status, 200);
+  assert.equal(cli('power', 'button').code, 0);
+  assert.ok(existsSync(marker), 'the power-button command ran');
+  // the picture is live, so wake says so without pressing the power button
+  const w = JSON.parse(cli('--json', 'power', 'wake').out);
+  assert.equal(w.ok, true);
+  assert.equal(w.was_awake, true);
+  // sleep needs HDMI-CEC
+  assert.notEqual(cli('power', 'sleep').code, 0);
+  await fetch(`${URL}/api/power/settings`, { method: 'POST', headers: page, body: JSON.stringify({}) });
+});

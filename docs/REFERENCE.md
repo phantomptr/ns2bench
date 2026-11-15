@@ -123,12 +123,12 @@ The MCP server is part of the running engine, so keep NS2Bench open while the ag
 
 Clients that start the server themselves can use the stdio form instead (the same `ns2bench` binary, also inside the desktop app): `ns2bench mcp`, for example `claude mcp add ns2bench -- /path/to/ns2bench mcp`.
 
-Tools (34):
+Tools (35):
 - **See:** `screenshot` (with `region` to crop/zoom), `read_screen` (OCR with positions), `find_text` (every match with its box), `wait_for_text`, `wait_for_screen` (until the screen changes, or until it settles), `where_am_i`, `wait`
 - **Drive:** `press`, `hold`, `release`, `stick`, `key`, `type_text`, `mouse_move` (with `buttons` to drag), `mouse_click`, `scroll`, `sequence`, `navigate`, `list_routes`, `usb_mode`, `probe` (press and measure the reaction)
 - **Check and debug:** `health` (ready to drive? what to fix), `status`, `doctor`, `logs` (with `level` and `after`), `events` (who pressed what), `diagnostics`, `video_info`
 - **Record and test:** `save_clip`, `list_clips`, `run_test`, `list_reports`
-- **Control:** `block_agents` (only the person at the bench can undo it), `screen_log`
+- **Control:** `block_agents` (only the person at the bench can undo it), `screen_log`, `power` (wake, sleep, power button)
 
 Most action tools take `look_after_ms` to return a screenshot taken after the action. A good loop: act, then `wait_for_screen` (`until: "change"`), then `screenshot` or `find_text`.
 
@@ -139,6 +139,7 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 | | |
 |---|---|
 | `GET /api/status` | video fps, input link, USB state, calibration |
+| `GET /api/power` · `POST /api/power {"action": "wake"\|"sleep"\|"button"}` | wake the console (HDMI-CEC, then the power-button command if allowed, then a press), sleep over HDMI-CEC, or press the power button; settings via `POST /api/power/settings` (the page only) |
 | `GET /api/prefs` | the page's saved preferences (theme, text size, language…), kept in `~/.ns2bench/ui.json`; only the page can change them |
 | `GET /api/health` | ready to drive? `{ok, video, input, agents_allowed, problems: [{area, problem, fix}]}` |
 | `GET /api/screenshot?format=png&max_width=1280&region=0,0.8,1,0.2` | latest frame (optionally cropped); headers `X-Frame-Seq`, `X-Frame-Age-Ms` |

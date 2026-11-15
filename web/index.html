@@ -101,7 +101,7 @@
             <li>The console is in its dock and awake.</li>
             <li>The capture card is picked in the Video panel, and no other app (OBS) is using it.</li>
           </ul>
-          <div class="field-row"><button type="button" class="primary" id="no-picture-video">Video settings</button><button type="button" id="no-picture-check">Run the check</button></div>
+          <div class="field-row"><button type="button" class="primary" id="no-picture-wake">Wake the console</button><button type="button" id="no-picture-video">Video settings</button><button type="button" id="no-picture-check">Run the check</button></div>
         </div>
       </div>
       <div class="joycon right" id="joy-right" aria-label="Right Joy-Con"></div>
@@ -220,6 +220,18 @@
     <h3>Calibrate presses</h3>
     <p>The Switch 2 ignores presses that are too short, and the right length depends on your setup. Go to the HOME menu, then click Calibrate: NS2Bench presses Right and Left a few times, watches the screen and saves the shortest press that always works.</p>
     <div class="field-row"><button type="button" id="calibrate">Calibrate</button><span class="hint" id="calibrate-note"></span></div>
+    <h3>Power and wake</h3>
+    <p>A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.</p>
+    <form id="power-settings">
+      <label class="toggle-row"><input type="checkbox" class="switch" id="power-cec"><span><b>HDMI-CEC</b><small>A USB-CEC adapter (for example Pulse-Eight) in the HDMI cable between the dock and the capture card sends “power on” like a TV. Turn on the console’s System Settings → TV Output → Match TV Power State.</small></span></label>
+      <div class="field-row" id="power-cec-fields"><label class="field">Adapter port (optional)<input id="power-cec-port" placeholder="auto" autocomplete="off"></label><label class="field">Console CEC address<input id="power-cec-address" type="number" min="1" max="14" value="4"></label></div>
+      <p class="hint" id="power-cec-tool"></p>
+      <label class="field">Power-button command (optional)<input id="power-command" placeholder="curl -X POST http://homeassistant.local:8123/api/webhook/switch-power" autocomplete="off" spellcheck="false"></label>
+      <p class="hint">Runs on this computer to press the console’s power button: a SwitchBot or other button presser, a Home Assistant webhook, a relay. It is the only way back from a crash or power-off. Only you can set it here; agents can only ask for a press.</p>
+      <label class="row"><input type="checkbox" id="power-wake-button"> Also press the power button to wake, if HDMI-CEC doesn’t bring the picture back</label>
+      <div class="field-row wrap"><button type="submit">Save</button><button type="button" id="power-wake">Wake the console</button><button type="button" id="power-sleep">Sleep</button><button type="button" id="power-button">Press power button</button></div>
+      <p class="status" id="power-result" hidden></p>
+    </form>
     <h3>What you need</h3>
     <figure class="setup-figure"><img src="/static/setup/overview.svg" alt="How the console, capture card, input device and computer connect" loading="lazy"></figure>
     <p><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Open the setup guide</a> for every way to connect: Linux board, Raspberry Pi Pico, CH9329, view only, and the offline console network.</p>

@@ -37,7 +37,7 @@ async function about() {
   $('#about-version').textContent = s.version ? `v${s.version}` : '';
 }
 async function refresh() {
-  const results = await Promise.allSettled([input(), network(), integrations(), about()]);
+  const results = await Promise.allSettled([input(), network(), integrations(), about(), power()]);
   const errors = results.filter((r) => r.status === 'rejected').map((r) => r.reason.message);
   message(errors.join(' · '), 'error');
 }
@@ -406,6 +406,7 @@ const CHECK_ACTION = {
   calibration: ['Calibrate', () => showTab('devices').then(() => $('#calibrate').scrollIntoView({ block: 'center' }))],
   'console network': ['Network settings', () => showTab('network')],
   'console network isolation': ['Network settings', () => showTab('network')],
+  'power and wake': ['Power and wake', () => showTab('devices').then(() => $('#power-settings').scrollIntoView({ block: 'center' }))],
   audio: ['Turn sound on', () => { dialog.close(); if ($('#btn-sound').getAttribute('aria-pressed') !== 'true') $('#btn-sound').click(); }],
 };
 new MutationObserver(() => {
@@ -490,3 +491,48 @@ api('/api/status').then(async (s) => {
   inboxAdd('Update installed', `${t('NS2Bench was updated to')} ${s.version}. ${t('Open Settings → Updates → What’s new to see what changed.')}`);
   await showWhatsNew(seen, s.version);
 }).catch(() => {});
+
+// ---------------------------------------------------------------- Devices: power and wake
+async function power() {
+  const p = await api('/api/power');
+  const s = p.settings;
+  $('#power-cec').checked = !!s.cec; $('#power-cec-port').value = s.cec_port || ''; $('#power-cec-address').value = s.cec_address || 4;
+  $('#power-command').value = s.button_command || ''; $('#power-wake-button').checked = !!s.wake_with_button;
+  $('#power-cec-tool').textContent = p.cec_tool ? `${t('CEC tool found:')} ${p.cec_tool}` : t('No CEC tool on this computer yet: install libcec (macOS: brew install libcec; Windows: the Pulse-Eight installer; Linux: the libcec or cec-utils package).');
+  powerButtons(p);
+}
+function powerButtons(p) {
+  $('#power-sleep').disabled = !p.can_sleep;
+  $('#power-button').disabled = !p.can_press_button;
+  $('#power-cec-fields').hidden = !$('#power-cec').checked;
+}
+$('#power-cec').onchange = () => { $('#power-cec-fields').hidden = !$('#power-cec').checked; };
+$('#power-settings').onsubmit = run(async () => {
+  await api('/api/power/settings', { cec: $('#power-cec').checked, cec_port: $('#power-cec-port').value.trim(),
+    cec_address: Number($('#power-cec-address').value) || 4, button_command: $('#power-command').value.trim(), wake_with_button: $('#power-wake-button').checked });
+  toast(t('Power settings saved.'), 'ok');
+  await power();
+});
+function powerResult(r) {
+  const el = $('#power-result');
+  el.hidden = false; el.className = `status ${r.ok ? 'ok' : 'bad'}`;
+  const lines = [r.message || r.detail || (r.ok ? t('Done.') : t('Failed.'))];
+  for (const s of r.steps || []) lines.push(`${s.ok ? '✓' : '✕'} ${s.step}${s.detail ? `: ${s.detail}` : ''}`);
+  el.textContent = lines.join('\n');
+}
+export async function wakeConsole() {
+  toast(t('Waking the console…'));
+  const r = await api('/api/power', { action: 'wake' });
+  toast(t(r.message), r.ok ? 'ok' : 'warn');
+  return r;
+}
+$('#power-wake').onclick = run(async () => { $('#power-wake').disabled = true; try { powerResult(await api('/api/power', { action: 'wake' })); } finally { $('#power-wake').disabled = false; } });
+$('#power-sleep').onclick = run(async () => {
+  if (!(await ask({ title: t('Put the console to sleep?'), body: t('NS2Bench sends standby over HDMI-CEC. Whatever is running is suspended, and a Bridge powered from the console turns off until it wakes.'), confirm: t('Sleep') }))) return;
+  powerResult(await api('/api/power', { action: 'sleep' }));
+});
+$('#power-button').onclick = run(async () => {
+  if (!(await ask({ title: t('Press the power button?'), body: t('NS2Bench runs your power-button command. If the console is on, a short press puts it to sleep; if it is off or crashed, it starts.'), confirm: t('Press') }))) return;
+  powerResult(await api('/api/power', { action: 'button' }));
+});
+document.addEventListener('ns2bench:wake', run(wakeConsole));

@@ -42,6 +42,7 @@ Good for:
 - **Drive it:** keyboard, mouse or your own gamepad, sent through a small input device on the console's USB port. On-screen Joy-Con light up with every press.
 - **Let agents drive it:** an HTTP API and an MCP server (Claude Code, Codex, opencode and others). You watch every agent action live, and one switch blocks agent input.
 - **Test it:** repeatable JSON tests with screenshots, a clip of the moments before any failure, navigation routes and a doctor that says which part is broken.
+- **Wakes the console:** HDMI-CEC (a USB-CEC adapter, nothing mechanical) or a power-button presser you set up, so agents and tests recover from Sleep Mode or a crash.
 - **Remembers your setup:** theme, text size, language, layout and notification choices are saved on your computer and are the same in the app and in a browser.
 - **Know what's going on:** logs with levels, and for known problems what happened and what to do. Desktop notifications when the Bridge or the picture drops, a test finishes or an update is ready. **Help → Run the check** tests every part.
 - **Set up the rest from the app:** **Settings → Install** puts the `ns2bench` command on your PATH, flashes a Pico, installs the Bridge on a Linux board over SSH, and runs the offline network helper as a service.
@@ -167,7 +168,7 @@ Tested on hardware so far: macOS capture (UGREEN 15389) and a Luckfox Pico Max b
 
 ## API and AI agents
 
-The engine listens on `127.0.0.1:7630`. The MCP server (34 tools: see, find text, wait for the screen, drive, navigate, test, check health, debug) is part of the engine, at `http://127.0.0.1:7630/mcp`, so you see everything an agent does (`ns2bench mcp` is the same server over stdio). Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
+The engine listens on `127.0.0.1:7630`. The MCP server (35 tools: see, find text, wait for the screen, drive, navigate, test, check health, debug) is part of the engine, at `http://127.0.0.1:7630/mcp`, so you see everything an agent does (`ns2bench mcp` is the same server over stdio). Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Command line
 
