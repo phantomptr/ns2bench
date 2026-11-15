@@ -36,6 +36,14 @@ A capture card for video and sound (always), and one input device if you want to
 
 The [setup guide](docs/setup/README.md) has a diagram and steps for each.
 
+## What do I need to install on my computer?
+
+- **macOS:** nothing; just allow Camera, Microphone and Local Network. `brew install ffmpeg` if you want to save clips.
+- **Windows:** ffmpeg (`winget install Gyan.FFmpeg`), and a CH340/CP210x driver if your serial adapter needs one.
+- **Linux:** ffmpeg (the `.deb` installs it) and the `video` and `dialout` groups (`sudo usermod -aG video,dialout $USER`).
+
+See [Before you start](docs/setup/README.md#before-you-start-your-computer).
+
 ## Which input device should I pick?
 
 If you want every button, including C, GL and GR, use a Linux board: its Pro mode shows the console a real Switch 2 Pro Controller. A Pico is the cheapest controller option (all buttons except C, GL and GR). A CH9329 gives only a keyboard and mouse. You can start with view only and add an input device later.

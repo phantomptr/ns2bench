@@ -103,7 +103,7 @@ impl AudioHub {
             } else {
                 vec!["-f".into(), "alsa".into(), "-i".into(), device.into()]
             };
-            Command::new("ffmpeg").args(["-hide_banner", "-loglevel", "error", "-nostdin"]).args(&input)
+            Command::new(crate::video::ffmpeg()).args(["-hide_banner", "-loglevel", "error", "-nostdin"]).args(&input)
                 .args(["-ac", "2", "-ar", "48000", "-f", "s16le", "-"]).stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null()).kill_on_drop(true).spawn()?
         };

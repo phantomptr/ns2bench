@@ -28,6 +28,35 @@ Not sure? Start with **view only**, then add an input device later. Input settin
 
 If you want every controller button, including C, GL and GR, use a Linux board. Its **Pro** mode shows the console a Switch 2 Pro Controller. The Pico and the board's standard mode cover all buttons except C, GL and GR. CH9329 has no controller at all.
 
+## Before you start: your computer
+
+Install the app from the [latest release](https://github.com/phantomptr/ns2bench/releases/latest), then:
+
+### macOS (14 or newer)
+
+- **Nothing else to install.** Capture, sound and on-screen text reading are built into the app.
+- First launch: if macOS says the app is damaged or can't be checked, run `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` once.
+- Allow **Camera** (the picture), **Microphone** (console sound) and **Local Network** (the input device) when asked. Change them later in System Settings → Privacy & Security.
+- **Clips** (Save clip) need ffmpeg: `brew install ffmpeg`.
+- Serial adapters (Pico, CH9329) work without drivers; they show up as `/dev/cu.usbserial-…` or `/dev/cu.usbmodem…`.
+
+### Windows 10/11
+
+- **Install ffmpeg** (capture, sound and clips use it): `winget install Gyan.FFmpeg`, then restart NS2Bench. NS2Bench also finds ffmpeg installed with Chocolatey or Scoop, or an `ffmpeg.exe` next to `ns2bench-app.exe`.
+- SmartScreen may say "Windows protected your PC": choose **More info → Run anyway**.
+- USB-to-UART adapters may need their vendor driver (CH340/CH341 or CP210x). The port shows up as `COM3` or similar in Device Manager.
+- Optional: [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) for on-screen text reading.
+- The offline console network service doesn't run on Windows: use a [Linux helper or a router](#optional-offline-console-network).
+
+### Linux
+
+- **ffmpeg:** the `.deb` installs it for you. With the AppImage, install it yourself (`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`, `sudo pacman -S ffmpeg`).
+- **Permissions:** add yourself to the groups that own capture cards and serial ports, then log out and in:
+  `sudo usermod -aG video,dialout $USER` (Arch: `video,uucp`).
+- AppImage: `chmod +x NS2Bench-*.AppImage`. If it won't start, install FUSE 2 (`sudo apt install libfuse2`).
+- Optional: `sudo apt install tesseract-ocr` for on-screen text reading.
+- Serial ports show up as `/dev/ttyACM0` (Pico) or `/dev/ttyUSB0` (most adapters).
+
 ## The capture card (every setup)
 
 - Any USB **UVC** HDMI capture card works. 1080p60 is the goal. Tested: UGREEN 15389 (MS2130).

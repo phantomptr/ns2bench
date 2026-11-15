@@ -81,7 +81,13 @@ The app isn't signed with a paid developer certificate yet, so your system may w
 
 ### System requirements
 
-macOS 14 or newer, Windows 10/11 (x64), or a recent 64-bit Linux desktop. On Windows and Linux, video capture uses [ffmpeg](https://ffmpeg.org/) (install it and keep it on your `PATH`).
+| | Needs | Install first |
+|---|---|---|
+| macOS 14+ | nothing else | (optional, for clips) `brew install ffmpeg` |
+| Windows 10/11 x64 | ffmpeg | `winget install Gyan.FFmpeg`; a USB-UART driver (CH340/CP210x) for serial devices |
+| Linux x64/arm64 | ffmpeg, `video`/`dialout` groups | the `.deb` pulls in ffmpeg; `sudo usermod -aG video,dialout $USER` |
+
+Details for each system are in the setup guide's **[Before you start](docs/setup/README.md#before-you-start-your-computer)**. If ffmpeg is missing, NS2Bench says so and shows the command for your system.
 
 ## Quick start
 

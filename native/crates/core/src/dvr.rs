@@ -102,8 +102,9 @@ impl Dvr {
             args.extend(["-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
                 "-movflags", "+faststart"].iter().map(|s| s.to_string()));
             args.push(path.to_string_lossy().into());
-            let mut child = tokio::process::Command::new("ffmpeg").args(&args).stdin(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()?;
+            let mut child = tokio::process::Command::new(crate::video::ffmpeg()).args(&args).stdin(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()
+                .map_err(|_| anyhow::anyhow!("saving clips needs ffmpeg: {}", crate::video::ffmpeg_hint()))?;
             let mut stdin = child.stdin.take().unwrap();
             let fr = frames.clone();
             let feed = tokio::spawn(async move {

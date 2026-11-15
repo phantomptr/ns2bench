@@ -77,6 +77,46 @@ impl FrameHub {
     }
 }
 
+// ------------------------------------------------------------------ ffmpeg
+
+/// Where ffmpeg is: $NS2BENCH_FFMPEG, next to the app, common install places
+/// (apps started from Finder or the Start menu don't get a shell's PATH), then PATH.
+pub fn ffmpeg() -> PathBuf {
+    let exe = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    if let Some(p) = std::env::var_os("NS2BENCH_FFMPEG").map(PathBuf::from).filter(|p| p.is_file()) {
+        return p;
+    }
+    let mut places: Vec<PathBuf> = vec![];
+    if let Some(dir) = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf())) {
+        places.push(dir.join(exe));
+    }
+    if cfg!(target_os = "macos") {
+        places.extend(["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"].map(PathBuf::from));
+    } else if cfg!(windows) {
+        if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+            places.push(PathBuf::from(local).join("Microsoft/WinGet/Links/ffmpeg.exe"));
+        }
+        places.push(PathBuf::from("C:/ProgramData/chocolatey/bin/ffmpeg.exe"));
+        if let Some(home) = std::env::var_os("USERPROFILE") {
+            places.push(PathBuf::from(home).join("scoop/shims/ffmpeg.exe"));
+        }
+    } else {
+        places.extend(["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/snap/bin/ffmpeg"].map(PathBuf::from));
+    }
+    places.into_iter().find(|p| p.is_file()).unwrap_or_else(|| PathBuf::from(exe))
+}
+
+/// One line telling the user how to get ffmpeg on this system.
+pub fn ffmpeg_hint() -> &'static str {
+    if cfg!(windows) {
+        "install it with `winget install Gyan.FFmpeg` (then restart NS2Bench), or put ffmpeg.exe next to NS2Bench"
+    } else if cfg!(target_os = "macos") {
+        "install it with `brew install ffmpeg`"
+    } else {
+        "install it with your package manager, e.g. `sudo apt install ffmpeg`"
+    }
+}
+
 // ------------------------------------------------------------------ macOS helper
 
 pub fn helper_path() -> PathBuf {
@@ -268,9 +308,9 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
     struct Abort(Option<tokio::task::JoinHandle<()>>);
     impl Drop for Abort { fn drop(&mut self) { if let Some(h) = &self.0 { h.abort(); } } }
     let _h264 = Abort(h264);
-    let mut child = Command::new("ffmpeg").args(&args).stdout(std::process::Stdio::piped())
+    let mut child = Command::new(ffmpeg()).args(&args).stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()
-        .map_err(|e| anyhow!("ffmpeg not found on PATH: {e}"))?;
+        .map_err(|_| anyhow!("video capture needs ffmpeg: {}", ffmpeg_hint()))?;
     let mut out = child.stdout.take().unwrap();
     let mut buf = Vec::with_capacity(1 << 20);
     let mut chunk = vec![0u8; 1 << 16];
@@ -342,7 +382,7 @@ pub async fn list_devices() -> Value {
         return json!([]);
     }
     let out = if cfg!(windows) {
-        Command::new("ffmpeg").args(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]).output().await
+        Command::new(ffmpeg()).args(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]).output().await
     } else {
         Command::new("sh").args(["-c", "for d in /dev/video*; do echo \"== $d $(cat /sys/class/video4linux/$(basename $d)/name 2>/dev/null)\"; ffmpeg -hide_banner -f v4l2 -list_formats all -i $d 2>&1 | tail -20; done"]).output().await
     };
