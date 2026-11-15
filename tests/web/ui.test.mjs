@@ -142,8 +142,11 @@ test('security: headers, cross-site and DNS-rebinding requests', async () => {
   assert.equal((await press({ origin: 'https://evil.example' })).status, 403);
   // Node's fetch sets Host from the URL; a raw request shows the rebinding check.
   const { request } = await import('node:http');
-  const status = await new Promise((resolve) => {
-    request({ host: '127.0.0.1', port: PORT, path: '/api/status', headers: { host: `rebind.example:${PORT}` } }, (res) => resolve(res.statusCode)).end();
+  const status = await new Promise((resolve, reject) => {
+    const req = request({ host: '127.0.0.1', port: PORT, path: '/api/status', agent: false,
+      headers: { host: `rebind.example:${PORT}`, connection: 'close' } }, (res) => { res.resume(); resolve(res.statusCode); });
+    req.on('error', reject);
+    req.end();
   });
   assert.equal(status, 403);
   // Scripts can't claim to be the person at the controls.
