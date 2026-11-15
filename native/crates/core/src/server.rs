@@ -49,10 +49,27 @@ pub fn bad(msg: impl Into<String>) -> ApiError {
 }
 pub type R<T> = std::result::Result<T, ApiError>;
 
-/// True only for a same-origin browser request: `guard` has already rejected any
-/// Origin that is not this engine, and scripts/agents normally send no Origin.
+/// Secret the desktop app gives its own window (kept in memory only). When set, only
+/// requests that carry it count as the person at the NS2Bench page, so a local script
+/// or an agent with a shell can't pose as the page by faking an Origin header.
+static UI_KEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub fn set_ui_key(key: String) {
+    let _ = UI_KEY.set(key);
+}
+
+fn ui_key_ok(given: Option<&str>) -> bool {
+    match UI_KEY.get() {
+        Some(k) => given.is_some_and(|g| same(g.as_bytes(), k.as_bytes())),
+        None => true,
+    }
+}
+
+/// True only for the NS2Bench page: a same-origin browser request (`guard` has already
+/// rejected any other Origin), carrying the app's UI key when the app set one.
 pub fn from_browser(headers: &HeaderMap) -> bool {
     headers.contains_key(header::ORIGIN)
+        && ui_key_ok(headers.get("x-ns2bench-ui").and_then(|v| v.to_str().ok()))
 }
 
 /// Reject cross-site browser requests and DNS-rebinding host names. A page on
@@ -143,9 +160,16 @@ pub fn router(bench: S) -> Router {
             let t0 = std::time::Instant::now();
             // Run to completion even if the client goes away: a timed press must
             // always reach its release, whatever happens to the HTTP connection.
-            let res = tokio::spawn(async move { let _operation = operation; next.run(req).await })
-                .await
-                .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+            // Read-only waits stop when the client goes away; anything that drives input runs
+            // to completion (detached), so a timed press always reaches its release.
+            let res = if matches!(path.as_str(), "/api/wait_text" | "/api/wait_screen") {
+                let _operation = operation;
+                next.run(req).await
+            } else {
+                tokio::spawn(async move { let _operation = operation; next.run(req).await })
+                    .await
+                    .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+            };
             let line = format!("{who}: POST {path} → {} in {} ms", res.status().as_u16(), t0.elapsed().as_millis());
             if res.status().is_client_error() || res.status().is_server_error() { logs.warn("api", line) } else { logs.debug("api", line) }
             res
@@ -298,11 +322,11 @@ async fn stream(State(b): State<S>) -> Response {
     let s = futures::stream::unfold(rx, |mut rx| async move {
         rx.changed().await.ok()?;
         let f = rx.borrow_and_update().clone()?;
-        let mut part = format!("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n", f.jpeg.len()).into_bytes();
-        part.extend_from_slice(&f.jpeg);
-        part.extend_from_slice(b"\r\n");
-        Some((Ok::<Bytes, std::io::Error>(Bytes::from(part)), rx))
-    });
+        // Header, the shared frame (no copy per viewer) and the trailer as separate chunks.
+        let head = Bytes::from(format!("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n", f.jpeg.len()));
+        let parts = [head, f.jpeg.clone(), Bytes::from_static(b"\r\n")].map(Ok::<Bytes, std::io::Error>);
+        Some((futures::stream::iter(parts), rx))
+    }).flatten();
     Response::builder()
         .header(header::CONTENT_TYPE, "multipart/x-mixed-replace; boundary=frame")
         .header(header::CACHE_CONTROL, "no-store")
@@ -326,6 +350,9 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
         b.logs.add("bench", format!("board USB mode -> {m} (the console sees the controller reconnect)"));
     }
     if let Some(on) = body["screen_log"].as_bool() {
+        if blocked {
+            return Err(ApiError(StatusCode::CONFLICT, "manual-only mode is on: only the person at the NS2Bench page can change this".into()));
+        }
         b.screen_log.store(on, std::sync::atomic::Ordering::Relaxed);
         b.logs.add("bench", format!("screen log {}", if on { "on" } else { "off" }));
     }
@@ -419,7 +446,9 @@ async fn sequence(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<J
 async fn get_video(State(b): State<S>) -> Json<Value> {
     let c = b.video_cfg.lock().unwrap().clone();
     Json(json!({"settings": {"backend": c["backend"], "device": c["device"], "width": c["width"], "height": c["height"],
-        "fps": c["fps"], "quality": c["quality"], "codec": c["codec"], "audio_device": c["audio_device"]}, "devices": crate::video::list_devices().await}))
+        "fps": c["fps"], "quality": c["quality"], "codec": c["codec"], "audio_device": c["audio_device"]},
+        // Listing can be slow the first time (macOS builds its capture helper): never hang the caller.
+        "devices": tokio::time::timeout(Duration::from_secs(8), crate::video::list_devices()).await.unwrap_or_else(|_| json!([]))}))
 }
 
 async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
@@ -432,11 +461,13 @@ async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R
     Ok(Json(json!({"ok": true})))
 }
 
-async fn ws_ui(State(b): State<S>, ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(move |sock| ui_socket(b, sock))
+async fn ws_ui(State(b): State<S>, Query(q): Query<HashMap<String, String>>, ws: WebSocketUpgrade) -> Response {
+    // Without the app's UI key the socket still shows status and logs, but can't drive.
+    let drive = ui_key_ok(q.get("ui").map(String::as_str));
+    ws.on_upgrade(move |sock| ui_socket(b, sock, drive))
 }
 
-async fn ui_socket(b: S, sock: WebSocket) {
+async fn ui_socket(b: S, sock: WebSocket, drive: bool) {
     b.logs.debug("bench", "a NS2Bench page connected");
     struct Gone(S);
     impl Drop for Gone { fn drop(&mut self) { self.0.logs.debug("bench", "a NS2Bench page disconnected"); } }
@@ -465,6 +496,7 @@ async fn ui_socket(b: S, sock: WebSocket) {
     while let Some(Ok(m)) = rx.next().await {
         let Message::Text(t) = m else { continue };
         let Ok(v) = serde_json::from_str::<Value>(&t) else { continue };
+        if !drive { continue; }
         let r = match v["t"].as_str() {
             Some("state") => {
                 let keys: Vec<u8> = strs(&v["keynames"]).iter().filter_map(|k| key_code(k).ok()).collect();
@@ -480,7 +512,7 @@ async fn ui_socket(b: S, sock: WebSocket) {
         let _ = r; // errors surface through status (input offline) rather than per message
     }
     sender.abort();
-    let _ = b.hub.set_ui_state(0, 0, None, 0, vec![]); // tab closed: release human input
+    if drive { let _ = b.hub.set_ui_state(0, 0, None, 0, vec![]); } // tab closed: release human input
 }
 
 #[cfg(test)]

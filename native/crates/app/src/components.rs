@@ -132,7 +132,7 @@ fn valid_host(h: &str) -> bool {
 fn ssh(host: &str, cmd: &str, stdin: Option<&[u8]>) -> Result<String> {
     use std::io::Write;
     let mut child = Command::new("ssh")
-        .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "--", host, cmd])
+        .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=3", "--", host, cmd])
         .stdin(if stdin.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -323,12 +323,12 @@ async fn netd_install() -> Result<Value> {
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ThrottleInterval</key><integer>10</integer>
-  <key>StandardOutPath</key><string>{}</string>
+  <key>StandardOutPath</key><string>/dev/null</string>
   <key>StandardErrorPath</key><string>{}</string>
 </dict>
 </plist>
 "#, xml(&bin.display().to_string()), xml(&config.display().to_string()),
-                xml(&state.join("netd.stdout").display().to_string()), xml(&state.join("netd.stderr").display().to_string()));
+                xml(&state.join("netd.stderr").display().to_string()));
             let path = plist_path();
             std::fs::create_dir_all(home.join("Library/LaunchAgents"))?;
             std::fs::write(&path, plist)?;
@@ -349,8 +349,15 @@ async fn netd_install() -> Result<Value> {
             ensure!(!config.display().to_string().contains(char::is_whitespace), "The config path must not contain spaces");
             let unit_file = ns2bench_core::config::state_dir().join("downloads/ns2bench-netd.service");
             std::fs::write(&unit_file, unit)?;
-            let script = "set -e; install -D -m 755 \"$1\" /opt/ns2bench/ns2bench-netd; install -m 644 \"$2\" /etc/systemd/system/ns2bench-netd.service; systemctl daemon-reload; systemctl enable ns2bench-netd; systemctl restart ns2bench-netd";
-            let (ok, err) = output(Command::new("pkexec").args(["/bin/sh", "-c", script, "sh"]).arg(&dl).arg(&unit_file));
+            // The root step copies both files somewhere only root can write and checks them
+            // there, so nothing can swap them while the password prompt is open.
+            let sha = |p: &Path| -> Result<String> { Ok(crate::updates::hex(&Sha256::digest(std::fs::read(p)?))) };
+            let (bin_sha, unit_sha) = (sha(&dl)?, sha(&unit_file)?);
+            let script = "set -e; d=$(mktemp -d); trap 'rm -rf \"$d\"' EXIT; cp \"$1\" \"$d/netd\"; cp \"$2\" \"$d/unit\"; \
+                echo \"$3  $d/netd\" | sha256sum -c --quiet; echo \"$4  $d/unit\" | sha256sum -c --quiet; \
+                install -D -m 755 \"$d/netd\" /opt/ns2bench/ns2bench-netd; install -m 644 \"$d/unit\" /etc/systemd/system/ns2bench-netd.service; \
+                systemctl daemon-reload; systemctl enable ns2bench-netd; systemctl restart ns2bench-netd";
+            let (ok, err) = output(Command::new("pkexec").args(["/bin/sh", "-c", script, "sh"]).arg(&dl).arg(&unit_file).arg(&bin_sha).arg(&unit_sha));
             ensure!(ok, "Could not install the service (an administrator password is needed): {err}");
         }
         Ok(json!({ "message": format!("Network helper {VERSION} installed and started.{note}"), "status": netd_status() }))

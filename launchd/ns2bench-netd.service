@@ -10,6 +10,8 @@ Description=NS2Bench offline console network
 After=network-online.target
 
 [Service]
+# Runs as a throwaway system user with only the two network capabilities it needs.
+DynamicUser=yes
 ExecStart=/opt/ns2bench/ns2bench-netd /opt/ns2bench/bench.json
 Restart=always
 RestartSec=10

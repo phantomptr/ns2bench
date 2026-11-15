@@ -5,7 +5,6 @@
 //!                  h264_nvenc | h264_qsv | h264_mf ...), access units delimited by AUD NALs
 //! A viewer starts at the next keyframe (at most ~1 s), so it never decodes from a gap.
 
-use crate::bench::Bench;
 use crate::server::S;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
@@ -13,7 +12,6 @@ use axum::response::Response;
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use serde_json::json;
-use std::sync::Arc;
 
 /// NAL unit types present in an Annex B access unit.
 pub fn nal_types(au: &[u8]) -> Vec<u8> {
@@ -58,8 +56,6 @@ pub fn push(hub: &crate::video::FrameHub, au: Bytes) {
 }
 
 /// Non-macOS sources start their own H.264 output here (see video.rs); nothing to do on macOS.
-pub fn restart(_b: Arc<Bench>) {}
-
 pub async fn ws_video(State(b): State<S>, ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(move |sock| video_socket(b, sock))
 }

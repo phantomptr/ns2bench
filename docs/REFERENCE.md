@@ -37,6 +37,8 @@ Any Linux OTG board runs **NS2Bench Bridge** (`ns2bench-board`), one static bina
 
 Pro mode follows GP2040-CE's Switch 2 Pro driver (MIT): the two-interface layout at full speed, report `0x09`, the bulk command protocol including pairing (AES-128), firmware updates ignored, a stable identity. Verified on hardware: handshake + pairing, player 1 LED, all 18 test-screen buttons incl. GL/GR, C opens GameChat. (A Pro Controller with extra keyboard/mouse interfaces enumerates, but the console never reads the extras, so keyboard/mouse live in standard mode.) The Switch 2 polls the USB mouse in standard mode; whether a cursor appears depends on the software (the HOME menu shows none).
 
+Easiest: in the app, **Settings → Install → Bridge board**: enter the board's SSH host (key sign-in), click *Install on board*. It downloads the board binary for this app version (checked against the release's `SHA256SUMS`), uploads the matching scripts, keeps the current files as `*.bak`, and restarts the daemon. From a source checkout:
+
 ```sh
 make board-install BOARD=<ssh-host>          # cross-build, upload, syntax-check, keep *.bak, restart
 make board-install BOARD=<ssh-host> BOARD_TARGET=aarch64-unknown-linux-musl   # 64-bit Raspberry Pi
@@ -48,6 +50,8 @@ The scripts require `/opt/ns2bench/ns2bench-board` and refuse a USB mode change 
 ### Raspberry Pi Pico
 
 The Pico's USB port goes to the console and shows exactly what the Linux boards show in standard mode (HORI-style controller + keyboard + mouse, same descriptors). The computer talks to it over UART0 through any USB-serial adapter (CP2102, CH340, FTDI): adapter TX → GP1, adapter RX → GP0, GND → GND. Same protocol and watchdog as the Linux daemon.
+
+Easiest: in the app, **Settings → Install → Flash Pico**, then hold BOOTSEL while you plug the Pico into the computer; the app finds the `RPI-RP2` drive and copies the release firmware. From source:
 
 ```sh
 make pico                                    # -> firmware/pico/ns2bench-pico.uf2
@@ -127,33 +131,43 @@ args = ["mcp"]
 ```
 
 
-Tools:
-- **See:** `screenshot`, `read_screen` (OCR with positions), `wait_for_text`, `where_am_i`, `wait`
-- **Drive:** `press`, `hold`, `release`, `stick`, `key`, `type_text`, `mouse_move`, `mouse_click`, `scroll`, `sequence`, `navigate`, `list_routes`, `usb_mode`
-- **Debug:** `logs`, `status`, `doctor`, `save_clip`, `run_test`
+Tools (34):
+- **See:** `screenshot` (with `region` to crop/zoom), `read_screen` (OCR with positions), `find_text` (every match with its box), `wait_for_text`, `wait_for_screen` (until the screen changes, or until it settles), `where_am_i`, `wait`
+- **Drive:** `press`, `hold`, `release`, `stick`, `key`, `type_text`, `mouse_move` (with `buttons` to drag), `mouse_click`, `scroll`, `sequence`, `navigate`, `list_routes`, `usb_mode`, `probe` (press and measure the reaction)
+- **Check and debug:** `health` (ready to drive? what to fix), `status`, `doctor`, `logs` (with `level` and `after`), `events` (who pressed what), `diagnostics`, `video_info`
+- **Record and test:** `save_clip`, `list_clips`, `run_test`, `list_reports`
+- **Control:** `block_agents` (only the person at the bench can undo it), `screen_log`
 
-Most action tools take `look_after_ms` to return a screenshot taken after the action.
+Most action tools take `look_after_ms` to return a screenshot taken after the action. A good loop: act, then `wait_for_screen` (`until: "change"`), then `screenshot` or `find_text`.
+
+The command line has the same abilities (`ns2bench --help`; `--json` for machine-readable output). Install it from the app: **Settings → Install → Command line tool**.
 
 HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 
 | | |
 |---|---|
 | `GET /api/status` | video fps, input link, USB state, calibration |
-| `GET /api/screenshot?format=png&max_width=1280` | latest frame |
+| `GET /api/health` | ready to drive? `{ok, video, input, agents_allowed, problems: [{area, problem, fix}]}` |
+| `GET /api/screenshot?format=png&max_width=1280&region=0,0.8,1,0.2` | latest frame (optionally cropped); headers `X-Frame-Seq`, `X-Frame-Age-Ms` |
 | `GET /stream.mjpg` | live MJPEG |
 | `POST /api/press` `{"buttons":["A"],"hold_ms":100}` | also `hold`, `release`, `stick`, `key`, `type`, `mouse`, `click` |
 | `POST /api/sequence` `{"steps":[{"press":["DOWN"]},{"wait_ms":300},{"press":["A"]}]}` | several steps, one call |
-| `POST /api/probe` `{"buttons":["RIGHT"]}` | press and watch the video: did it register, how fast |
+| `POST /api/wait_screen` `{"until":"change"\|"stable","timeout_ms":5000,"stable_ms":500,"region":[x,y,w,h]}` | wait for the picture to react, or to stop moving |
+| `POST /api/probe` `{"buttons":["RIGHT"],"hold_ms":100,"timeout_ms":1500}` | press and watch the video: did it register, how fast |
 | `POST /api/calibrate` | sweep press lengths, save the minimum |
-| `GET /api/logs?source=kernel` | bench, board, kernel, network, your files |
+| `GET /api/logs?source=kernel&level=warn&after=SEQ&limit=200&contains=usb` | bench, api, board, kernel, network, screen, your files; levels and hints (see *Logs*) |
+| `GET /api/events?source=mcp&limit=30` | who pressed what (ui, api, mcp) |
 | `GET/POST /api/video` | devices/formats; change capture settings |
-| `GET /api/ocr?region=x,y,w,h` · `POST /api/wait_text` | read screen text; wait for text to appear or go |
+| `GET /api/ocr?region=x,y,w,h&fast=1` · `GET /api/find_text?text=Settings` · `POST /api/wait_text` | read screen text; where a text is; wait for text to appear or go |
 | `GET /api/where` · `GET /api/routes` · `POST /api/navigate` | which screen; known routes; go somewhere and verify |
 | `POST /api/test` | run a test (see *Testing the console*) |
-| `POST /api/clip` · `GET /api/clips` | save the last N seconds of video; list clips |
+| `POST /api/clip` · `GET /api/clips` · `GET /clips/{name}` · `GET /api/reports` | save the last N seconds of video; list and download clips; list test reports |
 | `GET /api/doctor` · `POST /api/doctor {"probe":true}` | end-to-end health check (the probe presses RIGHT/LEFT on HOME) |
-| `GET /api/diagnostics` · `GET /api/bundle` | Markdown summary; zip of logs, status, screenshot, config |
-| `POST /api/control` | `{"usb_mode": "standard|pro"}`, `{"manual_only": true}`, `{"screen_log": true}` |
+| `GET /api/diagnostics?lines=40` · `GET /api/bundle` | Markdown summary; zip of logs, status, screenshot, config |
+| `GET/POST /api/input` · `GET/POST /api/network` · `GET /api/integrations` | input device, console network, MCP/API setup |
+| `POST /api/control` | `{"usb_mode": "standard\|hori\|pro"}`, `{"manual_only": true}`, `{"screen_log": true}` |
+
+While **Block agents** (manual-only) is on, agent requests that press, switch the USB mode or change video settings get `409`; only the NS2Bench page can turn it off. Requests from other web pages are refused (`403`) and logged.
 
 Buttons: `A B X Y L R ZL ZR PLUS MINUS HOME CAPTURE LSTICK RSTICK UP DOWN LEFT RIGHT`, plus `C GL GR` in Pro mode.
 
@@ -190,7 +204,11 @@ So every press is held at least **75 ms** (1.5× the shortest reliable press), i
 
 ## Logs
 
-The Logs panel (and `GET /api/logs`, MCP `logs`) collects: **bench** (every human/agent action, errors, reconnects), **board** (daemon), **kernel** (board kernel log: USB enumeration, gadget errors), **network** (the offline Switch network's DHCP/DNS), and any files listed under `"logs"` in the config.
+The Logs panel (and `GET /api/logs`, MCP `logs`, `ns2bench logs`) collects: **bench** (every human/agent action, errors, reconnects, the picture stopping or running slow), **api** (each API call at *debug*, refused and failed requests at *warn*), **board** (daemon), **kernel** (board kernel log: USB enumeration, gadget errors), **network** (the offline Switch network's DHCP/DNS), **screen** (new on-screen text, when the screen log is on), and any files listed under `"logs"` in the config.
+
+Each line has a level: `debug` (detail such as API calls and page connections), `info`, `warn` (something to look at that may fix itself) and `error` (needs you). For problems NS2Bench recognises, a line also carries a `hint`: what happened and what to do. Lines from files and the board are levelled by their words. Filter with `level=warn` (warnings and errors).
+
+Every line is also written to `~/.ns2bench/logs/ns2bench-YYYY-MM-DD.log` (kept 7 days; `"log_files": false` in the config turns this off). Lines marked `notify` become desktop notifications in the app (Settings → Notifications).
 
 ## Offline console network (optional)
 
@@ -198,8 +216,8 @@ The Logs panel (and `GET /api/logs`, MCP `logs`) collects: **bench** (every huma
 
 | OS | How |
 |---|---|
-| macOS | user LaunchAgent, no root (`launchd/ns2bench-netd.plist.template`: replace `__REPO__`/`__HOME__`, copy to `~/Library/LaunchAgents/`) |
-| Linux | systemd unit with `CAP_NET_RAW` + `CAP_NET_BIND_SERVICE` (`launchd/ns2bench-netd.service`) |
+| macOS | **Settings → Install → Network helper** (a user LaunchAgent, no root), or by hand: `launchd/ns2bench-netd.plist.template` (replace `__REPO__`/`__HOME__`, copy to `~/Library/LaunchAgents/`) |
+| Linux | **Settings → Install → Network helper** (asks for an administrator password once; runs as you with only `CAP_NET_RAW` + `CAP_NET_BIND_SERVICE`), or the systemd unit `launchd/ns2bench-netd.service` |
 | Windows | run netd on a Linux machine or board that owns the console's Ethernet port, and control it remotely (below) |
 
 Build with `make netd`. Validate without opening service ports with `native/target/release/ns2bench-netd --check bench.json`, then run the same command without `--check` to serve. On macOS, copy the binary to `~/.ns2bench/bin/ns2bench-netd` before loading the LaunchAgent template. On Linux, install it at the unit’s `/opt/ns2bench/ns2bench-netd` path; its default state directory is `/var/lib/ns2bench/.ns2bench` (keep any explicit `state_dir` inside `/var/lib/ns2bench`).

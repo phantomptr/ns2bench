@@ -24,6 +24,20 @@ What's new in NS2Bench, written for humans.
   - read events, clips, test reports and video info
   - filter logs by level
 - Fixed: agents could switch the USB mode or video settings while Block agents was on. Probes now appear in the input log, and `type` no longer types at half speed.
+- **Help** in the top bar: run a check of every part, read short answers to common problems, or save a bug report. The status pills now say what's wrong and what clicking them does.
+- Security:
+  - When the app runs its own engine, only its own window counts as the person at the bench. A script can no longer pose as the window to turn Block agents off.
+  - Block agents now also stops agents from changing the input device, the console network, the screen log and clips. Typing stops mid-text when you turn it on.
+  - Input token files must be `.token` files in `~/.ns2bench`, so other files can't be sent to the Bridge host.
+  - On macOS, updates must be signed with NS2Bench's own certificate.
+  - Weekly CodeQL and RustSec scans.
+- Fixes:
+  - Sound follows when you switch capture cards.
+  - Clips are saved as MP4 when ffmpeg was installed with Homebrew and the app was opened from Finder.
+  - The serial baud rate is now set on Windows.
+  - The live view no longer smears after it falls behind.
+  - The Bridge board no longer spins its CPU in Pro mode while its controller helper restarts.
+  - The macOS network helper no longer writes an ever-growing output file.
 - Windows on ARM: a native `win-arm64` installer and command line tool.
 
 ## 0.0.2

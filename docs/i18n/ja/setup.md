@@ -118,7 +118,7 @@ C、GL、GR を含むすべてのコントローラーボタンを使いたい�
 
 **手順**
 
-1. コンピューターからボードに NS2Bench Bridge をインストールします：`make board-install BOARD=<ssh-host>`。64 ビットの Raspberry Pi では `BOARD_TARGET=aarch64-unknown-linux-musl` を追加します。
+1. アプリからボードに NS2Bench Bridge をインストールします：**設定 → インストール → Bridge ボード** で SSH ホストを入力し、**ボードにインストール** をクリックします。（ソースから：`make board-install BOARD=<ssh-host>`。64 ビットの Raspberry Pi では `BOARD_TARGET=aarch64-unknown-linux-musl` を追加します。）
 2. ボードの **OTG** USB ポートをドックの USB ポートにつなぎます。
 3. ボードの Ethernet をコンピューターにつなぎます（または両方を同じプライベートネットワークに参加させます）。
 4. Bridge がまだ動いていなければ起動します：`ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`。
@@ -166,21 +166,19 @@ NS2Bench Bridge ファームウェアを動かす Raspberry Pi Pico（RP2040）�
 
 **手順**
 
-1. ファームウェアをビルドします：`make pico`。`firmware/pico/ns2bench-pico.uf2` ができます。
-2. **BOOTSEL** ボタンを押したまま、Pico を **コンピューター** に挿します。**RPI-RP2** というドライブが表示されます。
-3. `.uf2` ファイルをそのドライブにコピーします。Pico が再起動します。抜いてください。
-4. Pico とアダプターを配線します：
+1. アプリから Pico に書き込みます：**設定 → インストール → Pico に書き込む** を押してから、**BOOTSEL** ボタンを押したまま Pico を **コンピューター** に挿します。アプリがファームウェアを **RPI-RP2** ドライブにコピーし、Pico が再起動します。抜いてください。（ソースから：`make pico` で `firmware/pico/ns2bench-pico.uf2` をビルドし、自分で RPI-RP2 ドライブにコピーします。）
+2. Pico とアダプターを配線します：
    - Pico **GP0**（ピン 1、UART0 TX）→ アダプター **RX**
    - Pico **GP1**（ピン 2、UART0 RX）← アダプター **TX**
    - Pico **GND**（ピン 3）— アダプター **GND**
    - アダプターの 3.3 V / 5 V ピンはつながないでください。Pico は本体から給電されます。
-5. Pico の micro-USB をドックの USB ポートに挿します。
-6. アダプターをコンピューターに挿します。
-7. **設定 → デバイス** で次のように設定します：
+3. Pico の micro-USB をドックの USB ポートに挿します。
+4. アダプターをコンピューターに挿します。
+5. **設定 → デバイス** で次のように設定します：
    - **入力接続：** シリアル Bridge
    - **シリアルポート：** アダプター（例：macOS では `/dev/cu.usbserial-XXXX`、Linux では `/dev/ttyUSB0`、Windows では `COM3`）
    - **ボーレート：** `921600`
-8. **入力接続を適用** をクリックします。
+6. **入力接続を適用** をクリックします。
 
 任意：`NS2BENCH_TOKEN=... make pico` でビルドすると、Pico がトークンを要求するようになります（コンピューターにも同じトークンファイルを設定します）。アダプターが 921600 に対応していない場合は `NS2BENCH_BAUD=115200` でビルドしてください。
 

@@ -41,6 +41,8 @@ pub struct AudioHub {
     /// (unix time of the chunk's end, PCM) for the last `keep_s` seconds
     ring: Mutex<VecDeque<(f64, Bytes)>>,
     keep_s: f64,
+    /// Bumped when the capture settings change: the running capture stops and starts again.
+    generation: std::sync::atomic::AtomicU64,
 }
 
 impl AudioHub {
@@ -48,7 +50,7 @@ impl AudioHub {
         let (tx, _) = broadcast::channel(64);
         Arc::new(AudioHub {
             enabled: cfg.and_then(|c| c["enabled"].as_bool()).unwrap_or(true),
-            tx, st: Mutex::default(), ring: Mutex::default(), keep_s,
+            tx, st: Mutex::default(), ring: Mutex::default(), keep_s, generation: 0.into(),
         })
     }
 
@@ -64,6 +66,11 @@ impl AudioHub {
         self.ring.lock().unwrap().iter().filter(|(t, _)| *t >= from && *t <= to).cloned().collect()
     }
 
+    /// Follow a change of capture card or settings.
+    pub fn restart(&self) {
+        self.generation.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
     fn error(&self, e: impl Into<String>) {
         self.st.lock().unwrap().error = Some(e.into());
     }
@@ -75,7 +82,9 @@ impl AudioHub {
         let mut delay = 2u64;
         let mut last = String::new();
         loop {
+            let started = std::time::Instant::now();
             let r = self.clone().once(&video_cfg, &logs).await;
+            if started.elapsed() > Duration::from_secs(30) { delay = 2; }
             if let Err(e) = r {
                 let msg = e.to_string();
                 // say it once per distinct problem, not on every retry
@@ -115,7 +124,11 @@ impl AudioHub {
         self.st.lock().unwrap().error = None;
         let mut out = child.stdout.take().unwrap();
         let mut win: Vec<i16> = Vec::with_capacity(RATE * CHANNELS / 5);
+        let gen = self.generation.load(std::sync::atomic::Ordering::Relaxed);
         loop {
+            if self.generation.load(std::sync::atomic::Ordering::Relaxed) != gen {
+                return Ok(()); // settings changed: start again with the new card
+            }
             let mut buf = vec![0u8; CHUNK];
             out.read_exact(&mut buf).await.map_err(|_| anyhow::anyhow!("audio capture stopped"))?;
             let now = crate::logs::now();

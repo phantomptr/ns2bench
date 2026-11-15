@@ -53,6 +53,10 @@ pub fn hint_for(source: &str, text: &str) -> Option<&'static str> {
     let has = |w: &str| t.contains(w);
     let hint = if has("ffmpeg") && (has("not found") || has("no such file")) {
         "ffmpeg isn't installed. Install it (macOS: brew install ffmpeg · Windows: winget install Gyan.FFmpeg · Linux: sudo apt install ffmpeg), then restart NS2Bench."
+    } else if has("could not run graph") || (has("dshow") && (has("i/o error") || has("access is denied"))) {
+        "Windows can't open the capture card. Close other apps that use it (OBS, Camera), and turn on Settings → Privacy & security → Camera → Let desktop apps access your camera."
+    } else if has("/dev/video") && (has("permission denied") || has("eacces")) {
+        "Linux won't let NS2Bench open the capture card. Add yourself to the video group (sudo usermod -aG video $USER), then sign out and back in."
     } else if (has("camera") || has("video")) && (has("not authorized") || has("permission") || has("tcc")) {
         "macOS hasn't allowed the camera. Open System Settings → Privacy & Security → Camera and turn on NS2Bench, then restart it."
     } else if has("no video data") || (source == "bench" && has("video (") && (has("error") || has("retrying") || has("failed"))) {
@@ -277,12 +281,25 @@ impl LogHub {
                     off = 0; // rotated or truncated
                 }
                 if meta.len() > off {
-                    if let Ok(data) = std::fs::read(path) {
-                        let chunk = &data[off as usize..data.len().min(off as usize + (1 << 20))];
-                        for l in String::from_utf8_lossy(chunk).lines() {
+                    // Read only what's new (at most 1 MB a second), not the whole file.
+                    let want = (meta.len() - off).min(1 << 20) as usize;
+                    let read = || -> std::io::Result<Vec<u8>> {
+                        use std::io::{Read, Seek};
+                        let mut f = std::fs::File::open(path)?;
+                        f.seek(std::io::SeekFrom::Start(off))?;
+                        let mut chunk = vec![0; want];
+                        let n = f.read(&mut chunk)?;
+                        chunk.truncate(n);
+                        Ok(chunk)
+                    };
+                    if let Ok(chunk) = read() {
+                        // keep a partial last line for the next round
+                        let end = chunk.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
+                        let end = if end == 0 && chunk.len() == want && want == 1 << 20 { chunk.len() } else { end };
+                        for l in String::from_utf8_lossy(&chunk[..end]).lines() {
                             self.add_guess(name, pretty(l), None);
                         }
-                        off += chunk.len() as u64;
+                        off += end as u64;
                     }
                 }
                 pos.insert(name.clone(), off);
@@ -381,6 +398,8 @@ mod tests {
         assert_eq!(h.query_level(None, 0, 100, None, Some("warn")).len(), 2);
         assert_eq!(h.query_level(None, 0, 100, None, Some("error")).len(), 1);
         assert_eq!(h.level_counts()["debug"], 1);
+        assert!(hint_for("bench", "video (ffmpeg): ffmpeg exited: Could not run graph").unwrap().contains("Let desktop apps"));
+        assert!(hint_for("bench", "open /dev/video0: Permission denied").unwrap().contains("video group"));
         assert_eq!(guess_level("usb 1-1: device descriptor read/64, error -71"), "error");
         assert_eq!(guess_level("link lost, retrying"), "warn");
         assert_eq!(guess_level("lease 192.168.80.10"), "info");

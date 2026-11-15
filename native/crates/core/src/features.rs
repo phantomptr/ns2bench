@@ -155,6 +155,7 @@ async fn get_find_text(State(b): State<S>, Query(q): Query<HashMap<String, Strin
     if pattern.is_empty() {
         return Err(bad("text or regex required"));
     }
+    if regex { regex::Regex::new(&pattern).map_err(|e| bad(format!("invalid regex: {e}")))?; }
     let region = ocr::parse_region(&q.get("region").map(|s| Value::String(s.clone())).unwrap_or(Value::Null))?;
     let fast = q.get("fast").map(|f| f != "false").unwrap_or(false);
     let lines = b.read_screen(region, fast).await.map_err(unavailable)?;
@@ -234,6 +235,7 @@ async fn post_wait_text(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Valu
     if pattern.is_empty() {
         return Err(bad("text or regex required"));
     }
+    if regex { regex::Regex::new(&pattern).map_err(|e| bad(format!("invalid regex: {e}")))?; }
     let timeout = Duration::from_secs_f64((v["timeout_ms"].as_f64().unwrap_or(10_000.0) / 1000.0).clamp(0.2, 300.0));
     let region = ocr::parse_region(&v["region"])?;
     let gone = v["gone"].as_bool().unwrap_or(false);
@@ -304,9 +306,9 @@ async fn post_test(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<
         (_, Some(p)) => {
             // Only test files in the NS2Bench folder or the engine's working folder.
             let full = std::fs::canonicalize(crate::config::expand(p)).map_err(|e| bad(format!("{p}: {e}")))?;
-            let roots = [std::fs::canonicalize(crate::config::state_dir()).ok(), std::env::current_dir().ok().and_then(|d| std::fs::canonicalize(d).ok())];
-            if !roots.iter().flatten().any(|r| full.starts_with(r)) || full.extension().and_then(|e| e.to_str()) != Some("json") {
-                return Err(bad("path must be a .json test under ~/.ns2bench or the folder NS2Bench runs in; send the test itself as \"test\" instead"));
+            let root = std::fs::canonicalize(crate::config::state_dir()).ok();
+            if !root.is_some_and(|r| full.starts_with(r)) || full.extension().and_then(|e| e.to_str()) != Some("json") {
+                return Err(bad("path must be a .json test under ~/.ns2bench; or send the test itself as \"test\" (the CLI and MCP do)"));
             }
             serde_json::from_str(&std::fs::read_to_string(&full).map_err(|e| bad(format!("{p}: {e}")))?).map_err(|e| bad(format!("{p}: {e}")))?
         }
@@ -315,7 +317,8 @@ async fn post_test(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<
     Ok(Json(crate::testrun::run_test(&b, &test, &source_of(&h, &v), v["stop_on_fail"].as_bool().unwrap_or(true)).await?))
 }
 
-async fn post_clip(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value>> {
+async fn post_clip(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
+    crate::settings::agents_blocked(&b, &h, &v)?;
     let label = crate::testrun::slug(v["label"].as_str().unwrap_or("clip"));
     let (path, span) = b.ext.dvr.save(v["seconds"].as_f64(), None, &label, Some(&b.ext.audio)).await.map_err(unavailable)?;
     b.logs.notify("bench", "info", "Clip saved", format!("clip saved ({span} s): {}", path.display()));

@@ -239,6 +239,26 @@ if (invoke) {
 
 // Help: bug report bundle, diagnostics, and a prefilled GitHub issue.
 const helpNote = (t) => { $('#help-note').textContent = t; };
+// Check everything: the engine's doctor, shown as a checklist with what to fix.
+const CHECK_ICON = { ok: '✓', warn: '!', fail: '✕', skip: '–' };
+$('#help-doctor').onclick = run(async () => {
+  const btn = $('#help-doctor'), list = $('#help-checks');
+  btn.disabled = true; btn.textContent = t('Checking…'); list.replaceChildren();
+  try {
+    const r = await api('/api/doctor', { probe: false });
+    list.replaceChildren(...(r.checks || []).map((c) => {
+      const li = document.createElement('li');
+      li.className = `check ${c.status}`;
+      li.innerHTML = '<span class="ci" aria-hidden="true"></span><span class="cb"><b></b><span></span></span>';
+      li.querySelector('.ci').textContent = CHECK_ICON[c.status] || '·';
+      li.querySelector('b').textContent = c.name;
+      li.querySelector('.cb > span').textContent = c.detail || '';
+      if (c.hint && c.status !== 'ok') { const h = document.createElement('small'); h.textContent = c.hint; li.querySelector('.cb').append(h); }
+      return li;
+    }));
+  } catch (e) { list.replaceChildren(Object.assign(document.createElement('li'), { textContent: String(e) })); }
+  finally { btn.disabled = false; btn.textContent = t('Run the check'); }
+});
 $('#help-bundle').onclick = () => { location.href = authURL('/api/bundle'); helpNote('Bug report saved to your Downloads folder.'); };
 $('#help-diag').onclick = run(async () => {
   const r = await apiFetch('/api/diagnostics');

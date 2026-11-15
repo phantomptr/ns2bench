@@ -87,7 +87,8 @@ impl Dvr {
         let pcm = audio.map(|a| place_pcm(a, t0, t1 + 1.0 / fps)).filter(|p| p.iter().any(|b| *b != 0));
         let span_r = (span * 10.0).round() / 10.0;
 
-        if crate::ocr::which("ffmpeg") {
+        let ff = crate::video::ffmpeg();
+        if ff.is_file() || crate::ocr::which("ffmpeg") {
             let wav = pcm.as_ref().map(|p| -> Result<PathBuf> {
                 let w = path.with_extension("tmp.wav");
                 std::fs::write(&w, wav_bytes(p))?;

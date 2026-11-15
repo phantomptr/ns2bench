@@ -114,7 +114,8 @@ test('new agent tools: health, wait-screen, cropped screenshots, events, levels'
   assert.notEqual(cli('screenshot', '-o', out, '--region', '0,0,2,1').code, 0);
   assert.equal(cli('events', '-n', '5').code, 0);
   assert.equal(cli('reports').code, 0);
-  assert.equal(cli('screen-log', 'off').code, 0);
+  // Block agents is on (turned on by an earlier test): agents can't change the screen log
+  assert.match(cli('screen-log', 'off').err, /manual-only/);
   const lv = cli('--json', 'logs', '--level', 'warn', '-n', '200');
   assert.equal(lv.code, 0);
   for (const line of lv.out.trim().split('\n').filter(Boolean)) assert.ok(['warn', 'error'].includes(JSON.parse(line).level), line);

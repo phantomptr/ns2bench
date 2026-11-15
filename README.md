@@ -27,6 +27,8 @@
 - **Drive it:** keyboard, mouse or your own gamepad, sent through a small input device on the console's USB port. On-screen Joy-Con light up with every press.
 - **Let agents drive it:** an HTTP API and an MCP server (Claude Code, Codex, opencode and others). You watch every agent action live, and one switch blocks agent input.
 - **Test it:** repeatable JSON tests with screenshots, a clip of the moments before any failure, navigation routes and a doctor that says which part is broken.
+- **Know what's going on:** logs with levels, and for known problems what happened and what to do. Desktop notifications when the Bridge or the picture drops, a test finishes or an update is ready. **Help → Run the check** tests every part.
+- **Set up the rest from the app:** **Settings → Install** puts the `ns2bench` command on your PATH, flashes a Pico, installs the Bridge on a Linux board over SSH, and runs the offline network helper as a service.
 - **Keep it offline:** an optional console network with local DHCP and a DNS that answers only the connectivity test. No forwarding, no NAT, no internet.
 
 ## What it doesn't do
@@ -104,7 +106,7 @@ Details for each system are in the setup guide's **[Before you start](docs/setup
 1. Connect the console, capture card and input device as shown in the [setup guide](docs/setup/README.md).
 2. Open NS2Bench. In the **Video** panel pick your capture card.
 3. Open **Settings → Devices**, choose your input device and **Apply**. The **Bridge** pill in the top bar turns green when the console sees the controller.
-4. Click the video and drive with the keyboard, or plug in a gamepad. **Settings → About** links to this guide and the FAQ.
+4. Click the video and drive with the keyboard, or plug in a gamepad. If something isn't right, click **Help** in the top bar and **Run the check**: it says which part is broken and how to fix it.
 
 To let an AI agent drive, open **Settings → API & MCP** and copy the MCP configuration into your agent, or:
 
@@ -149,25 +151,28 @@ Tested on hardware so far: macOS capture (UGREEN 15389) and a Luckfox Pico Max b
 
 ## API and AI agents
 
-The engine listens on `127.0.0.1:7630`. The MCP server (23 tools: see, drive, navigate, test, debug) is the same binary run with `mcp`; it talks to the running engine, so you see everything an agent does. Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
+The engine listens on `127.0.0.1:7630`. The MCP server (34 tools: see, find text, wait for the screen, drive, navigate, test, check health, debug) is the same binary run with `mcp`; it talks to the running engine, so you see everything an agent does. Examples for Claude Code, Codex and opencode, and every HTTP endpoint, are in [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Command line
 
 `ns2bench` does everything the API and MCP do, from a terminal or a script. It talks to the running app (or `ns2bench serve`), so you see every action in the window.
 
 ```sh
+ns2bench health                              # ready to drive? if not, what to fix
 ns2bench status                              # video, Bridge, console USB, agents
 ns2bench press A --hold-ms 120               # also: hold, release, stick, key, type, mouse, click
 ns2bench navigate system_settings            # go somewhere and verify it
 ns2bench read --region 0,0,0.5,0.2           # on-screen text
+ns2bench find "System Settings"              # where a text is on screen
+ns2bench press A && ns2bench wait-screen     # wait for the screen to react (or --stable)
 ns2bench wait-text "Airplane Mode" --timeout 10
 ns2bench test examples/tests/settings-smoke.json
 ns2bench clip --seconds 20                   # also: screenshot, bundle, diagnostics
-ns2bench logs --follow --source network      # also: events, doctor --probe
+ns2bench logs --follow --level warn          # problems only; also: events, doctor --probe
 ns2bench input --backend serial --serial-port /dev/ttyACM0 --baud 921600
 ```
 
-Add `--json` for raw output, `--url` / `--token` (or `NS2BENCH_URL` / `NS2BENCH_TOKEN`) for another engine. `ns2bench --help` lists every command. Get it from each release (`ns2bench-cli-<version>-<os>-<arch>`) or build it with `make build`. The desktop app itself also runs `ns2bench-app mcp` (the MCP server) and `ns2bench-app update check|install` (update from a terminal).
+Add `--json` for raw output, `--url` / `--token` (or `NS2BENCH_URL` / `NS2BENCH_TOKEN`) for another engine. `ns2bench --help` lists every command. It ships inside the app: **Settings → Install → Install command line tool** puts it on your PATH. It's also in each release (`ns2bench-cli-<version>-<os>-<arch>`), or build it with `make build`. The desktop app itself also runs `ns2bench-app mcp` (the MCP server) and `ns2bench-app update check|install` (update from a terminal).
 
 ## FAQ
 
@@ -183,7 +188,7 @@ Bug reports, hardware reports, translations and code are welcome. See [CONTRIBUT
 
 ## Reporting bugs
 
-In the app, open **Settings → Help** and choose **Save bug report**. It saves a zip with logs, status and a screenshot (tokens are removed) that you can attach to a [GitHub issue](https://github.com/phantomptr/ns2bench/issues/new/choose). **Open an issue on GitHub** fills in your version and OS for you.
+In the app, click **Help** in the top bar and choose **Save bug report**. It saves a zip with logs, status and a screenshot (tokens are removed) that you can attach to a [GitHub issue](https://github.com/phantomptr/ns2bench/issues/new/choose). **Open an issue on GitHub** fills in your version and OS for you.
 
 ## How this project is built
 

@@ -118,7 +118,7 @@ NS2Bench 讓你（或 AI 代理）從電腦上看到、聽到並操作 Nintendo 
 
 **步驟**
 
-1. 從電腦把 NS2Bench Bridge 安裝到開發板上：`make board-install BOARD=<ssh-host>`。若是 64 位元的 Raspberry Pi，請加上 `BOARD_TARGET=aarch64-unknown-linux-musl`。
+1. 從應用程式把 NS2Bench Bridge 安裝到開發板上：**設定 → 安裝 → Bridge 開發板**，輸入它的 SSH 主機，按一下**安裝到開發板**。（從原始碼：`make board-install BOARD=<ssh-host>`；若是 64 位元的 Raspberry Pi，請加上 `BOARD_TARGET=aarch64-unknown-linux-musl`。）
 2. 把開發板的 **OTG** USB 連接埠接到底座的 USB 連接埠。
 3. 把開發板的 Ethernet 接到電腦（或讓兩者加入同一個私人網路）。
 4. 如果 Bridge 尚未執行，請啟動它：`ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`。
@@ -166,21 +166,19 @@ NS2Bench 讓你（或 AI 代理）從電腦上看到、聽到並操作 Nintendo 
 
 **步驟**
 
-1. 建置韌體：`make pico`。你會得到 `firmware/pico/ns2bench-pico.uf2`。
-2. 按住 **BOOTSEL** 按鈕，同時把 Pico 插到**電腦**上。會出現一個名為 **RPI-RP2** 的磁碟。
-3. 把 `.uf2` 檔案複製到該磁碟。Pico 會重新啟動。然後拔下它。
-4. 把 Pico 接到轉接器：
+1. 從應用程式燒錄 Pico：**設定 → 安裝 → 燒錄 Pico**，然後按住 **BOOTSEL** 按鈕，同時把 Pico 插到**電腦**上。應用程式會把韌體複製到 **RPI-RP2** 磁碟，Pico 隨即重新啟動。然後拔下它。（從原始碼：`make pico` 會建置 `firmware/pico/ns2bench-pico.uf2`；請自行把它複製到 RPI-RP2 磁碟。）
+2. 把 Pico 接到轉接器：
    - Pico **GP0**（第 1 腳，UART0 TX）→ 轉接器 **RX**
    - Pico **GP1**（第 2 腳，UART0 RX）← 轉接器 **TX**
    - Pico **GND**（第 3 腳）— 轉接器 **GND**
    - 轉接器的 3.3 V / 5 V 腳位不要接。Pico 由主機供電。
-5. 把 Pico 的 micro-USB 接到底座的 USB 連接埠。
-6. 把轉接器插到電腦上。
-7. 在**設定 → 裝置**中設定：
+3. 把 Pico 的 micro-USB 接到底座的 USB 連接埠。
+4. 把轉接器插到電腦上。
+5. 在**設定 → 裝置**中設定：
    - **輸入連線：** 序列埠 Bridge
    - **序列埠：** 轉接器（例如 macOS 上的 `/dev/cu.usbserial-XXXX`、Linux 上的 `/dev/ttyUSB0`、Windows 上的 `COM3`）
    - **鮑率：** `921600`
-8. 按一下**套用輸入連線**。
+6. 按一下**套用輸入連線**。
 
 選用：以 `NS2BENCH_TOKEN=... make pico` 建置，可讓 Pico 要求權杖（在電腦上設定相同的權杖檔案）。如果你的轉接器無法使用 921600，請以 `NS2BENCH_BAUD=115200` 建置。
 

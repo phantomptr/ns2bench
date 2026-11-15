@@ -118,7 +118,7 @@ Changez de mode avec **La console voit** dans le panneau de pilotage. Cela prend
 
 **Étapes**
 
-1. Installez NS2Bench Bridge sur la carte depuis l’ordinateur : `make board-install BOARD=<ssh-host>`. Pour un Raspberry Pi 64 bits, ajoutez `BOARD_TARGET=aarch64-unknown-linux-musl`.
+1. Installez NS2Bench Bridge sur la carte depuis l’app : **Réglages → Installer → Carte Bridge**, saisissez son hôte SSH, cliquez sur **Installer sur la carte**. (Depuis les sources : `make board-install BOARD=<ssh-host>` ; ajoutez `BOARD_TARGET=aarch64-unknown-linux-musl` pour un Raspberry Pi 64 bits.)
 2. Branchez le port USB **OTG** de la carte sur le port USB de la station d’accueil.
 3. Reliez l’Ethernet de la carte à l’ordinateur (ou connectez les deux au même réseau privé).
 4. Démarrez le Bridge s’il ne tourne pas déjà : `ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`.
@@ -166,21 +166,19 @@ Un Raspberry Pi Pico (RP2040) avec le firmware NS2Bench Bridge. Son port USB va 
 
 **Étapes**
 
-1. Compilez le firmware : `make pico`. Vous obtenez `firmware/pico/ns2bench-pico.uf2`.
-2. Maintenez le bouton **BOOTSEL** enfoncé en branchant le Pico sur l’**ordinateur**. Un lecteur nommé **RPI-RP2** apparaît.
-3. Copiez le fichier `.uf2` sur ce lecteur. Le Pico redémarre. Débranchez-le.
-4. Câblez le Pico à l’adaptateur :
+1. Flashez le Pico depuis l’app : **Réglages → Installer → Flasher le Pico**, puis maintenez le bouton **BOOTSEL** enfoncé en branchant le Pico sur l’**ordinateur**. L’app copie le firmware sur le lecteur **RPI-RP2** et le Pico redémarre. Débranchez-le. (Depuis les sources : `make pico` compile `firmware/pico/ns2bench-pico.uf2` ; copiez-le vous-même sur le lecteur RPI-RP2.)
+2. Câblez le Pico à l’adaptateur :
    - Pico **GP0** (broche 1, UART0 TX) → adaptateur **RX**
    - Pico **GP1** (broche 2, UART0 RX) ← adaptateur **TX**
    - Pico **GND** (broche 3) — adaptateur **GND**
    - Ne branchez pas la broche 3,3 V / 5 V de l’adaptateur. Le Pico est alimenté par la console.
-5. Branchez le micro-USB du Pico sur le port USB de la station d’accueil.
-6. Branchez l’adaptateur sur l’ordinateur.
-7. Dans **Réglages → Appareils**, réglez :
+3. Branchez le micro-USB du Pico sur le port USB de la station d’accueil.
+4. Branchez l’adaptateur sur l’ordinateur.
+5. Dans **Réglages → Appareils**, réglez :
    - **Connexion d’entrée :** Bridge série
    - **Port série :** l’adaptateur (par exemple `/dev/cu.usbserial-XXXX` sous macOS, `/dev/ttyUSB0` sous Linux, `COM3` sous Windows)
    - **Débit (bauds) :** `921600`
-8. Cliquez sur **Appliquer la connexion d’entrée**.
+6. Cliquez sur **Appliquer la connexion d’entrée**.
 
 Facultatif : compilez avec `NS2BENCH_TOKEN=... make pico` pour que le Pico exige un jeton (configurez le même fichier de jeton sur l’ordinateur). Compilez avec `NS2BENCH_BAUD=115200` si votre adaptateur ne gère pas 921600.
 

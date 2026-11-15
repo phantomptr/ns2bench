@@ -136,6 +136,9 @@ pub async fn build_helper() -> Result<PathBuf> {
     if let Some(p) = bundled_helper() {
         return Ok(p);
     }
+    // Video, sound and text reading all ask at startup: build once, not three times at once.
+    static BUILD: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _one = BUILD.lock().await;
     let dir = crate::config::state_dir().join("bin");
     std::fs::create_dir_all(&dir)?;
     let src = dir.join("ns2capture.swift");
@@ -312,13 +315,28 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
         .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()
         .map_err(|_| anyhow!("video capture needs ffmpeg: {}", ffmpeg_hint()))?;
     let mut out = child.stdout.take().unwrap();
+    // Keep reading ffmpeg's messages while it runs (a full pipe would stall it); keep the tail.
+    let tail = Arc::new(Mutex::new(String::new()));
+    let reader = child.stderr.take().map(|mut err| {
+        let tail = tail.clone();
+        tokio::spawn(async move {
+            let mut b = [0u8; 4096];
+            while let Ok(n) = err.read(&mut b).await {
+                if n == 0 { break; }
+                let mut t = tail.lock().unwrap();
+                t.push_str(&String::from_utf8_lossy(&b[..n]));
+                if t.len() > 4096 { let cut = t.len() - 2048; let cut = (cut..t.len()).find(|i| t.is_char_boundary(*i)).unwrap_or(0); t.drain(..cut); }
+            }
+        })
+    });
+    let _stderr = Abort(reader);
     let mut buf = Vec::with_capacity(1 << 20);
     let mut chunk = vec![0u8; 1 << 16];
     loop {
         let n = capture_read(&mut out, &mut chunk, Duration::from_secs(10)).await?;
         if n == 0 {
-            let mut e = String::new();
-            if let Some(mut s) = child.stderr.take() { let _ = s.read_to_string(&mut e).await; }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            let e = tail.lock().unwrap().clone();
             bail!("ffmpeg exited: {}", e.trim());
         }
         buf.extend_from_slice(&chunk[..n]);

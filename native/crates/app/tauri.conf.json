@@ -54,11 +54,16 @@
       "deb": {
         "depends": [
           "ffmpeg"
+        ],
+        "recommends": [
+          "openssh-client",
+          "pkexec | policykit-1",
+          "tesseract-ocr"
         ]
       }
     },
     "publisher": "PhantomPtr",
-    "copyright": "Copyright © 2026 PhantomPtr. GPL-3.0-or-later.",
+    "copyright": "Copyright \u00a9 2026 PhantomPtr. GPL-3.0-or-later.",
     "license": "GPL-3.0-or-later",
     "homepage": "https://ns2bench.phantomptr.com"
   }

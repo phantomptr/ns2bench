@@ -627,9 +627,12 @@ impl InputHub {
         let shown: String = text.chars().take(80).collect();
         self.log(source, "type", json!({"text": shown}));
         // delay_ms is the time per character: half held, half released (each at least the minimum press)
-        let hold = (delay_ms / 2).max(self.min_press()).min(2000);
+        let delay_ms = delay_ms.clamp(16, 2000);
+        let hold = (delay_ms / 2).max(self.min_press()).min(1000);
         let gap = delay_ms.saturating_sub(hold).max(16);
         for (m, c) in strokes {
+            // Block agents stops typing between keys, not only before the first one.
+            self.check_agent(source)?;
             self.tap(source, m, c, hold).await?;
             tokio::time::sleep(Duration::from_millis(gap)).await;
         }

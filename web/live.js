@@ -8,7 +8,7 @@ export function startLive(img, onMode = () => {}) {
   canvas.hidden = true;
   img.after(canvas);
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-  let ws = null, dec = null, mode = 'mjpeg', failures = 0, ts = 0, latest = null;
+  let ws = null, dec = null, mode = 'mjpeg', failures = 0, ts = 0, latest = null, needKey = false;
 
   const mjpeg = (why) => {
     if (mode !== 'mjpeg') console.info('[live] MJPEG fallback:', why);
@@ -58,9 +58,13 @@ export function startLive(img, onMode = () => {}) {
         return;
       }
       if (!configured || dec.state !== 'configured') return;
-      if (dec.decodeQueueSize > 6) return;                  // decoder behind: drop until it catches up (keyframe resync on server lag)
       const data = new Uint8Array(ev.data);
       const key = isKey(data);
+      // Decoder behind: drop frames, then wait for a keyframe (a delta without the frames
+      // it builds on decodes to a smeared picture).
+      if (dec.decodeQueueSize > 6) { needKey = true; return; }
+      if (needKey && !key) return;
+      needKey = false;
       dec.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: (ts += 16667), data }));
     };
     ws.onclose = () => {

@@ -106,9 +106,12 @@ fn main() {
     let cfg = load_config();
     let url = format!("{}/", cfg.url());
     let attach = tauri::async_runtime::block_on(running(&cfg));
+    // The window's proof that it is the app (kept in memory, never written anywhere).
+    let ui_key = updates::hex(&rand::random::<[u8; 24]>());
     if attach {
         eprintln!("NS2Bench: attaching to the engine already running at {url}");
     } else {
+        ns2bench_core::server::set_ui_key(ui_key.clone());
         let c = cfg.clone();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = ns2bench_core::serve(c).await {
@@ -129,15 +132,23 @@ fn main() {
         .manage(updates::Updates::default())
         .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action])
         .setup(move |app| {
-            app.add_capability(tauri::ipc::CapabilityBuilder::new("engine-updates").local(false).window("main")
-                .remote(format!("{}/*", target.origin().ascii_serialization())).permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("notification:default"))?;
+            // Installing, updating and the command line tool are only offered to the engine this
+            // app started itself, never to whatever else may be answering on the port.
+            let mut cap = tauri::ipc::CapabilityBuilder::new("engine-ui").local(false).window("main")
+                .remote(format!("{}/*", target.origin().ascii_serialization())).permission("notification:default");
+            if !attach {
+                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action");
+            }
+            app.add_capability(cap)?;
             let mut window = app.config().app.windows.iter().find(|w| w.label == "main")
                 .expect("main window configuration").clone();
             window.url = WebviewUrl::External(target.clone());
             window.visible = false;
             let origin = target.origin();
             let nav_origin = origin.clone();
+            let key_script = if attach { String::new() } else { format!("window.__NS2BENCH_UI__ = {ui_key:?};") };
             let main = WebviewWindowBuilder::from_config(app, &window)?
+                .initialization_script(&key_script)
                 // The engine's pages stay in the app; web links open in the browser.
                 .on_navigation(move |url| {
                     if url.origin() == nav_origin || url.scheme() == "blob" || url.scheme() == "about" {

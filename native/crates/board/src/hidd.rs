@@ -225,10 +225,12 @@ impl Dev {
                 let mut m = b.to_le_bytes().to_vec();
                 m.extend(state[1..6].iter().map(|x| *x as u8));
                 if sock.send_to(&m, PRO_SOCK).is_ok() {
-                    *pending = false;
-                    *last = Some(now);
                     *writes += 1;
                 }
+                // Sent or not: when pro2 is down (crashed, still starting) retry on the
+                // keepalive instead of spinning; the state is kept and resent then.
+                *pending = false;
+                *last = Some(now);
             }
         }
     }

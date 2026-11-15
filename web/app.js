@@ -285,7 +285,8 @@ function showStatus(s) {
   const live = s.video.age_s !== null && s.video.age_s < 3;
   // Whole numbers only: changing widths made the toolbar jump between one and two rows.
   v.textContent = live ? `${t('video')} ${Math.round(s.video.fps)} fps` : `${t('video')} · ${s.video.error ?? t('waiting')}`;
-  v.title = s.video.error ?? `${t('video')} ${s.video.fps} fps`;
+  v.title = live ? `${t('The capture card is sending the console picture.')} ${t('Click for video settings.')}`
+    : `${s.video.error ?? t('No picture yet.')} — ${t('Check the HDMI cable goes into the card’s input and the console is awake. Click for video settings.')}`;
   v.className = live ? 'pill ok' : 'pill bad';
   const inp = s.input;
   const wasReady = bridgeStatus?.connected && bridgeStatus?.usb === 'configured';
@@ -296,7 +297,10 @@ function showStatus(s) {
   const usb = inp.usb === 'configured' ? t('console ready') : t('console not ready');
   i.textContent = inp.connected ? `Bridge ${inp.rtt_ms == null ? '?' : Math.max(1, Math.round(inp.rtt_ms))} ms · ${usb}${extra}`
     : `Bridge · ${inp.backend === 'none' ? t('not set up') : t('offline, reconnecting')}`;
-  i.title = `NS2Bench Bridge (${inp.backend}): ${inp.detail ?? inp.usb ?? 'waiting'}`;
+  i.title = inp.connected && inp.usb === 'configured' ? `${t('The input device is connected and the console sees it.')} ${t('Click for input settings.')}`
+    : inp.backend === 'none' ? `${t('No input device is set up, so nothing can press buttons yet.')} ${t('Click to choose one.')}`
+      : inp.connected ? `${t('Connected, but the console hasn’t accepted the USB device yet (it may be asleep).')} ${t('Click for input settings.')}`
+        : `${inp.detail ?? t('Not connected.')} — ${t('Check the device is powered (the console must be awake) and its address. Click for input settings.')}`;
   i.className = inp.connected && inp.usb === 'configured' ? 'pill ok' : 'pill bad';
   $('#manual-only').checked = inp.manual_only;
   if (s.ocr) $('#log-screen').checked = s.ocr.screen_log;
@@ -600,11 +604,7 @@ async function copyText(btn, text) {
 const logText = () => logState.entries.filter(visible)
   .map((e) => `${new Date(e.t * 1000).toISOString()} ${e.level.toUpperCase()} [${e.source}] ${e.text}${e.hint ? `\n    → ${e.hint}` : ''}`).join('\n');
 $('#log-copy').addEventListener('click', (e) => copyText(e.currentTarget, logText()));
-$('#btn-diag').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  copyText(btn, await (await fetch('/api/diagnostics')).text());
-});
-$('#btn-bundle').addEventListener('click', () => { location.href = authURL('/api/bundle'); });
+$('#btn-help').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'help' })));
 // click a log line to copy it
 logview.addEventListener('click', (e) => {
   const li = e.target.closest('li');

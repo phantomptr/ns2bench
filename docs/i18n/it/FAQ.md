@@ -64,6 +64,10 @@ Nel pannello **Video** a destra della finestra principale. Elenca solo i formati
 
 In **Impostazioni → Dispositivi**. Le modifiche si applicano senza riavviare; la vecchia connessione rilascia prima tutti i pulsanti.
 
+## L’app può installare il Bridge, il firmware del Pico o l’helper di rete?
+
+Sì, in **Impostazioni → Installa**. **Flasha Pico** mette il firmware Bridge su un Raspberry Pi Pico (tieni premuto BOOTSEL mentre lo colleghi). **Installa sulla scheda** installa o aggiorna il Bridge su una scheda Linux via SSH (configura prima l’accesso con chiave). **Installa helper** esegue l’helper di rete offline come servizio su macOS o Linux. I download provengono dalla release corrispondente all’app e vengono verificati prima dell’uso.
+
 ## Come capisco che funziona?
 
 L’indicatore **video** nella barra in alto diventa verde con il frame rate, e l’indicatore **Bridge** diventa verde quando la console ha accettato il dispositivo di input. **Diagnostica** nella barra in alto copia un riepilogo completo dello stato.
@@ -184,17 +188,29 @@ Impostazioni → Aspetto. Il pulsante con la luna nella barra in alto passa da c
 
 ## Dove sono clip, screenshot e log?
 
-In `~/.ns2bench/` (clip, report, log). Non viene caricato nulla da nessuna parte.
+In `~/.ns2bench/`: clip, report dei test e un file di log al giorno in `~/.ns2bench/logs` (conservati 7 giorni). Gli screenshot finiscono nella cartella Download. Non viene caricato nulla da nessuna parte.
+
+## NS2Bench può avvisarmi?
+
+Sì. **Impostazioni → Notifiche** attiva le notifiche desktop per quando il Bridge o l’immagine si interrompono, test e clip finiscono, un agente inizia a pilotare o un aggiornamento è pronto. Per impostazione predefinita compaiono solo mentre NS2Bench è in background.
+
+## Come installo lo strumento da riga di comando?
+
+**Impostazioni → Installa → Installa lo strumento da riga di comando** mette `ns2bench` nel tuo PATH (macOS potrebbe chiedere la password una volta; il `.deb` per Linux lo installa già). Poi esegui `ns2bench --help`. Può fare tutto ciò che fanno l’API e MCP.
 
 # Risoluzione dei problemi
 
 ## Come segnalo un bug?
 
-Fai clic su **Pacchetto** nella barra in alto per salvare uno zip con il report del bug (log, stato, uno screenshot; nessun token) e allegalo a una [issue su GitHub](https://github.com/phantomptr/ns2bench/issues/new/choose).
+Fai clic su **Aiuto** nella barra in alto, poi su **Salva segnalazione** (uno zip con log, stato e uno screenshot; nessun token), e allegalo a una [issue su GitHub](https://github.com/phantomptr/ns2bench/issues/new/choose).
+
+## Cosa significano i colori del log?
+
+Le righe blu sono attività normale, quelle ambra sono avvisi che possono risolversi da soli e quelle rosse richiedono il tuo intervento. Per i problemi che NS2Bench riconosce, un riquadro blu sotto la riga spiega cosa è successo e cosa fare. **Problemi** nel pannello Log mostra solo avvisi ed errori; **Tutto** aggiunge dettagli come ogni chiamata API.
 
 ## Cosa fa doctor?
 
-`ns2bench doctor` controlla video, immagine della console, OCR, Bridge, stato USB, calibrazione e isolamento di rete, e ti dice quale parte non funziona e cosa fare. `--probe` preme anche RIGHT e LEFT nel menu HOME per testare l’input da capo a fondo.
+**Aiuto → Esegui il controllo** nell’app (o `ns2bench doctor`) controlla video, immagine della console, OCR, Bridge, stato USB, calibrazione e isolamento di rete, e ti dice quale parte non funziona e cosa fare. `--probe` preme anche RIGHT e LEFT nel menu HOME per testare l’input da capo a fondo.
 
 ## Dove posso chiedere aiuto?
 

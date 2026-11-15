@@ -15,6 +15,10 @@ use tokio::io::AsyncWriteExt;
 const MANIFEST: &str =
     "https://github.com/phantomptr/ns2bench/releases/latest/download/latest.json";
 const MAX_DOWNLOAD: u64 = 1024 * 1024 * 1024;
+/// Designated requirement every released macOS build meets: the app identifier signed by
+/// the NS2Bench certificate (SHA-1 of the certificate in ~/.ns2bench/signing, CI secret).
+#[cfg(target_os = "macos")]
+const RELEASE_REQUIREMENT: &str = "-R=identifier \"io.github.phantomptr.ns2bench\" and certificate leaf = H\"6b2b62e6d97e5a307b41534ba2c5d1baf5e35455\"";
 #[derive(Deserialize)]
 struct Manifest {
     version: String,
@@ -273,7 +277,9 @@ async fn install(path: &Path) -> Result<()> {
     let plist = stage.join("NS2Bench.app/Contents/Info.plist");
     ensure!(plist.is_file(), "Update is missing its app bundle");
     let signature = tokio::process::Command::new("/usr/bin/codesign")
-        .args(["--verify", "--deep", "--strict"])
+        // Any valid signature isn't enough: it must be NS2Bench's own certificate
+        // (scripts/with-signing.sh), so a swapped download can't install itself.
+        .args(["--verify", "--deep", "--strict", RELEASE_REQUIREMENT])
         .arg(stage.join("NS2Bench.app"))
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

@@ -65,7 +65,7 @@ impl Bench {
         if let Some(t) = self.video_task.lock().unwrap().take() { t.abort(); }
         let t = tokio::spawn(crate::video::supervise(self.video_cfg.clone(), self.frames.clone(), self.logs.clone()));
         *self.video_task.lock().unwrap() = Some(t);
-        crate::h264::restart(self.clone());
+        self.ext.audio.restart();
     }
 
     pub async fn set_video(self: &Arc<Self>, changes: Value) -> Result<()> {

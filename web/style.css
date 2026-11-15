@@ -334,3 +334,21 @@ input[type=checkbox]:disabled { opacity: .5; cursor: default; }
 #log-levels .chip.lvl-error:not([aria-pressed=true]) .li { color: var(--bad); }
 .toggle-list.first { border-top: 0; margin-top: 0; padding-top: 0; }
 #settings .group .toggle-list + .field-row { margin-top: 8px; }
+
+/* Card titles carry an icon; Help lists checks and common problems. */
+.card h2 { display: flex; align-items: center; gap: 7px; }
+.hi { width: 16px; height: 16px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.checks { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.checks:empty { display: none; }
+.check { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; background: var(--field); }
+.check .ci { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 12px; background: var(--line); }
+.check.ok .ci { background: var(--ok-soft); color: var(--ok); }
+.check.warn .ci { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.check.fail .ci { background: var(--bad-soft); color: var(--bad); }
+.check .cb { display: grid; gap: 2px; font-size: 13px; }
+.check .cb > span { color: var(--muted); }
+.check small { color: var(--text); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 4px 8px; border-radius: 6px; margin-top: 4px; }
+details.faq { border-top: 1px solid var(--line); padding: 10px 0; }
+details.faq:first-of-type { border-top: 0; padding-top: 0; }
+details.faq summary { cursor: pointer; font-weight: 500; }
+details.faq p { margin: 8px 0 0; color: var(--muted); }

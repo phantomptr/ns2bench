@@ -20,8 +20,7 @@
   <button id="btn-theme" type="button" class="ibtn" title="Switch between light and dark" aria-label="Switch between light and dark"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg></button>
   <button id="btn-settings" type="button" title="Connections, appearance, API, MCP and updates">Settings</button>
   <button id="btn-sound" type="button" class="ibtn" title="Play the console's sound (from the capture card)" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Sound off</span></button>
-  <button id="btn-diag" type="button" class="ibtn" title="Copy diagnostics (Markdown)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h3l2-5 4 10 2-5h5"/></svg><span>Diagnostics</span></button>
-  <button id="btn-bundle" type="button" class="ibtn" title="Download a bug-report bundle (zip)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg><span>Bundle</span></button>
+  <button id="btn-help" type="button" class="ibtn" title="Help: check everything, common problems, report a bug"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/></svg><span>Help</span></button>
   <button id="btn-clip" type="button" class="ibtn" title="Save the last 30 s of video as a clip"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span>Save clip</span></button>
   <button id="btn-shot" type="button" class="ibtn" title="Save a full-resolution screenshot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.3"/></svg><span>Screenshot</span></button>
   <button id="btn-full" type="button" class="ibtn" title="Fullscreen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Fullscreen</span></button>
@@ -51,7 +50,7 @@
 
     <section class="card logs-card" aria-label="Logs">
       <div class="logs-head">
-        <h2>Logs</h2>
+        <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Logs</h2>
         <div class="chips" id="log-levels" role="group" aria-label="Log level"></div>
         <div class="chips" id="log-sources" role="group" aria-label="Log sources"></div>
         <span class="spacer"></span>
@@ -67,7 +66,7 @@
 
   <aside class="panel">
     <section class="card welcome" id="welcome" hidden aria-labelledby="welcome-h">
-      <h2 id="welcome-h">Get started</h2>
+      <h2 id="welcome-h"><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>Get started</h2>
       <button type="button" class="card-close" id="welcome-hide" aria-label="Hide" title="Hide">×</button>
       <ol class="steps">
         <li id="step-video"><span><b>Connect a capture card.</b> Pick it in the Video panel.</span></li>
@@ -77,7 +76,7 @@
       <div class="field-row wrap"><button type="button" class="primary" id="welcome-devices">Choose input device</button><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a></div>
     </section>
     <section class="card">
-      <h2>Driving</h2>
+      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M7 10v4M5 12h4M16 11h.01M18 13h.01"/></svg>Driving</h2>
       <span class="seg-label" id="usb-label">The console sees</span>
       <div class="seg" role="radiogroup" aria-labelledby="usb-label" id="seg-usb">
         <button type="button" role="radio" data-v="standard">Controller + keyboard</button><button type="button" role="radio" data-v="pro">Pro Controller</button>
@@ -102,7 +101,7 @@
     </section>
 
     <section class="card video-card" id="video-card">
-      <h2>Video</h2>
+      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>Video</h2>
       <label class="field">Device <select id="v-device"></select></label>
       <div class="field-row">
         <label class="field">Resolution <select id="v-size"></select></label>
@@ -117,7 +116,7 @@
     </section>
 
     <section class="card">
-      <h2>Activity</h2>
+      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h3l2-5 4 10 2-5h5"/></svg>Activity</h2>
       <ol class="log" id="log"></ol>
       <p class="empty">Every press from you and from agents shows up here, newest first.</p>
     </section>
@@ -269,14 +268,33 @@ ns2bench --help</pre>
     </div>
   </section>
   <section data-pane="help" hidden>
-    <h3>Report a problem</h3>
-    <p>Save a bug report, then open an issue and attach it. The report holds logs, status, a screenshot and your settings, never tokens. Look through it before you share it.</p>
-    <div class="field-row wrap"><button type="button" class="primary" id="help-bundle">Save bug report (.zip)</button><button type="button" id="help-diag">Copy diagnostics</button><button type="button" id="help-issue">Open an issue on GitHub</button></div>
-    <p class="hint" id="help-note"></p>
-    <h3>Guides</h3>
-    <p class="links"><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a> · <a href="https://ns2bench.phantomptr.com/faq/" target="_blank" rel="noopener">FAQ</a> · <a href="https://github.com/phantomptr/ns2bench/blob/main/docs/REFERENCE.md" target="_blank" rel="noopener">API and test reference</a> · <a href="https://discord.gg/fzK3xddtrM" target="_blank" rel="noopener">Ask on Discord</a></p>
-    <h3>Shortcuts</h3>
-    <p>Click the picture to drive with the keyboard; Esc releases it. Press ? (outside the picture) to show the keyboard map. Click a status pill to fix what it reports.</p>
+    <div class="group">
+      <h3>Check everything</h3>
+      <p class="hint">Tests the capture card, the input device, USB, the console picture, sound and the network, and says what to fix.</p>
+      <div class="field-row"><button type="button" class="primary" id="help-doctor">Run the check</button></div>
+      <ol class="checks" id="help-checks" aria-live="polite"></ol>
+    </div>
+    <div class="group">
+      <h3>Common problems</h3>
+      <details class="faq"><summary>There’s no picture</summary><p>Check the HDMI cable goes into the capture card’s input, the console is docked and awake, and the card is picked in the Video panel. Close OBS if it holds the card. On a Mac, allow Camera for NS2Bench. <a href="https://ns2bench.phantomptr.com/faq/#theres-no-picture" target="_blank" rel="noopener">More in the FAQ</a></p></details>
+      <details class="faq"><summary>There’s no sound</summary><p>Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench. <a href="https://ns2bench.phantomptr.com/faq/#theres-no-sound" target="_blank" rel="noopener">More in the FAQ</a></p></details>
+      <details class="faq"><summary>The Bridge pill stays red</summary><p>The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices. <a href="https://ns2bench.phantomptr.com/faq/#the-bridge-pill-stays-red" target="_blank" rel="noopener">More in the FAQ</a></p></details>
+      <details class="faq"><summary>Presses don’t register</summary><p>The Switch 2 ignores very short presses. Run Calibrate in Settings → Devices, and check Block agents is off if an agent is driving. <a href="https://ns2bench.phantomptr.com/faq/#presses-dont-register" target="_blank" rel="noopener">More in the FAQ</a></p></details>
+      <details class="faq"><summary>macOS keeps asking for permission</summary><p>Allow Camera and Microphone once. Since 0.0.3 the app keeps the same signature, so macOS remembers across updates. <a href="https://ns2bench.phantomptr.com/faq/#macos-asks-for-camera-or-microphone-again-after-an-update" target="_blank" rel="noopener">More in the FAQ</a></p></details>
+      <details class="faq"><summary>Which input device should I pick?</summary><p>The NS2Bench Bridge (a Linux board) does everything. A Pico is cheaper and simpler. A CH9329 only types and moves a mouse. <a href="https://ns2bench.phantomptr.com/faq/#which-input-device-should-i-pick" target="_blank" rel="noopener">More in the FAQ</a></p></details>
+    </div>
+    <div class="group">
+      <h3>Report a problem</h3>
+      <p>Save a bug report, then open an issue and attach it. The report holds logs, status, a screenshot and your settings, never tokens. Look through it before you share it.</p>
+      <div class="field-row wrap"><button type="button" class="primary" id="help-bundle">Save bug report (.zip)</button><button type="button" id="help-diag">Copy diagnostics</button><button type="button" id="help-issue">Open an issue on GitHub</button></div>
+      <p class="hint" id="help-note"></p>
+    </div>
+    <div class="group">
+      <h3>Guides</h3>
+      <p class="links"><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a> · <a href="https://ns2bench.phantomptr.com/faq/" target="_blank" rel="noopener">FAQ</a> · <a href="https://github.com/phantomptr/ns2bench/blob/main/docs/REFERENCE.md" target="_blank" rel="noopener">API and test reference</a> · <a href="https://discord.gg/fzK3xddtrM" target="_blank" rel="noopener">Ask on Discord</a></p>
+      <h3>Shortcuts</h3>
+      <p>Click the picture to drive with the keyboard; Esc releases it. Press ? (outside the picture) to show the keyboard map. Click a status pill to fix what it reports. Logs explain known problems in blue boxes.</p>
+    </div>
   </section>
   <section data-pane="about" hidden>
     <h3>NS2Bench <span id="about-version" data-no-i18n></span></h3>

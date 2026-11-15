@@ -118,7 +118,7 @@ NS2Bench 让你（或 AI 代理）可以在电脑上看到、听到并操作 Nin
 
 **步骤**
 
-1. 在电脑上把 NS2Bench Bridge 安装到板子上：`make board-install BOARD=<ssh-host>`。如果是 64 位 Raspberry Pi，请加上 `BOARD_TARGET=aarch64-unknown-linux-musl`。
+1. 在应用中把 NS2Bench Bridge 安装到板子上：**设置 → 安装 → Bridge 开发板**，填入它的 SSH 主机，点击**安装到开发板**。（从源码：`make board-install BOARD=<ssh-host>`；如果是 64 位 Raspberry Pi，请加上 `BOARD_TARGET=aarch64-unknown-linux-musl`。）
 2. 把板子的 **OTG** USB 端口接到底座的 USB 端口。
 3. 把板子的 Ethernet 接到电脑（或让两者加入同一个私有网络）。
 4. 如果 Bridge 尚未运行，请启动它：`ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`。
@@ -166,21 +166,19 @@ NS2Bench 让你（或 AI 代理）可以在电脑上看到、听到并操作 Nin
 
 **步骤**
 
-1. 构建固件：`make pico`。你会得到 `firmware/pico/ns2bench-pico.uf2`。
-2. 按住 **BOOTSEL** 按钮，同时把 Pico 插到**电脑**上。会出现一个名为 **RPI-RP2** 的磁盘。
-3. 把 `.uf2` 文件复制到这个磁盘。Pico 会重启。然后拔下它。
-4. 把 Pico 和适配器连线：
+1. 在应用中刷写 Pico：**设置 → 安装 → 刷写 Pico**，然后按住 **BOOTSEL** 按钮，同时把 Pico 插到**电脑**上。应用会把固件复制到 **RPI-RP2** 磁盘，Pico 随即重启。然后拔下它。（从源码：`make pico` 会构建 `firmware/pico/ns2bench-pico.uf2`；请自己把它复制到 RPI-RP2 磁盘。）
+2. 把 Pico 和适配器连线：
    - Pico **GP0**（引脚 1，UART0 TX）→ 适配器 **RX**
    - Pico **GP1**（引脚 2，UART0 RX）← 适配器 **TX**
    - Pico **GND**（引脚 3）— 适配器 **GND**
    - 适配器的 3.3 V / 5 V 引脚不要连接。Pico 由主机供电。
-5. 把 Pico 的 micro-USB 插到底座的 USB 端口。
-6. 把适配器插到电脑上。
-7. 在 **设置 → 设备** 中设置：
+3. 把 Pico 的 micro-USB 插到底座的 USB 端口。
+4. 把适配器插到电脑上。
+5. 在 **设置 → 设备** 中设置：
    - **输入连接：** 串口 Bridge
    - **串口：** 该适配器（例如 macOS 上的 `/dev/cu.usbserial-XXXX`、Linux 上的 `/dev/ttyUSB0`、Windows 上的 `COM3`）
    - **波特率：** `921600`
-8. 点击**应用输入连接**。
+6. 点击**应用输入连接**。
 
 可选：用 `NS2BENCH_TOKEN=... make pico` 构建，可让 Pico 要求令牌（在电脑上设置相同的令牌文件）。如果你的适配器不支持 921600，请用 `NS2BENCH_BAUD=115200` 构建。
 

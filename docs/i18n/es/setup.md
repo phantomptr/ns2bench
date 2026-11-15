@@ -118,7 +118,7 @@ Cambia de modo con **La consola ve** en el panel Controlando. Tarda unos 8 segun
 
 **Pasos**
 
-1. Instala NS2Bench Bridge en la placa desde el ordenador: `make board-install BOARD=<ssh-host>`. Para una Raspberry Pi de 64 bits añade `BOARD_TARGET=aarch64-unknown-linux-musl`.
+1. Instala NS2Bench Bridge en la placa desde la app: **Ajustes → Instalar → Placa Bridge**, escribe su host SSH y haz clic en **Instalar en la placa**. (Desde el código fuente: `make board-install BOARD=<ssh-host>`; añade `BOARD_TARGET=aarch64-unknown-linux-musl` para una Raspberry Pi de 64 bits.)
 2. Conecta el puerto USB **OTG** de la placa al puerto USB de la base.
 3. Conecta el Ethernet de la placa al ordenador (o pon ambos en la misma red privada).
 4. Inicia el Bridge si aún no está en marcha: `ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`.
@@ -166,21 +166,19 @@ Una Raspberry Pi Pico (RP2040) con el firmware NS2Bench Bridge. Su puerto USB va
 
 **Pasos**
 
-1. Compila el firmware: `make pico`. Obtienes `firmware/pico/ns2bench-pico.uf2`.
-2. Mantén pulsado el botón **BOOTSEL** mientras conectas la Pico al **ordenador**. Aparece una unidad llamada **RPI-RP2**.
-3. Copia el archivo `.uf2` en esa unidad. La Pico se reinicia. Desconéctala.
-4. Conecta la Pico al adaptador:
+1. Flashea la Pico desde la app: **Ajustes → Instalar → Flashear Pico** y mantén pulsado el botón **BOOTSEL** mientras conectas la Pico al **ordenador**. La app copia el firmware en la unidad **RPI-RP2** y la Pico se reinicia. Desconéctala. (Desde el código fuente: `make pico` compila `firmware/pico/ns2bench-pico.uf2`; cópialo tú mismo en la unidad RPI-RP2.)
+2. Conecta la Pico al adaptador:
    - Pico **GP0** (pin 1, UART0 TX) → adaptador **RX**
    - Pico **GP1** (pin 2, UART0 RX) ← adaptador **TX**
    - Pico **GND** (pin 3) — adaptador **GND**
    - Deja sin conectar el pin de 3,3 V / 5 V del adaptador. La Pico recibe corriente de la consola.
-5. Conecta el micro-USB de la Pico al puerto USB de la base.
-6. Conecta el adaptador al ordenador.
-7. En **Ajustes → Dispositivos** configura:
+3. Conecta el micro-USB de la Pico al puerto USB de la base.
+4. Conecta el adaptador al ordenador.
+5. En **Ajustes → Dispositivos** configura:
    - **Conexión de entrada:** Bridge serie
    - **Puerto serie:** el adaptador (por ejemplo `/dev/cu.usbserial-XXXX` en macOS, `/dev/ttyUSB0` en Linux, `COM3` en Windows)
    - **Velocidad en baudios:** `921600`
-8. Haz clic en **Aplicar conexión de entrada**.
+6. Haz clic en **Aplicar conexión de entrada**.
 
 Opcional: compila con `NS2BENCH_TOKEN=... make pico` para que la Pico exija un token (configura el mismo archivo de token en el ordenador). Compila con `NS2BENCH_BAUD=115200` si tu adaptador no admite 921600.
 

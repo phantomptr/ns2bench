@@ -64,6 +64,10 @@ No painel **Vídeo**, à direita da janela principal. Ele lista só os formatos 
 
 Em **Configurações → Dispositivos**. As mudanças valem sem reiniciar; a conexão antiga solta todos os botões primeiro.
 
+## O app pode instalar o Bridge, o firmware do Pico ou o auxiliar de rede?
+
+Sim, em **Configurações → Instalar**. **Gravar no Pico** coloca o firmware do Bridge num Raspberry Pi Pico (segure BOOTSEL enquanto o liga). **Instalar na placa** instala ou atualiza o Bridge numa placa Linux via SSH (configure antes o login por chave). **Instalar auxiliar** roda o auxiliar de rede offline como serviço no macOS ou Linux. Os downloads vêm da versão correspondente ao app e são verificados antes do uso.
+
 ## Como sei que está funcionando?
 
 O indicador **vídeo** na barra superior fica verde com a taxa de quadros, e o indicador **Bridge** fica verde quando o console aceita o dispositivo de entrada. **Diagnóstico** na barra superior copia um resumo completo do status.
@@ -184,17 +188,29 @@ Configurações → Aparência. O botão de lua na barra superior alterna entre 
 
 ## Onde ficam meus clipes, capturas de tela e logs?
 
-Em `~/.ns2bench/` (clipes, relatórios, logs). Nada é enviado para lugar nenhum.
+Em `~/.ns2bench/`: clipes, relatórios de teste e um arquivo de log por dia em `~/.ns2bench/logs` (guardados por 7 dias). As capturas de tela vão para a sua pasta Downloads. Nada é enviado para lugar nenhum.
+
+## O NS2Bench pode me avisar?
+
+Sim. **Configurações → Notificações** ativa notificações na área de trabalho para quando o Bridge ou a imagem cai, testes e clipes terminam, um agente começa a controlar ou uma atualização está pronta. Por padrão, elas só aparecem enquanto o NS2Bench está em segundo plano.
+
+## Como instalo a ferramenta de linha de comando?
+
+**Configurações → Instalar → Instalar ferramenta de linha de comando** coloca `ns2bench` no seu PATH (o macOS pode pedir sua senha uma vez; o `.deb` do Linux já a instala). Depois rode `ns2bench --help`. Ela faz tudo o que a API e o MCP fazem.
 
 # Solução de problemas
 
 ## Como relato um bug?
 
-Clique em **Pacote** na barra superior para salvar um zip de relatório de bug (logs, status, uma captura de tela; sem tokens) e anexe-o a uma [issue no GitHub](https://github.com/phantomptr/ns2bench/issues/new/choose).
+Clique em **Ajuda** na barra superior, depois em **Salvar relatório** (um zip com logs, status e uma captura de tela; sem tokens), e anexe-o a uma [issue no GitHub](https://github.com/phantomptr/ns2bench/issues/new/choose).
+
+## O que significam as cores do log?
+
+Linhas azuis são atividade normal, linhas âmbar são avisos que podem se resolver sozinhos e linhas vermelhas precisam de você. Para problemas que o NS2Bench reconhece, uma caixa azul abaixo da linha diz o que aconteceu e o que fazer. **Problemas** no painel Logs mostra só avisos e erros; **Tudo** acrescenta detalhes como cada chamada à API.
 
 ## O que o doctor faz?
 
-`ns2bench doctor` verifica o vídeo, a imagem do console, o OCR, o Bridge, o estado USB, a calibração e o isolamento de rede, e diz qual parte está com problema e o que fazer. `--probe` também aperta RIGHT e LEFT no menu HOME para testar a entrada de ponta a ponta.
+**Ajuda → Executar a verificação** no app (ou `ns2bench doctor`) verifica o vídeo, a imagem do console, o OCR, o Bridge, o estado USB, a calibração e o isolamento de rede, e diz qual parte está com problema e o que fazer. `--probe` também aperta RIGHT e LEFT no menu HOME para testar a entrada de ponta a ponta.
 
 ## Onde posso pedir ajuda?
 

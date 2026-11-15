@@ -118,7 +118,7 @@ C, GL, GR을 포함한 모든 컨트롤러 버튼을 쓰고 싶다면 Linux 보�
 
 **단계**
 
-1. 컴퓨터에서 보드에 NS2Bench Bridge를 설치합니다: `make board-install BOARD=<ssh-host>`. 64비트 Raspberry Pi라면 `BOARD_TARGET=aarch64-unknown-linux-musl`을 추가하세요.
+1. 앱에서 보드에 NS2Bench Bridge를 설치합니다: **설정 → 설치 → Bridge 보드**에서 SSH 호스트를 입력하고 **보드에 설치**를 클릭합니다. (소스에서: `make board-install BOARD=<ssh-host>`. 64비트 Raspberry Pi라면 `BOARD_TARGET=aarch64-unknown-linux-musl`을 추가하세요.)
 2. 보드의 **OTG** USB 포트를 독의 USB 포트에 연결합니다.
 3. 보드의 Ethernet을 컴퓨터에 연결합니다(또는 둘 다 같은 사설 네트워크에 연결합니다).
 4. Bridge가 아직 실행 중이 아니면 시작합니다: `ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`.
@@ -166,21 +166,19 @@ NS2Bench Bridge 펌웨어를 실행하는 Raspberry Pi Pico(RP2040)입니다. US
 
 **단계**
 
-1. 펌웨어를 빌드합니다: `make pico`. `firmware/pico/ns2bench-pico.uf2`가 만들어집니다.
-2. **BOOTSEL** 버튼을 누른 채로 Pico를 **컴퓨터**에 꽂습니다. **RPI-RP2**라는 드라이브가 나타납니다.
-3. `.uf2` 파일을 그 드라이브에 복사합니다. Pico가 다시 시작됩니다. 분리하세요.
-4. Pico와 어댑터를 연결합니다.
+1. 앱에서 Pico를 플래시합니다: **설정 → 설치 → Pico 플래시**를 누른 뒤 **BOOTSEL** 버튼을 누른 채로 Pico를 **컴퓨터**에 꽂습니다. 앱이 펌웨어를 **RPI-RP2** 드라이브에 복사하고 Pico가 다시 시작됩니다. 분리하세요. (소스에서: `make pico`로 `firmware/pico/ns2bench-pico.uf2`를 빌드한 뒤 직접 RPI-RP2 드라이브에 복사하세요.)
+2. Pico와 어댑터를 연결합니다.
    - Pico **GP0**(1번 핀, UART0 TX) → 어댑터 **RX**
    - Pico **GP1**(2번 핀, UART0 RX) ← 어댑터 **TX**
    - Pico **GND**(3번 핀) — 어댑터 **GND**
    - 어댑터의 3.3 V / 5 V 핀은 연결하지 마세요. Pico는 본체에서 전원을 받습니다.
-5. Pico의 micro-USB를 독의 USB 포트에 꽂습니다.
-6. 어댑터를 컴퓨터에 꽂습니다.
-7. **설정 → 장치**에서 다음과 같이 설정합니다.
+3. Pico의 micro-USB를 독의 USB 포트에 꽂습니다.
+4. 어댑터를 컴퓨터에 꽂습니다.
+5. **설정 → 장치**에서 다음과 같이 설정합니다.
    - **입력 연결:** 시리얼 Bridge
    - **시리얼 포트:** 어댑터(예: macOS에서는 `/dev/cu.usbserial-XXXX`, Linux에서는 `/dev/ttyUSB0`, Windows에서는 `COM3`)
    - **전송 속도:** `921600`
-8. **입력 연결 적용**을 클릭합니다.
+6. **입력 연결 적용**을 클릭합니다.
 
 선택: `NS2BENCH_TOKEN=... make pico`로 빌드하면 Pico가 토큰을 요구하게 됩니다(컴퓨터에도 같은 토큰 파일을 설정하세요). 어댑터가 921600을 지원하지 않으면 `NS2BENCH_BAUD=115200`으로 빌드하세요.
 

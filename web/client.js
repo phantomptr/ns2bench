@@ -15,14 +15,19 @@ if (fromUrl) {
   u.searchParams.delete('token');
   history.replaceState(null, '', u);
 }
+// The desktop app gives its own window a per-launch key (never stored): with it, this
+// page counts as the person at the bench (can turn Block agents off, drive by socket).
+const UI = typeof window.__NS2BENCH_UI__ === 'string' ? window.__NS2BENCH_UI__ : '';
 export function setToken(value) { token = value.trim(); session.set(token); location.reload(); }
 export function authURL(path) {
   const url = new URL(path, location.href);
   if (token && url.host === location.host) url.searchParams.set('token', token);
+  if (UI && url.host === location.host && url.pathname === '/ws') url.searchParams.set('ui', UI);
   return url.href;
 }
 export function apiFetch(path, init = {}) {
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (UI) headers.set('X-NS2Bench-UI', UI);
   return fetch(path, { ...init, headers });
 }

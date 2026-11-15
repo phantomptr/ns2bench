@@ -118,7 +118,7 @@ Switch modes with **The console sees** in the Driving panel. It takes about 8 se
 
 **Steps**
 
-1. Install NS2Bench Bridge on the board from the computer: `make board-install BOARD=<ssh-host>`. For a 64-bit Raspberry Pi add `BOARD_TARGET=aarch64-unknown-linux-musl`.
+1. Install NS2Bench Bridge on the board from the app: **Settings → Install → Bridge board**, enter its SSH host, click **Install on board**. (From source: `make board-install BOARD=<ssh-host>`; add `BOARD_TARGET=aarch64-unknown-linux-musl` for a 64-bit Raspberry Pi.)
 2. Plug the board's **OTG** USB port into the dock's USB port.
 3. Connect the board's Ethernet to the computer (or join both to the same private network).
 4. Start the Bridge if it is not already running: `ssh <ssh-host> /opt/ns2bench/ns2bench-hidd.sh start --bind <board-ip>`.
@@ -166,21 +166,19 @@ A Raspberry Pi Pico (RP2040) running NS2Bench Bridge firmware. Its USB port goes
 
 **Steps**
 
-1. Build the firmware: `make pico`. You get `firmware/pico/ns2bench-pico.uf2`.
-2. Hold the **BOOTSEL** button while you plug the Pico into the **computer**. A drive called **RPI-RP2** appears.
-3. Copy the `.uf2` file onto that drive. The Pico restarts. Unplug it.
-4. Wire the Pico to the adapter:
+1. Flash the Pico from the app: **Settings → Install → Flash Pico**, then hold the **BOOTSEL** button while you plug the Pico into the **computer**. The app copies the firmware onto the **RPI-RP2** drive and the Pico restarts. Unplug it. (From source: `make pico` builds `firmware/pico/ns2bench-pico.uf2`; copy it onto the RPI-RP2 drive yourself.)
+2. Wire the Pico to the adapter:
    - Pico **GP0** (pin 1, UART0 TX) → adapter **RX**
    - Pico **GP1** (pin 2, UART0 RX) ← adapter **TX**
    - Pico **GND** (pin 3) — adapter **GND**
    - Leave the adapter's 3.3 V / 5 V pin unconnected. The Pico gets power from the console.
-5. Plug the Pico's micro-USB into the dock's USB port.
-6. Plug the adapter into the computer.
-7. In **Settings → Devices** set:
+3. Plug the Pico's micro-USB into the dock's USB port.
+4. Plug the adapter into the computer.
+5. In **Settings → Devices** set:
    - **Input connection:** Serial Bridge
    - **Serial port:** the adapter (for example `/dev/cu.usbserial-XXXX` on macOS, `/dev/ttyUSB0` on Linux, `COM3` on Windows)
    - **Baud rate:** `921600`
-8. Click **Apply input connection**.
+6. Click **Apply input connection**.
 
 Optional: build with `NS2BENCH_TOKEN=... make pico` to make the Pico require a token (set the same token file on the computer). Build with `NS2BENCH_BAUD=115200` if your adapter cannot do 921600.
 

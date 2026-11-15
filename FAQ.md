@@ -64,6 +64,10 @@ In the **Video** panel on the right of the main window. It lists only the format
 
 In **Settings → Devices**. Changes apply without restarting; the old connection releases every button first.
 
+## Can the app install the Bridge, the Pico firmware or the network helper?
+
+Yes, in **Settings → Install**. **Flash Pico** puts the Bridge firmware on a Raspberry Pi Pico (hold BOOTSEL while you plug it in). **Install on board** sets up or updates the Bridge on a Linux board over SSH (set up key sign-in first). **Install helper** runs the offline network helper as a service on macOS or Linux. Downloads come from the release that matches the app and are checked before use.
+
 ## How do I know it works?
 
 The **video** pill in the top bar turns green with a frame rate, and the **Bridge** pill turns green when the console has accepted the input device. **Diagnostics** in the top bar copies a full status summary.
@@ -190,17 +194,29 @@ Settings → Appearance. The moon button in the top bar switches between light a
 
 ## Where are my clips, screenshots and logs?
 
-In `~/.ns2bench/` (clips, reports, logs). Nothing is uploaded anywhere.
+In `~/.ns2bench/`: clips, test reports, and a log file per day in `~/.ns2bench/logs` (kept 7 days). Screenshots go to your Downloads folder. Nothing is uploaded anywhere.
+
+## Can NS2Bench notify me?
+
+Yes. **Settings → Notifications** turns on desktop notifications for when the Bridge or the picture drops, tests and clips finish, an agent starts driving, or an update is ready. By default they only show while NS2Bench is in the background.
+
+## How do I install the command line tool?
+
+**Settings → Install → Install command line tool** puts `ns2bench` on your PATH (macOS may ask for your password once; the Linux `.deb` installs it already). Then run `ns2bench --help`. It can do everything the API and MCP can.
 
 # Troubleshooting
 
 ## How do I report a bug?
 
-Click **Bundle** in the top bar to save a bug-report zip (logs, status, a screenshot; no tokens) and attach it to a [GitHub issue](https://github.com/phantomptr/ns2bench/issues/new/choose).
+Click **Help** in the top bar, then **Save bug report** (a zip of logs, status and a screenshot; no tokens), and attach it to a [GitHub issue](https://github.com/phantomptr/ns2bench/issues/new/choose).
+
+## What do the log colours mean?
+
+Blue lines are normal activity, amber lines are warnings that may fix themselves, and red lines need you. For problems NS2Bench recognises, a blue box under the line says what happened and what to do. **Problems** in the Logs panel shows only warnings and errors; **Everything** adds detail such as each API call.
 
 ## What does the doctor do?
 
-`ns2bench doctor` checks video, the console picture, OCR, the Bridge, USB state, calibration and network isolation, and says which part is broken and what to do. `--probe` also presses RIGHT and LEFT on the HOME menu to test input end to end.
+**Help → Run the check** in the app (or `ns2bench doctor`) checks video, the console picture, OCR, the Bridge, USB state, calibration and network isolation, and says which part is broken and what to do. `--probe` also presses RIGHT and LEFT on the HOME menu to test input end to end.
 
 ## Where can I ask for help?
 

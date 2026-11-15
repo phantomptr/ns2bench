@@ -1,0 +1,59 @@
+# Security scans: CodeQL (Rust, JavaScript, GitHub Actions) and RustSec advisories for
+# every crate in Cargo.lock. Runs on pushes to main, pull requests and weekly, so a new
+# advisory against an unchanged dependency still shows up.
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "27 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [rust, javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          category: /language:${{ matrix.language }}
+
+  audit:
+    name: RustSec advisories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - name: cargo audit
+        run: |
+          cargo install cargo-audit --locked --quiet
+          for lock in native/Cargo.lock firmware/pico/Cargo.lock; do
+            [ -f "$lock" ] || continue
+            echo "== $lock"
+            # Fails on vulnerabilities. "Unmaintained" notices from the upstream Tauri/GTK
+            # and notification stacks are reported but don't fail the run.
+            cargo audit --file "$lock"
+          done

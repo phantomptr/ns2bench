@@ -41,11 +41,16 @@ pub fn validate_input(v: &Value) -> anyhow::Result<()> {
         // The token is sent to the Bridge host: only files in the NS2Bench state
         // directory may be used, never arbitrary files such as SSH keys.
         let t = t.as_str().ok_or_else(|| anyhow::anyhow!("token_file must be a path"))?;
+        // Only *.token files directly in ~/.ns2bench (or ~/.ns2bench/tokens), and no
+        // links: never the config, the signing password or another secret.
         let p = crate::config::expand(t);
+        let dir = p.parent().map(std::path::Path::to_path_buf).unwrap_or_default();
+        let named = p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.ends_with(".token") && !n.starts_with('.'));
+        let linked = std::fs::symlink_metadata(&p).is_ok_and(|m| m.file_type().is_symlink());
         anyhow::ensure!(
-            p.starts_with(state_dir())
+            named && !linked && (dir == state_dir() || dir == state_dir().join("tokens"))
                 && p.components().all(|c| !matches!(c, std::path::Component::ParentDir)),
-            "token_file must be inside the NS2Bench state directory (~/.ns2bench)"
+            "token_file must be a .token file in ~/.ns2bench (for example ~/.ns2bench/hidd.token)"
         );
     }
     if kind == "serial" || kind == "ch9329" {
@@ -92,7 +97,19 @@ pub async fn integrations(State(b): State<S>) -> Json<Value> {
 pub async fn get_input(State(b): State<S>) -> Json<Value> {
     Json(json!({"settings": *b.input_cfg.lock().unwrap(), "status": b.hub.status()}))
 }
-pub async fn set_input(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value>> {
+/// While Block agents is on, only the person at the NS2Bench page may change things.
+pub fn agents_blocked(b: &S, h: &axum::http::HeaderMap, v: &Value) -> R<()> {
+    if crate::server::source_of(h, v) != "ui" && b.hub.manual_only.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(crate::server::ApiError(axum::http::StatusCode::CONFLICT,
+            "manual-only mode is on: only the person at the NS2Bench page can change this".into()));
+    }
+    Ok(())
+}
+
+pub async fn set_input(State(b): State<S>, h: axum::http::HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
+    agents_blocked(&b, &h, &v)?;
+    let mut v = v;
+    if let Some(o) = v.as_object_mut() { o.remove("source"); }
     validate_input(&v)?;
     let _lock = b.settings_lock.lock().await;
     let _agent = b.hub.configuration_guard()?;
@@ -170,7 +187,10 @@ pub fn read_network_controls() -> Value {
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or(json!({"dhcp":true,"dns":true,"connectivity":true,"topology":"direct"}))
 }
-pub async fn set_network(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value>> {
+pub async fn set_network(State(b): State<S>, h: axum::http::HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
+    agents_blocked(&b, &h, &v)?;
+    let mut v = v;
+    if let Some(o) = v.as_object_mut() { o.remove("source"); }
     ns2bench_netd::validate_controls(&v).map_err(bad)?;
     if let Some(c) = helper(&b) {
         helper_call(&c, "POST", "/controls", Some(&v)).await.map_err(|e| bad(e.to_string()))?;
@@ -204,12 +224,16 @@ mod tests {
         assert!(validate_input(&json!({"backend":"serial","serial_port":"COM3","baud":9600})).is_ok());
         assert!(validate_input(&json!({"backend":"hidd","host":"evil","port":80,"token_file":"~/.ssh/id_ed25519"})).is_err());
         assert!(validate_input(&json!({"backend":"hidd","host":"b","port":7631,"token_file":"~/.ns2bench/../.ssh/id"})).is_err());
+        assert!(validate_input(&json!({"backend":"hidd","host":"b","port":7631,"token_file":"~/.ns2bench/config.json"})).is_err());
+        assert!(validate_input(&json!({"backend":"hidd","host":"b","port":7631,"token_file":"~/.ns2bench/signing/password"})).is_err());
+        assert!(validate_input(&json!({"backend":"hidd","host":"b","port":7631,"token_file":"~/.ns2bench/hidd.token"})).is_ok());
+        assert!(validate_input(&json!({"backend":"hidd","host":"b","port":7631,"token_file":"~/.ns2bench/tokens/lab.token"})).is_ok());
     }
     #[tokio::test]
     async fn cannot_turn_off_isolation_or_run_dhcp_on_shared_lan() {
         let b = crate::Bench::new(crate::Config::from_raw(None, json!({"input":{"backend":"none"},"video":{"backend":"none"}})));
-        assert!(set_network(State(b.clone()), Json(json!({"blocking":false}))).await.is_err());
-        assert!(set_network(State(b), Json(
+        assert!(set_network(State(b.clone()), axum::http::HeaderMap::new(), Json(json!({"blocking":false}))).await.is_err());
+        assert!(set_network(State(b), axum::http::HeaderMap::new(), Json(
             json!({"topology":"router","dhcp":true,"dns":false,"connectivity":false})
         ))
         .await
@@ -243,7 +267,7 @@ mod tests {
         let got = get_network(State(b.clone())).await.0;
         assert_eq!((got["online"].as_bool(), got["daemon"]["dhcp"].as_bool()), (Some(true), Some(true)));
         let v = json!({"topology":"direct","dhcp":false,"dns":true,"connectivity":true});
-        assert!(set_network(State(b), Json(v)).await.is_ok());
+        assert!(set_network(State(b), axum::http::HeaderMap::new(), Json(v)).await.is_ok());
         let seen = server.await.unwrap();
         assert!(seen.iter().all(|r| r.contains("Authorization: Bearer helper-secret-123")));
         assert!(seen[1].starts_with("POST /controls") && seen[1].contains(r#""dhcp":false"#));

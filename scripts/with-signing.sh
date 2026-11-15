@@ -26,10 +26,13 @@ else
 fi
 kc="$dir/ns2bench.keychain-db"
 kcpass=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
-old=$(security list-keychains -d user | tr -d '"')
+# One keychain path per line (paths may contain spaces): split on newlines only.
+old=$(security list-keychains -d user | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')
+nl='
+'
 cleanup() {
   # shellcheck disable=SC2086
-  security list-keychains -d user -s $old >/dev/null 2>&1 || true
+  IFS=$nl; security list-keychains -d user -s $old >/dev/null 2>&1 || true; unset IFS
   security delete-keychain "$kc" >/dev/null 2>&1 || true
   rm -rf "$dir"
 }
@@ -40,7 +43,7 @@ security unlock-keychain -p "$kcpass" "$kc"
 security import "$p12" -k "$kc" -P "$pass" -T /usr/bin/codesign >/dev/null
 security set-key-partition-list -S apple-tool:,apple: -k "$kcpass" "$kc" >/dev/null
 # shellcheck disable=SC2086
-security list-keychains -d user -s "$kc" $old
+IFS=$nl; security list-keychains -d user -s "$kc" $old; unset IFS
 id=$(security find-identity -p codesigning "$kc" | awk '/^ *1\)/ {print $2; exit}')
 [ -n "$id" ] || { echo "with-signing: no code-signing identity in the certificate" >&2; exit 1; }
 echo "with-signing: signing with certificate $id" >&2

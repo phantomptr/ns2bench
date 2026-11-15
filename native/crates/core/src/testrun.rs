@@ -24,7 +24,7 @@ pub fn slug(text: &str) -> String {
 }
 
 async fn wait_for(b: &Bench, timeout_ms: u64, check: impl Fn(&[Line]) -> (bool, String)) -> Result<(bool, String)> {
-    let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+    let deadline = Instant::now() + Duration::from_millis(timeout_ms.min(300_000));
     loop {
         let lines = b.read_screen(None, false).await?;
         let (ok, detail) = check(&lines);
