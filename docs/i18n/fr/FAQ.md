@@ -122,7 +122,7 @@ Une carte alimentée par l’USB de la console perd son alimentation et redémar
 
 ## NS2Bench peut-il sortir la console de veille ?
 
-Pas encore. La Switch 2 n’a pas de Wake-on-LAN, et une carte alimentée par le port USB de la console s’éteint avec elle (testé : le Bridge se coupe environ 7 secondes après la mise en veille ; quand vous réveillez la console, la carte démarre et NS2Bench se reconnecte tout seul, prêt en 30 secondes environ). Deux pistes sont à l’étude : alimenter la carte séparément (un répartiteur d’alimentation USB qui ne renvoie pas de courant vers la console) pour qu’elle reste allumée, ou HDMI-CEC « Synchroniser avec l’état d’alimentation du téléviseur », où un appareil CEC côté HDMI réveille la console. En attendant, réveillez-la avec son bouton d’alimentation.
+Pas encore. La Switch 2 n’a pas de Wake-on-LAN, et une carte alimentée par le port USB de la console s’éteint avec elle (testé : le Bridge se coupe environ 7 secondes après la mise en veille ; quand vous réveillez la console, la carte démarre et NS2Bench se reconnecte tout seul, prêt en 30 secondes environ). Deux pistes sont à l’étude : alimenter la carte séparément (un répartiteur d’alimentation USB qui ne renvoie pas de courant vers la console) pour qu’elle reste allumée, ou HDMI-CEC « Synchroniser avec l’état d’alimentation du téléviseur », où un appareil CEC côté HDMI réveille la console. En attendant, réveillez-la avec son bouton d’alimentation. Quand vous réveillez la console, la carte redémarre seule et NS2Bench se reconnecte en 30 secondes environ.
 
 # Réseau hors ligne pour la console
 

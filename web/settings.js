@@ -80,10 +80,11 @@ async function network(loadForm = true) {
     networkFields();
   }
   const actual = n.daemon;
-  const where = n.helper ? `Network helper ${n.helper}` : 'Local service';
-  $('#network-status').textContent = n.error ? `${n.error}. Check the helper is running and network.helper.token_file matches its control token.` : n.online
-    ? `${where}: ${actual.interface} · ${actual.address} · ${actual.interface_ready && actual.forwarding_off ? 'interface ready, forwarding off' : 'waiting / isolation guard not ready'}. DHCP ${actual.dhcp ? 'on' : 'off'}, DNS ${actual.dns ? 'on' : 'off'}, connectivity page ${actual.connectivity ? 'on' : 'off'}.`
-    : n.helper ? `${where} answered but its service is not running yet.` : t('The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).');
+  const where = n.helper ? `${t('Network helper')} ${n.helper}` : t('Local service');
+  const onOff = (v) => (v ? t('on') : t('off'));
+  $('#network-status').textContent = n.error ? `${n.error}. ${t('Check that the helper is running and that network.helper.token_file matches its control token.')}` : n.online
+    ? `${where}: ${actual.interface} · ${actual.address} · ${actual.interface_ready && actual.forwarding_off ? t('interface ready, forwarding off') : t('waiting for the interface (isolation check not ready)')}. DHCP ${onOff(actual.dhcp)}, DNS ${onOff(actual.dns)}, ${t('connectivity page')} ${onOff(actual.connectivity)}.`
+    : n.helper ? `${where}: ${t('the helper answered, but its service is not running yet.')}` : t('The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).');
   // Plain status colours, and controls only when a service can apply them.
   const running = !n.error && n.online;
   $('#network-status').className = `status ${n.error ? 'bad' : running ? 'ok' : 'info'}`;

@@ -6,6 +6,11 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Languages:** the Network settings status (service state, interface, DHCP/DNS/connectivity
+  switches, helper errors) is now translated in every language.
+- **FAQ:** the answer about sleep now says, in every language, that the input board boots and
+  NS2Bench reconnects by itself within about 30 seconds after you wake the console (tested).
+
 ## 0.0.1
 
 The first public release. NS2Bench lets you see, hear and drive a Nintendo Switch 2 from

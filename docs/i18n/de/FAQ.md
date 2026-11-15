@@ -122,7 +122,7 @@ Ein Board, das über den USB der Konsole versorgt wird, verliert Strom und start
 
 ## Kann NS2Bench die Konsole aus dem Standby wecken?
 
-Noch nicht. Die Switch 2 hat kein Wake-on-LAN, und ein Board, das über den USB-Port der Konsole versorgt wird, schaltet sich mit der Konsole ab (getestet: Die Bridge fällt etwa 7 Sekunden nach dem Standby-Modus weg; wenn du die Konsole weckst, startet das Board und NS2Bench verbindet sich von selbst neu, bereit nach etwa 30 Sekunden). Zwei Wege werden untersucht: das Board separat mit Strom versorgen (ein USB-Stromsplitter, der keinen Strom in die Konsole zurückspeist), damit es wach bleibt, oder HDMI-CEC „An TV-Betriebszustand anpassen“, bei dem ein CEC-Gerät auf der HDMI-Seite die Konsole weckt. Bis dahin weck sie mit ihrem Power-Knopf.
+Noch nicht. Die Switch 2 hat kein Wake-on-LAN, und ein Board, das über den USB-Port der Konsole versorgt wird, schaltet sich mit der Konsole ab (getestet: Die Bridge fällt etwa 7 Sekunden nach dem Standby-Modus weg; wenn du die Konsole weckst, startet das Board und NS2Bench verbindet sich von selbst neu, bereit nach etwa 30 Sekunden). Zwei Wege werden untersucht: das Board separat mit Strom versorgen (ein USB-Stromsplitter, der keinen Strom in die Konsole zurückspeist), damit es wach bleibt, oder HDMI-CEC „An TV-Betriebszustand anpassen“, bei dem ein CEC-Gerät auf der HDMI-Seite die Konsole weckt. Bis dahin weck sie mit ihrem Power-Knopf. Wenn du die Konsole aufweckst, startet das Board von selbst und NS2Bench verbindet sich in etwa 30 Sekunden wieder.
 
 # Offline-Netzwerk für die Konsole
 

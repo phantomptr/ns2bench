@@ -122,7 +122,7 @@ Uma placa alimentada pela USB do console perde energia e reinicia quando o conso
 
 ## O NS2Bench consegue tirar o console do repouso?
 
-Ainda não. O Switch 2 não tem Wake-on-LAN, e uma placa alimentada pela porta USB do console desliga junto com ele (testado: o Bridge cai uns 7 segundos após o Modo de Repouso; depois que você acorda o console, a placa inicia e o NS2Bench reconecta sozinho, pronto em cerca de 30 segundos). Duas opções estão sendo estudadas: alimentar a placa separadamente (um divisor de energia USB que não devolva energia ao console) para ela ficar ligada, ou o HDMI-CEC "Sincronizar com o estado de energia da TV", em que um dispositivo CEC no lado HDMI acorda o console. Até lá, acorde-o pelo botão de energia.
+Ainda não. O Switch 2 não tem Wake-on-LAN, e uma placa alimentada pela porta USB do console desliga junto com ele (testado: o Bridge cai uns 7 segundos após o Modo de Repouso; depois que você acorda o console, a placa inicia e o NS2Bench reconecta sozinho, pronto em cerca de 30 segundos). Duas opções estão sendo estudadas: alimentar a placa separadamente (um divisor de energia USB que não devolva energia ao console) para ela ficar ligada, ou o HDMI-CEC "Sincronizar com o estado de energia da TV", em que um dispositivo CEC no lado HDMI acorda o console. Até lá, acorde-o pelo botão de energia. Ao acordar o console, a placa inicia sozinha e o NS2Bench se reconecta em cerca de 30 segundos.
 
 # Rede offline do console
 

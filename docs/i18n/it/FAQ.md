@@ -122,7 +122,7 @@ Una scheda alimentata dalla USB della console perde l’alimentazione e si riavv
 
 ## NS2Bench può risvegliare la console dallo standby?
 
-Non ancora. Switch 2 non ha il Wake-on-LAN, e una scheda alimentata dalla porta USB della console si spegne insieme a lei (testato: il Bridge cade circa 7 secondi dopo la modalità standby; quando riattivi la console, la scheda si avvia e NS2Bench si riconnette da solo, pronto in circa 30 secondi). Si stanno valutando due strade: alimentare la scheda separatamente (uno splitter di alimentazione USB che non rimandi corrente alla console) così che resti accesa, oppure HDMI-CEC "Sincronizza con lo stato di accensione della TV", in cui un dispositivo CEC sul lato HDMI risveglia la console. Fino ad allora, riattivala con il suo pulsante di accensione.
+Non ancora. Switch 2 non ha il Wake-on-LAN, e una scheda alimentata dalla porta USB della console si spegne insieme a lei (testato: il Bridge cade circa 7 secondi dopo la modalità standby; quando riattivi la console, la scheda si avvia e NS2Bench si riconnette da solo, pronto in circa 30 secondi). Si stanno valutando due strade: alimentare la scheda separatamente (uno splitter di alimentazione USB che non rimandi corrente alla console) così che resti accesa, oppure HDMI-CEC "Sincronizza con lo stato di accensione della TV", in cui un dispositivo CEC sul lato HDMI risveglia la console. Fino ad allora, riattivala con il suo pulsante di accensione. Quando riattivi la console, la scheda si avvia da sola e NS2Bench si ricollega in circa 30 secondi.
 
 # Rete offline per la console
 
