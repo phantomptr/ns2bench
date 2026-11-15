@@ -18,7 +18,7 @@
 
 ## 免費嗎？
 
-免費。NS2Bench 是採用 GPL-3.0 授權的免費開源軟體。你可以使用、修改和分享；如果散布修改版，請公開其原始碼並保留「NS2Bench, created by PhantomPtr」署名（見 NOTICE）。如果覺得有用，可以[支持它](README.md#support)。
+免費。NS2Bench 是採用 GPL-3.0 授權的免費開源軟體。你可以使用、修改和分享。無論是否修改，散布時都要保留「NS2Bench, created by PhantomPtr」署名和授權；散布修改版時，還要向接收者提供原始碼並註明已修改（見 NOTICE）。如果覺得有用，可以[支持它](README.md#support)。
 
 ## 和任天堂有關係嗎？
 

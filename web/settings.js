@@ -87,7 +87,7 @@ async function network(loadForm = true) {
   // Plain status colours, and controls only when a service can apply them.
   const running = !n.error && n.online;
   $('#network-status').className = `status ${n.error ? 'bad' : running ? 'ok' : 'info'}`;
-  for (const el of $('#network-settings').elements) el.disabled = !running && !n.helper;
+  // Controls stay editable: saved settings apply as soon as the service starts.
   $('#network-leases').textContent = Object.entries(n.leases).map(([mac, lease]) => `${mac}  ${lease.ip}  ${lease.hostname || ''}`).join('\n') || 'No DHCP leases recorded';
 }
 $('#network-settings').onsubmit = run(async () => {

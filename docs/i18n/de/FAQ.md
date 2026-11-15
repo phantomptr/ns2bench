@@ -18,7 +18,7 @@ Nein. NS2Bench gibt der Konsole nie Internetzugang. Aufnahme und USB-Eingabe bra
 
 ## Ist es kostenlos?
 
-Ja. NS2Bench ist kostenlos und Open Source unter der GPL-3.0. Du darfst es nutzen, ändern und weitergeben; wenn du eine geänderte Version weitergibst, veröffentliche ihren Quellcode und behalte den Hinweis „NS2Bench, created by PhantomPtr“ (siehe NOTICE). Wenn es dir hilft, kannst du es [unterstützen](README.md#support).
+Ja. NS2Bench ist kostenlos und Open Source unter der GPL-3.0. Du darfst es nutzen, ändern und weitergeben. Wenn du es weitergibst, ob geändert oder nicht, behalte den Hinweis „NS2Bench, created by PhantomPtr“ und die Lizenz bei; bei einer geänderten Version gib den Empfängern auch den Quellcode und kennzeichne sie als geändert (siehe NOTICE). Wenn es dir hilft, kannst du es [unterstützen](README.md#support).
 
 ## Gehört es zu Nintendo?
 

@@ -56,6 +56,15 @@ fn download_path(dir: &std::path::Path, suggested: &std::path::Path) -> std::pat
     p
 }
 
+/// Release builds on Windows have no console of their own: borrow the terminal's,
+/// so `ns2bench-app update` and `ns2bench-app mcp` errors are visible.
+fn attach_console() {
+    #[cfg(windows)]
+    unsafe {
+        windows_sys::Win32::System::Console::AttachConsole(windows_sys::Win32::System::Console::ATTACH_PARENT_PROCESS);
+    }
+}
+
 /// Is an NS2Bench engine already answering at this config's address?
 async fn running(cfg: &ns2bench_core::Config) -> bool {
     let c = Client::from_config(cfg, "ui");
@@ -66,8 +75,14 @@ async fn running(cfg: &ns2bench_core::Config) -> bool {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(String::as_str) == Some("update") {
+        attach_console();
         let action = args.get(2).map(String::as_str).unwrap_or("check");
         let rt = tokio::runtime::Runtime::new().expect("runtime");
+        // Installing swaps the app on disk and restarts it: never under a running copy.
+        if action == "install" && rt.block_on(running(&load_config())) {
+            eprintln!("NS2Bench update: NS2Bench is running. Quit it first, or install from Settings → Updates.");
+            std::process::exit(1);
+        }
         match rt.block_on(updates::cli(action)) {
             Ok(v) => println!("{v}"),
             Err(e) => {

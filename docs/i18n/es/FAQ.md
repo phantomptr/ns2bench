@@ -18,7 +18,7 @@ No. NS2Bench nunca da acceso a internet a la consola. La captura y la entrada US
 
 ## ¿Es gratis?
 
-Sí. NS2Bench es gratuito y de código abierto con licencia GPL-3.0. Puedes usarlo, modificarlo y compartirlo; si distribuyes una versión modificada, publica su código fuente y conserva el crédito "NS2Bench, created by PhantomPtr" (consulta NOTICE). Si te resulta útil, puedes [apoyarlo](README.md#support).
+Sí. NS2Bench es gratuito y de código abierto con licencia GPL-3.0. Puedes usarlo, modificarlo y compartirlo. Al distribuirlo, modificado o no, conserva el crédito "NS2Bench, created by PhantomPtr" y la licencia; si distribuyes una versión modificada, ofrece su código fuente a quienes la reciban e indica que está modificada (consulta NOTICE). Si te resulta útil, puedes [apoyarlo](README.md#support).
 
 ## ¿Está afiliado a Nintendo?
 

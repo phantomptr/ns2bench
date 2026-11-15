@@ -22,14 +22,16 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g
 
 // Links written for GitHub, rewritten for the site. `from` is the Markdown file's folder in the
 // repo ('' for FAQ.md, 'docs/setup', 'docs/i18n/de').
-export function link(href, from = '') {
+export function link(href, from = '', englishFrom = null) {
   if (/^(https?:|mailto:|#)/.test(href)) return href;
   const [path, hash = ''] = href.split('#');
   const h = hash ? `#${hash}` : '';
   let file = posix.normalize(posix.join(from, path)).replace(/^(\.\.\/)+/, '');
   // A translation that kept the English file's relative link: resolve it as English would.
   if (!existsSync(join(root, file)) && from.startsWith('docs/i18n/')) {
-    for (const alt of ['docs/setup', '']) {
+    // Try the English original's folder first (FAQ.md: repo root; setup: docs/setup).
+    const order = englishFrom === null ? ['docs/setup', ''] : [englishFrom, ...['docs/setup', ''].filter((d) => d !== englishFrom)];
+    for (const alt of order) {
       const f = posix.normalize(posix.join(alt, path)).replace(/^(\.\.\/)+/, '');
       if (existsSync(join(root, f))) { file = f; break; }
     }
@@ -44,7 +46,7 @@ export function link(href, from = '') {
 /** Markdown to HTML. `ids` (the English file's heading ids, in order) names a translation's
  *  headings by position, so #anchors work in every language. `dropTitle` leaves out a leading
  *  # heading (the page header has the title); `tocDepth` picks the headings listed in the TOC. */
-export function render(md, { from = '', ids = null, dropTitle = false, tocDepth = 1 } = {}) {
+export function render(md, { from = '', englishFrom = null, ids = null, dropTitle = false, tocDepth = 1 } = {}) {
   const toc = [];
   const headingIds = [];
   let n = 0;
@@ -62,7 +64,7 @@ export function render(md, { from = '', ids = null, dropTitle = false, tocDepth 
       },
     },
     walkTokens(t) {
-      if (t.type === 'link' || t.type === 'image') t.href = link(t.href, from);
+      if (t.type === 'link' || t.type === 'image') t.href = link(t.href, from, englishFrom);
     },
   });
   return { html: marked.parse(md), toc, ids: headingIds };
@@ -208,7 +210,7 @@ function docMain(englishFile, translated, opts) {
   for (const [code] of LANGS.slice(1)) {
     const file = join(root, 'docs/i18n', code, translated);
     if (!existsSync(file)) continue;
-    const tr = render(readFileSync(file, 'utf8'), { ...opts, from: `docs/i18n/${code}`, ids: en.ids });
+    const tr = render(readFileSync(file, 'utf8'), { ...opts, from: `docs/i18n/${code}`, englishFrom: dirname(englishFile) === '.' ? '' : dirname(englishFile), ids: en.ids });
     if (tr.ids.length !== en.ids.length) {
       console.warn(`warning: docs/i18n/${code}/${translated} has ${tr.ids.length} headings, English has ${en.ids.length}`);
     }

@@ -289,7 +289,12 @@ fn save(path: Option<String>, default: String, bytes: &[u8]) -> Res<()> {
 async fn run(cli: Cli) -> Res<ExitCode> {
     let mut cfg = ns2bench_core::Config::load(cli.config.as_deref()).map_err(|e| e.to_string())?;
     let mut c = Client::from_config(&cfg, "api");
-    if let Some(u) = cli.url { c.base = u.trim_end_matches('/').to_string(); }
+    if let Some(u) = cli.url {
+        if !u.starts_with("http://") {
+            return Err("--url must be an http:// address of an NS2Bench engine, e.g. http://127.0.0.1:7630".into());
+        }
+        c.base = u.trim_end_matches('/').to_string();
+    }
     if let Some(t) = cli.token { c.token = Some(t); }
     let raw = cli.json;
     let ok = |v: &Value| if raw { pretty(v) } else { println!("ok") };
@@ -329,8 +334,10 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             b[if regex { "regex" } else { "text" }] = text.into();
             if let Some(r) = region { b["region"] = r.into(); }
             let v = post(&c, "/api/wait_text", b).await?;
-            if raw { pretty(&v) } else { println!("{}", if v["found"] == true || v["ok"] == true { "found" } else { "not found" }); }
-            if !(v["found"] == true || v["ok"] == true) { return Ok(ExitCode::FAILURE); }
+            let hit = v["found"] == true || v["ok"] == true;
+            let (yes, no) = if gone { ("gone", "still there") } else { ("found", "not found") };
+            if raw { pretty(&v) } else { println!("{}", if hit { yes } else { no }); }
+            if !hit { return Ok(ExitCode::FAILURE); }
         }
         Cmd::Where => {
             let v = get(&c, "/api/where").await?;
@@ -362,13 +369,17 @@ async fn run(cli: Cli) -> Res<ExitCode> {
         }
         Cmd::Navigate { route } => {
             let v = post(&c, "/api/navigate", json!({"route": route})).await?;
-            if raw { pretty(&v) } else { println!("{}", if v["ok"] == true { "arrived" } else { "did not arrive" }); }
-            if v["ok"] == false { return Ok(ExitCode::FAILURE); }
+            let arrived = v["arrived"] == true;
+            if raw { pretty(&v) } else { println!("{}", if arrived { "arrived" } else { "did not arrive" }); }
+            if !arrived { return Ok(ExitCode::FAILURE); }
         }
         Cmd::Routes => {
             let v = get(&c, "/api/routes").await?;
             if raw { pretty(&v) } else if let Some(m) = v["routes"].as_object() {
-                for (name, r) in m { println!("{name:<24} {}", r["description"].as_str().unwrap_or("")); }
+                for (name, r) in m {
+                    let about = r["note"].as_str().or(r["expect"].as_str()).unwrap_or("");
+                    println!("{name:<24} {about}");
+                }
             } else { pretty(&v) }
         }
 
@@ -429,8 +440,18 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             }
         }
         Cmd::Input { backend, host, port, serial_port, baud, token_file } => {
-            let Some(backend) = backend else { pretty(&get(&c, "/api/input").await?); return Ok(ExitCode::SUCCESS); };
+            let cur = get(&c, "/api/input").await?;
+            if backend.is_none() && host.is_none() && port.is_none() && serial_port.is_none() && baud.is_none() && token_file.is_none() {
+                pretty(&cur);
+                return Ok(ExitCode::SUCCESS);
+            }
+            // Change only what was given: keep the rest of the current settings.
+            let s = &cur["settings"];
+            let backend = backend.unwrap_or_else(|| s["backend"].as_str().unwrap_or("none").into());
             let mut b = json!({"backend": backend});
+            for k in ["host", "port", "serial_port", "baud", "token_file"] {
+                if !s[k].is_null() { b[k] = s[k].clone(); }
+            }
             if let Some(h) = host { b["host"] = h.into(); }
             if let Some(p) = port { b["port"] = p.into(); }
             if let Some(s) = serial_port { b["serial_port"] = s.into(); }
@@ -445,11 +466,14 @@ async fn run(cli: Cli) -> Res<ExitCode> {
                 return Ok(ExitCode::SUCCESS);
             }
             let ctl = &cur["controls"];
+            let topology = topology.unwrap_or_else(|| ctl["topology"].as_str().unwrap_or("direct").into());
+            // With a router or no managed network, local services must be off unless asked.
+            let keep = |k: &str| topology == "direct" && ctl[k] == true;
             let b = json!({
-                "topology": topology.unwrap_or_else(|| ctl["topology"].as_str().unwrap_or("direct").into()),
-                "dhcp": on(dhcp).unwrap_or(ctl["dhcp"] == true),
-                "dns": on(dns).unwrap_or(ctl["dns"] == true),
-                "connectivity": on(connectivity).unwrap_or(ctl["connectivity"] == true),
+                "topology": topology,
+                "dhcp": on(dhcp).unwrap_or_else(|| keep("dhcp")),
+                "dns": on(dns).unwrap_or_else(|| keep("dns")),
+                "connectivity": on(connectivity).unwrap_or_else(|| keep("connectivity")),
             });
             ok(&post(&c, "/api/network", b).await?);
         }

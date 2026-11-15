@@ -17,6 +17,10 @@ on:
         description: "Publish as a pre-release"
         type: boolean
         default: false
+      dry_run:
+        description: "Build everything from main without creating a release (tests the pipeline)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -31,6 +35,8 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # A dry run builds main (the tag doesn't exist yet); a release builds the tag.
+  REF: ${{ github.event.inputs.dry_run == 'true' && github.sha || github.event.inputs.tag || github.ref_name }}
 
 jobs:
   check:
@@ -39,7 +45,7 @@ jobs:
       version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: { ref: "${{ env.TAG }}" }
+        with: { ref: "${{ env.REF }}" }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: 22 }
       - name: Tag matches VERSION, files agree, notes exist
@@ -69,7 +75,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: { ref: "${{ env.TAG }}" }
+        with: { ref: "${{ env.REF }}" }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: 22 }
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -143,7 +149,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: { ref: "${{ env.TAG }}" }
+        with: { ref: "${{ env.REF }}" }
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { targets: "${{ matrix.target }}" }
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -184,7 +190,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: { ref: "${{ env.TAG }}" }
+        with: { ref: "${{ env.REF }}" }
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with: { targets: "armv7-unknown-linux-musleabihf,aarch64-unknown-linux-musl,thumbv6m-none-eabi" }
       - name: Build
@@ -199,7 +205,7 @@ jobs:
           cp native/target/armv7-unknown-linux-musleabihf/release/ns2bench-board "out/ns2bench-board-$V-linux-armv7"
           cp native/target/aarch64-unknown-linux-musl/release/ns2bench-board "out/ns2bench-board-$V-linux-arm64"
           cp firmware/pico/ns2bench-pico.uf2 "out/ns2bench-pico-$V.uf2"
-          tar czf "out/ns2bench-board-scripts-$V.tar.gz" board
+          tar czf "out/ns2bench-board-scripts-$V.tar.gz" board LICENSE NOTICE LICENSES
           ls -la out
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -209,10 +215,11 @@ jobs:
 
   release:
     needs: [check, app, cli, board]
+    if: ${{ github.event.inputs.dry_run != 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with: { ref: "${{ env.TAG }}" }
+        with: { ref: "${{ env.REF }}" }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: 22 }
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -226,6 +233,7 @@ jobs:
           mkdir -p release
           find artifacts -type f -exec cp -v {} release/ \;
           cp LICENSE release/LICENSE
+          cp NOTICE release/NOTICE.txt
           node scripts/third-party.mjs release/THIRD-PARTY-LICENSES.txt
           for name in "NS2Bench-$V-mac-arm64.dmg" "NS2Bench-$V-mac-x64.dmg" "NS2Bench-$V-win-x64-setup.exe" \
                       "NS2Bench-$V-linux-x64.AppImage" "NS2Bench-$V-linux-arm64.AppImage" \
@@ -258,6 +266,8 @@ jobs:
           files: release/*
           fail_on_unmatched_files: true
       - name: Refresh the website's download links
+        # A pre-release must not move the site's download links.
+        if: ${{ github.event.inputs.prerelease != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run pages.yml --ref main || echo "::warning::could not dispatch pages"

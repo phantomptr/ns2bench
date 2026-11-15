@@ -42,5 +42,8 @@ for (const p of list) {
   }
   parts.push('');
 }
+// Material derived from GP2040-CE (MIT) is compiled into ns2bench-board: ship its notice too.
+parts.push('-'.repeat(78), 'GP2040-CE (derived data in ns2bench-board, see NOTICE)', 'License: MIT', '',
+  readFileSync(join(root, 'LICENSES/GP2040-CE-MIT.txt'), 'utf8').trim(), '');
 writeFileSync(out, parts.join('\n') + '\n');
 console.log(`${list.length} packages -> ${out}`);

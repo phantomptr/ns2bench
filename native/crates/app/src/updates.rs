@@ -349,6 +349,7 @@ async fn install(path: &Path) -> Result<()> {
 /// manifest, platform asset, SHA-256 before and after download, then the
 /// platform installer (which restarts the app once this process exits).
 pub async fn cli(action: &str) -> Result<Value> {
+    ensure!(matches!(action, "check" | "install"), "usage: ns2bench-app update check|install");
     let mut u = check().await?;
     if action == "check" || !u.available {
         return Ok(json!(u));
