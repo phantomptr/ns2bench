@@ -1,0 +1,15 @@
+{
+  "server": {"host": "127.0.0.1", "port": 7630},
+  "video": {
+    "backend": "auto",
+    "device": "",
+    "width": 1920, "height": 1080, "fps": 60, "quality": 80
+  },
+  "input": {
+    "backend": "hidd",
+    "host": "192.168.79.2",
+    "port": 7631,
+    "token_file": "~/.ns2bench/hidd.token"
+  },
+  "logs": {}
+}

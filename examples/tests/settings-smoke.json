@@ -1,0 +1,15 @@
+{
+  "name": "System Settings smoke",
+  "steps": [
+    {"note": "Opens System Settings from HOME, checks it, comes back."},
+    {"navigate": "system_settings"},
+    {"expect_screen": "system_settings"},
+    {"expect_text": "Airplane Mode"},
+    {"screenshot": "settings"},
+    {"navigate": "home"},
+    {"expect_screen": "home"},
+    {"probe": ["RIGHT"]},
+    {"probe": ["LEFT"]},
+    {"screenshot": "home"}
+  ]
+}

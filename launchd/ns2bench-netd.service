@@ -1,0 +1,25 @@
+# Linux: offline console network on one interface (DHCP, local-only DNS, connectivity test).
+# Needs root (or CAP_NET_RAW + CAP_NET_BIND_SERVICE) to pin sockets with SO_BINDTODEVICE.
+# Install: copy to /etc/systemd/system/, edit the paths, `systemctl enable --now ns2bench-netd`.
+# Give the interface its address first, e.g. with NetworkManager:
+#   nmcli con add type ethernet ifname eth1 con-name ns2-console ipv4.method manual \
+#         ipv4.addresses 192.168.80.1/24 ipv4.never-default yes ipv6.method disabled
+# and keep forwarding off (sysctl net.ipv4.ip_forward=0): netd refuses to run otherwise.
+[Unit]
+Description=NS2Bench offline console network
+After=network-online.target
+
+[Service]
+ExecStart=/opt/ns2bench/ns2bench-netd /opt/ns2bench/bench.json
+Restart=always
+RestartSec=10
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_RAW CAP_NET_BIND_SERVICE
+NoNewPrivileges=yes
+ProtectSystem=strict
+StateDirectory=ns2bench
+Environment=HOME=/var/lib/ns2bench
+ReadWritePaths=/var/lib/ns2bench
+
+[Install]
+WantedBy=multi-user.target

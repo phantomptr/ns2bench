@@ -1,0 +1,18 @@
+name: Translation
+description: Fix or add a language
+labels: [translation]
+body:
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      placeholder: "de, ja, pt-BR…"
+    validations:
+      required: true
+  - type: textarea
+    id: changes
+    attributes:
+      label: What should change?
+      description: The English text, the current translation and your suggestion. Or open a PR editing web/i18n/<lang>.json.
+    validations:
+      required: true

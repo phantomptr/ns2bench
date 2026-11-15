@@ -1,0 +1,17 @@
+[package]
+name = "ns2bench"
+description = "See, hear and drive a game console by hand or by AI agents (HTTP API + MCP)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ns2bench"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+ns2bench-core = { path = "../core" }
+serde_json.workspace = true
+tokio.workspace = true

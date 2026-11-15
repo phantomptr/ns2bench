@@ -1,0 +1,22 @@
+{
+ "name": "Controllers screen lists this controller",
+ "steps": [
+  {
+   "navigate": "controllers"
+  },
+  {
+   "expect_text": "Change Grip/Order"
+  },
+  {
+   "screenshot": "controllers"
+  },
+  {
+   "press": [
+    "B"
+   ]
+  },
+  {
+   "expect_screen": "home"
+  }
+ ]
+}

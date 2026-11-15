@@ -1,0 +1,8 @@
+#!/bin/sh
+# Boot: SD-card swap for low-RAM boards (see /opt/ns2bench/swap.sh). Never fails the boot.
+case "${1:-}" in
+    start) [ ! -x /opt/ns2bench/swap.sh ] || /opt/ns2bench/swap.sh || true ;;
+    stop|restart) ;;
+    *) echo "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;
+esac
+exit 0

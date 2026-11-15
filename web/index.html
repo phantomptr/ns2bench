@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>NS2Bench</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<script>/* theme before first paint: no flash */try{const t=localStorage.getItem('ns2bench.theme');if(t&&t!=='system')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/joycon.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/" aria-label="NS2Bench"><span class="mark" aria-hidden="true"></span><span class="word">NS2Bench</span></a>
+  <span class="pill" id="pill-video" title="Video settings" role="button" tabindex="0">video …</span>
+  <span class="pill" id="pill-input" title="NS2Bench Bridge: input software on your device" role="button" tabindex="0">Bridge …</span>
+  <span class="pill" id="pill-pad" title="Gamepad">no gamepad</span>
+  <span class="spacer"></span>
+  <button id="btn-theme" type="button" class="ibtn" title="Switch between light and dark" aria-label="Switch between light and dark"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg></button>
+  <button id="btn-settings" type="button" title="Connections, appearance, API, MCP and updates">Settings</button>
+  <button id="btn-sound" type="button" class="ibtn" title="Play the console's sound (from the capture card)" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Sound off</span></button>
+  <button id="btn-diag" type="button" class="ibtn" title="Copy diagnostics (Markdown)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h3l2-5 4 10 2-5h5"/></svg><span>Diagnostics</span></button>
+  <button id="btn-bundle" type="button" class="ibtn" title="Download a bug-report bundle (zip)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg><span>Bundle</span></button>
+  <button id="btn-clip" type="button" class="ibtn" title="Save the last 30 s of video as a clip"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span>Save clip</span></button>
+  <button id="btn-shot" type="button" class="ibtn" title="Save a full-resolution screenshot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.3"/></svg><span>Screenshot</span></button>
+  <button id="btn-full" type="button" class="ibtn" title="Fullscreen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Fullscreen</span></button>
+</header>
+
+<main class="layout">
+  <section class="stage" id="stage">
+    <div class="console" id="console">
+      <div class="fs-bar" id="fs-bar" role="toolbar" aria-label="Fullscreen controls">
+        <span class="fs-pill" id="fs-video" data-no-i18n></span><span class="fs-pill" id="fs-input" data-no-i18n></span>
+        <button type="button" data-fs="pad" aria-pressed="true" title="Show Joy-Con">Joy-Con</button>
+        <button type="button" data-fs="keys" aria-pressed="false" title="Show keyboard keys on Joy-Con">Keys</button>
+        <button type="button" data-fs="sound" aria-pressed="false" title="Play the console's sound (from the capture card)">Sound</button>
+        <button type="button" data-fs="shot" title="Save a full-resolution screenshot">Screenshot</button>
+        <button type="button" data-fs="clip" title="Save the last 30 s of video as a clip">Save clip</button>
+        <button type="button" data-fs="exit" title="Exit fullscreen (Esc)">Exit fullscreen</button>
+      </div>
+      <div class="joycon left" id="joy-left" aria-label="Left Joy-Con"></div>
+      <div class="screen" id="screen" tabindex="0" aria-label="Console video. Click to drive with keyboard.">
+        <img id="video" src="/stream.mjpg" alt="Live console video" draggable="false">
+        <div id="input-warning" class="input-warning" role="alert" aria-live="polite" hidden></div>
+      </div>
+      <div class="joycon right" id="joy-right" aria-label="Right Joy-Con"></div>
+    </div>
+    <div class="trail" id="trail" aria-label="Recent inputs" aria-live="off"></div>
+    <p class="capture-hint" id="capture-hint">Click the screen to drive with the keyboard · Esc to release</p>
+
+    <section class="card logs-card" aria-label="Logs">
+      <div class="logs-head">
+        <h2>Logs</h2>
+        <div class="chips" id="log-sources" role="group" aria-label="Log sources"></div>
+        <span class="spacer"></span>
+        <input type="search" id="log-filter" placeholder="Filter…" aria-label="Filter logs">
+        <label class="row small" title="Read the console screen (OCR) once a second and log new text"><input type="checkbox" id="log-screen"> Screen text → log</label>
+        <label class="row small"><input type="checkbox" id="log-pause"> Pause</label>
+        <button type="button" id="log-copy" class="ibtn" title="Copy the visible log lines"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg><span>Copy</span></button>
+        <button type="button" id="log-download" class="ibtn" title="Download the visible log lines"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg><span>Save</span></button>
+      </div>
+      <ol class="logview" id="logview" aria-live="off"></ol>
+    </section>
+  </section>
+
+  <aside class="panel">
+    <section class="card welcome" id="welcome" hidden aria-labelledby="welcome-h">
+      <h2 id="welcome-h">Get started</h2>
+      <ol class="steps">
+        <li id="step-video"><span><b>Connect a capture card.</b> Pick it in the Video panel.</span></li>
+        <li id="step-input"><span><b>Add an input device</b> to press buttons, or stay view only.</span></li>
+        <li id="step-drive"><span><b>Click the picture</b> and drive with the keyboard or a gamepad.</span></li>
+      </ol>
+      <div class="field-row wrap"><button type="button" class="primary" id="welcome-devices">Choose input device</button><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a><span class="spacer"></span><button type="button" id="welcome-hide">Hide</button></div>
+    </section>
+    <section class="card">
+      <h2>Driving</h2>
+      <span class="seg-label" id="usb-label">The console sees</span>
+      <div class="seg" role="radiogroup" aria-labelledby="usb-label" id="seg-usb">
+        <button type="button" role="radio" data-v="standard">Controller + keyboard</button><button type="button" role="radio" data-v="pro">Pro Controller</button>
+      </div>
+      <p class="hint" id="usb-help"></p>
+      <p class="hint" id="usb-note"></p>
+      <span class="seg-label" id="kb-label">Your keyboard sends</span>
+      <div class="seg" role="radiogroup" aria-labelledby="kb-label" id="seg-kb">
+        <button type="button" role="radio" data-v="pad">Controller buttons</button><button type="button" role="radio" data-v="usb">Keyboard &amp; mouse</button>
+      </div>
+      <p class="hint" id="kb-help"></p>
+      <div hidden>
+        <select id="usb-mode" aria-hidden="true" tabindex="-1"><option value="standard"></option><option value="pro"></option></select>
+        <input type="radio" name="kbmode" value="pad" checked tabindex="-1"><input type="radio" name="kbmode" value="usb" tabindex="-1">
+      </div>
+      <div class="toggles">
+        <label class="row"><input type="checkbox" switch id="show-pad" checked> Show Joy-Con</label>
+        <label class="row"><input type="checkbox" switch id="show-keys"> Show key labels on Joy-Con</label>
+        <label class="row" title="Agents (MCP or API) can't press anything while this is on. Only you can turn it off."><input type="checkbox" switch id="manual-only"> Block agents (manual only)</label>
+      </div>
+      <p class="hint" id="driver">Last agent input: —</p>
+    </section>
+
+    <section class="card video-card" id="video-card">
+      <h2>Video</h2>
+      <label class="field">Device <select id="v-device"></select></label>
+      <div class="field-row">
+        <label class="field">Resolution <select id="v-size"></select></label>
+        <label class="field">FPS <select id="v-fps"></select></label>
+      </div>
+      <label class="field">Quality <span id="v-qval"></span>
+        <input type="range" id="v-quality" min="30" max="95" step="5"></label>
+      <div class="field-row">
+        <button type="button" id="v-apply">Apply</button>
+        <span class="hint" id="v-note"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Activity</h2>
+      <ol class="log" id="log"></ol>
+      <p class="empty">Every press from you and from agents shows up here, newest first.</p>
+    </section>
+
+    <details class="card keys">
+      <summary>Keyboard map <span class="kbd-hint">?</span></summary>
+      <dl>
+        <dt>WASD</dt><dd>left stick</dd><dt>TFGH</dt><dd>right stick</dd>
+        <dt>Arrows</dt><dd>direction buttons</dd><dt>I J K L</dt><dd>X Y B A</dd>
+        <dt>Q / E</dt><dd>L / R</dd><dt>1 / 3</dt><dd>ZL / ZR</dd>
+        <dt>Enter / Backspace</dt><dd>+ / −</dd><dt>` (backquote)</dt><dd>HOME</dd>
+        <dt>P</dt><dd>Capture</dd><dt>V / N</dt><dd>stick clicks</dd>
+      </dl>
+    </details>
+  </aside>
+</main>
+<dialog id="settings" aria-labelledby="settings-title">
+  <div class="settings-head"><h2 id="settings-title">Settings</h2><button id="settings-close" type="button" aria-label="Close settings">Close</button></div>
+  <nav class="settings-tabs" aria-label="Settings sections">
+    <button data-tab="devices" aria-pressed="true">Devices</button><button data-tab="network" aria-pressed="false">Network</button>
+    <button data-tab="integrations" aria-pressed="false">API &amp; MCP</button><button data-tab="appearance" aria-pressed="false">Appearance</button><button data-tab="updates" aria-pressed="false">Updates</button><button data-tab="help" aria-pressed="false">Help</button><button data-tab="about" aria-pressed="false">About</button>
+  </nav>
+  <p id="settings-message" role="status" aria-live="polite"></p>
+  <section data-pane="devices">
+    <h3>NS2Bench Bridge</h3><p>Capture and input are independent. Select your capture card in the Video panel; select how this computer reaches your input device here.</p>
+    <form id="input-settings">
+      <label class="field">Input connection<select id="input-kind"><option value="none">View only (no input device)</option><option value="hidd">Network Bridge (Linux USB gadget device)</option><option value="serial">Serial Bridge (Pico / compatible firmware)</option><option value="ch9329">CH9329 (keyboard and mouse only)</option></select></label>
+      <div id="input-network"><label class="field">Bridge address<input id="input-host" placeholder="192.168.79.2" autocomplete="off"></label><label class="field">Bridge port<input id="input-port" type="number" min="1" max="65535" value="7631"></label><label class="field">Bridge token file<input id="input-token-file" placeholder="~/.ns2bench/hidd.token" autocomplete="off"></label></div>
+      <div id="input-serial"><label class="field">Serial port<input id="input-path" placeholder="/dev/cu.usbserial-… or COM3" autocomplete="off"></label><label class="field">Baud rate<select id="input-baud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option><option>230400</option><option>460800</option><option>921600</option></select></label></div>
+      <p id="input-help" class="hint"></p><button type="submit">Apply input connection</button>
+    </form>
+    <h3>What you need</h3>
+    <figure class="setup-figure"><img src="/static/setup/overview.svg" alt="How the console, capture card, input device and computer connect" loading="lazy"></figure>
+    <p><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Open the setup guide</a> for every way to connect: Linux board, Raspberry Pi Pico, CH9329, view only, and the offline console network.</p>
+    <p>Console HDMI → capture card → computer for video. An input device connects by USB to the console and by network or serial to this computer. A Linux device needs USB gadget support; the Pico uses a separate USB-to-UART adapter at 921600 baud. CH9329 cannot send controller buttons.</p>
+    <p>Bridge management can use the computer’s existing LAN. The console’s network is configured separately and must stay isolated from the internet.</p>
+  </section>
+  <section data-pane="network" hidden>
+    <h3>Console network</h3><p id="network-status">Checking local network service…</p>
+    <form id="network-settings">
+      <label class="field">Setup<select id="network-topology"><option value="direct">Direct, isolated computer ↔ console</option><option value="router">Isolated router / VLAN / Wi-Fi</option><option value="none">No managed console network</option></select></label>
+      <p id="network-help" class="hint"></p>
+      <label class="row"><input id="network-dhcp" type="checkbox"> Local DHCP address assignment</label>
+      <label class="row"><input id="network-dns" type="checkbox"> Local DNS responder (connectivity test only)</label>
+      <label class="row"><input id="network-connectivity" type="checkbox"> Local connectivity-test page</label>
+      <p>Internet blocking stays on. Other DNS names are refused; no upstream DNS, forwarding, internet sharing, NAT or proxy is enabled.</p>
+      <button type="submit">Apply network controls</button>
+    </form>
+    <h3>DHCP leases</h3><pre id="network-leases">None</pre>
+  </section>
+  <section data-pane="integrations" hidden>
+    <h3>HTTP API</h3><p id="api-info"></p><label class="field">API token (only if required)<input id="api-token" type="password" autocomplete="off"></label><button id="api-token-apply" type="button">Use token in this browser</button>
+    <p>Requests use JSON. Set Authorization: Bearer &lt;token&gt; when authentication is enabled. The API and MCP share the same engine, readiness checks, and manual-only control lock.</p>
+    <pre id="api-example"></pre><button id="api-copy" type="button">Copy API example</button>
+    <h3>MCP connection</h3><p>Add this to your MCP client’s configuration. The client launches the stdio server; keep paths valid on that computer.</p><pre id="mcp-config"></pre><button id="mcp-copy" type="button">Copy MCP configuration</button>
+    <details><summary id="mcp-count">Available tools</summary><div id="mcp-tools"></div></details>
+  </section>
+  <section data-pane="appearance" hidden>
+    <h3>Theme</h3>
+    <label class="field">Theme<select id="theme-select"><option value="system">Match system</option><option value="light">Light</option><option value="peach">Peach</option><option value="dark">Dark</option><option value="oled">OLED black</option></select></label>
+    <h3>Language</h3>
+    <label class="field">Language<select id="lang-select" data-no-i18n></select></label>
+    <p class="hint">Translations cover the interface. Logs, console text and API messages stay as they are.</p>
+  </section>
+  <section data-pane="help" hidden>
+    <h3>Report a problem</h3>
+    <p>Save a bug report, then open an issue and attach it. The report holds logs, status, a screenshot and your settings, never tokens. Look through it before you share it.</p>
+    <div class="field-row wrap"><button type="button" class="primary" id="help-bundle">Save bug report (.zip)</button><button type="button" id="help-diag">Copy diagnostics</button><button type="button" id="help-issue">Open an issue on GitHub</button></div>
+    <p class="hint" id="help-note"></p>
+    <h3>Guides</h3>
+    <p class="links"><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a> · <a href="https://ns2bench.phantomptr.com/faq/" target="_blank" rel="noopener">FAQ</a> · <a href="https://github.com/phantomptr/ns2bench/blob/main/docs/REFERENCE.md" target="_blank" rel="noopener">API and test reference</a> · <a href="https://discord.gg/fzK3xddtrM" target="_blank" rel="noopener">Ask on Discord</a></p>
+    <h3>Shortcuts</h3>
+    <p>Click the picture to drive with the keyboard; Esc releases it. Press ? (outside the picture) to show the keyboard map. Click a status pill to fix what it reports.</p>
+  </section>
+  <section data-pane="about" hidden>
+    <h3>NS2Bench <span id="about-version" data-no-i18n></span></h3>
+    <p>See, hear and drive a Nintendo Switch 2 from your computer, by hand or by AI agents. Free and open source (MIT).</p>
+    <p class="links"><a href="https://ns2bench.phantomptr.com/" target="_blank" rel="noopener">Website</a> · <a href="https://github.com/phantomptr/ns2bench" target="_blank" rel="noopener">GitHub</a> · <a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a> · <a href="https://ns2bench.phantomptr.com/faq/" target="_blank" rel="noopener">FAQ</a> · <a href="https://github.com/phantomptr/ns2bench/issues/new/choose" target="_blank" rel="noopener">Report a problem</a></p>
+    <h3>Thanks &amp; support</h3>
+    <p>Created by PhantomPtr. If NS2Bench helps you, you can support its development.</p>
+    <p class="links"><a href="https://ko-fi.com/B0B81S0WUA" target="_blank" rel="noopener">Support on Ko-fi</a> · <a href="https://discord.gg/fzK3xddtrM" target="_blank" rel="noopener">Discord</a> · <a href="https://x.com/phantomptr" target="_blank" rel="noopener">X (@phantomptr)</a></p>
+    <div class="coins" data-no-i18n>
+      <figure><img src="/static/donate/btc.svg" alt="BTC" loading="lazy"><figcaption>BTC<br><code>bc1q36gxkvd3wfxy9azm8hft3rru9m6m9hjvn7u20n</code></figcaption></figure>
+      <figure><img src="/static/donate/eth.svg" alt="ETH" loading="lazy"><figcaption>ETH<br><code>0x2e787654db543B69FB011E16995C274dFAfc2286</code></figcaption></figure>
+      <figure><img src="/static/donate/sol.svg" alt="SOL" loading="lazy"><figcaption>SOL<br><code>G1q5XCCn3mePYpcx7uY17CwDsUaAZTcty56huUDvVqjG</code></figcaption></figure>
+      <figure><img src="/static/donate/xrp.svg" alt="XRP" loading="lazy"><figcaption>XRP (no tag)<br><code>rEVq3si3sm9NuWNuZiUZFKsUtwC3w9SrjR</code></figcaption></figure>
+    </div>
+    <p>Thank you to everyone who supports the project, reports bugs, tests hardware and translates.</p>
+    <p class="hint">Not affiliated with or endorsed by Nintendo. Nintendo Switch is a trademark of Nintendo.</p>
+  </section>
+  <section data-pane="updates" hidden>
+    <h3>App updates</h3><p id="update-status">Checking desktop updater…</p>
+    <label class="row"><input id="update-auto-check" type="checkbox"> Check for updates daily</label>
+    <label class="row"><input id="update-auto-download" type="checkbox"> Automatically download verified updates</label>
+    <label class="row"><input id="update-auto-install" type="checkbox"> Automatically install when controls are idle (restarts app)</label>
+    <p class="hint">Updates come from NS2Bench’s published GitHub releases and require SHA-256 verification. Automatic installation is off by default. macOS app bundles, Windows setup and Linux AppImages are supported; system packages use their package manager.</p>
+    <div class="field-row"><button id="update-check" type="button">Check now</button><button id="update-download" type="button" disabled>Download update</button><button id="update-install" type="button" disabled>Install and restart</button></div><pre id="update-notes"></pre>
+  </section>
+</dialog>
+<script src="/static/appearance.js" type="module"></script>
+<script src="/static/app.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600" role="img" aria-labelledby="title desc">
+  <title id="title">Input: CH9329 module (keyboard and mouse only)</title>
+  <desc id="desc">The CH9329 module's USB HID side plugs into the console dock's USB port. Its UART side connects through a USB-to-UART adapter, or a built-in USB-serial chip, to the computer, usually at 9600 baud. The console gets a keyboard and mouse only, with no controller buttons.</desc>
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#111214}
+    .ti{font-size:22px;font-weight:700}
+    .h{font-size:14px;font-weight:600}
+    .s{font-size:12px;fill:#4a5260}
+    .p{font-size:10px;fill:#4a5260}
+    .m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+    .c{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+    .w{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+    .usb{stroke:#16a34a}.uart{stroke:#ea8a0b}.gnd{stroke:#2b2f36}
+    .lu{fill:#15803d;font-weight:600}.lo{fill:#b45309;font-weight:600}
+    .box{fill:#fff;stroke:#c9ced6;stroke-width:1.5}
+    .chip{fill:#fff;stroke:#c9ced6;stroke-width:1.2}
+  </style>
+  <defs>
+    <marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#16a34a"/></marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ea8a0b"/></marker>
+  </defs>
+
+  <rect width="900" height="600" rx="16" fill="#f6f7f9"/>
+  <text class="ti" x="32" y="48">Input: CH9329 module</text>
+  <text class="s" x="32" y="70">A serial-to-USB keyboard and mouse. Cheap and simple, but the console gets no controller buttons or sticks.</text>
+  <text class="s" x="32" y="88">NS2Bench Settings → Devices → Input connection: CH9329, usually 9600 baud.</text>
+
+  <!-- console in dock -->
+  <g transform="translate(30,130)">
+    <rect x="10" y="0" width="200" height="92" rx="16" fill="#3a4049"/>
+    <rect x="50" y="0" width="120" height="92" fill="#23272d"/>
+    <rect x="58" y="8" width="104" height="44" rx="3" fill="#cfe0f5"/>
+    <circle cx="30" cy="26" r="8" fill="#23272d"/><circle cx="190" cy="40" r="8" fill="#23272d"/>
+    <circle cx="190" cy="16" r="3" fill="#23272d"/><circle cx="30" cy="46" r="3" fill="#23272d"/>
+    <rect x="30" y="56" width="160" height="100" rx="10" fill="#e3e6eb" stroke="#9aa3ae" stroke-width="1.5"/>
+    <text class="p" x="66" y="140" text-anchor="middle">dock</text>
+    <rect x="186" y="80" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="88" text-anchor="end">HDMI</text>
+    <rect x="186" y="104" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="112" text-anchor="end">USB</text>
+    <rect x="186" y="128" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="136" text-anchor="end">LAN</text>
+    <text class="h" x="110" y="180" text-anchor="middle">Console in its dock</text>
+  </g>
+
+  <!-- UART wires -->
+  <text class="s lo" x="447" y="158" text-anchor="middle">UART · usually 9600 baud</text>
+  <path class="w uart" d="M320 216 V168 H575 V208" marker-end="url(#ao)"/>
+  <path class="w uart" d="M565 216 V178 H330 V208" marker-end="url(#ao)"/>
+  <path class="w gnd" d="M340 216 V188 H555 V216"/>
+
+  <!-- CH9329 module -->
+  <rect x="296" y="226" width="16" height="24" rx="2" fill="#c0c6ce" stroke="#6b7480"/>
+  <rect x="310" y="214" width="140" height="48" rx="4" fill="#2a3a5c"/>
+  <g fill="#e2c26b"><circle cx="320" cy="219" r="2.5"/><circle cx="330" cy="219" r="2.5"/><circle cx="340" cy="219" r="2.5"/><circle cx="350" cy="219" r="2"/></g>
+  <rect x="380" y="226" width="30" height="24" rx="2" fill="#15171a"/>
+  <text class="p" x="330" y="248" style="fill:#d7deea">HID</text>
+  <text class="h" x="380" y="284" text-anchor="middle">CH9329 module</text>
+  <text class="s" x="380" y="302" text-anchor="middle">USB keyboard + mouse out</text>
+  <path class="c usb" d="M296 238 H232" marker-end="url(#ag)"/>
+  <text class="s lu" x="264" y="229" text-anchor="middle">USB</text>
+
+  <!-- adapter -->
+  <rect x="520" y="214" width="90" height="48" rx="4" fill="#1d4e89"/>
+  <g fill="#e2c26b"><circle cx="555" cy="219" r="2.5"/><circle cx="565" cy="219" r="2.5"/><circle cx="575" cy="219" r="2.5"/><circle cx="545" cy="219" r="2"/><circle cx="585" cy="219" r="2"/></g>
+  <rect x="540" y="232" width="20" height="20" rx="2" fill="#15171a"/>
+  <rect x="610" y="226" width="26" height="24" rx="2" fill="#c0c6ce" stroke="#6b7480"/>
+  <text class="h" x="565" y="284" text-anchor="middle">USB-to-UART adapter</text>
+  <text class="s" x="565" y="302" text-anchor="middle">or built into the module's cable</text>
+  <path class="c usb" d="M636 238 H690" marker-end="url(#ag)"/>
+  <text class="s lu" x="664" y="229" text-anchor="middle">USB</text>
+
+  <!-- computer -->
+  <rect x="700" y="160" width="168" height="110" rx="8" fill="#fff" stroke="#2b2f36" stroke-width="3"/>
+  <text class="h" x="784" y="186" text-anchor="middle">NS2Bench</text>
+  <text class="m" x="784" y="207" text-anchor="middle">CH9329</text>
+  <text class="m" x="784" y="226" text-anchor="middle">9600 baud</text>
+  <rect x="712" y="238" width="144" height="22" rx="11" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="784" y="253" text-anchor="middle" style="font-size:11px;fill:#14532d;font-weight:600">Bridge · usb configured</text>
+  <path d="M684 270 H884 L874 286 H694 Z" fill="#d5dae1" stroke="#2b2f36" stroke-width="2" stroke-linejoin="round"/>
+  <text class="h" x="784" y="308" text-anchor="middle">Your computer</text>
+
+  <!-- wiring -->
+  <rect class="box" x="32" y="336" width="414" height="214" rx="10"/>
+  <text class="h" x="48" y="362">Wiring: 3 wires, crossed over</text>
+  <text class="p" x="133" y="388" text-anchor="middle">CH9329</text>
+  <text class="p" x="350" y="388" text-anchor="middle">ADAPTER</text>
+  <rect class="chip" x="48" y="398" width="170" height="26" rx="6"/><text class="m" x="58" y="416">TX</text>
+  <rect class="chip" x="300" y="398" width="100" height="26" rx="6"/><text class="m" x="350" y="416" text-anchor="middle">RX</text>
+  <path class="w uart" d="M222 411 H292" marker-end="url(#ao)"/>
+  <rect class="chip" x="48" y="432" width="170" height="26" rx="6"/><text class="m" x="58" y="450">RX</text>
+  <rect class="chip" x="300" y="432" width="100" height="26" rx="6"/><text class="m" x="350" y="450" text-anchor="middle">TX</text>
+  <path class="w uart" d="M296 445 H226" marker-end="url(#ao)"/>
+  <rect class="chip" x="48" y="466" width="170" height="26" rx="6"/><text class="m" x="58" y="484">GND</text>
+  <rect class="chip" x="300" y="466" width="100" height="26" rx="6"/><text class="m" x="350" y="484" text-anchor="middle">GND</text>
+  <path class="w gnd" d="M222 479 H296"/>
+  <text class="s" x="48" y="516">A module with built-in USB-serial needs no adapter:</text>
+  <text class="s" x="48" y="534">its one cable goes straight to the computer.</text>
+
+  <!-- limits -->
+  <rect class="box" x="462" y="336" width="406" height="214" rx="10"/>
+  <circle cx="490" cy="362" r="11" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="490" y="367" text-anchor="middle" style="font-size:14px;font-weight:700;fill:#92400e">!</text>
+  <text class="h" x="510" y="367">Keyboard and mouse only</text>
+  <text class="s" x="478" y="394">The console sees a USB keyboard and mouse. There are</text>
+  <text class="s" x="478" y="412">no controller buttons or sticks, so most games can't be</text>
+  <text class="s" x="478" y="430">played. For a controller, use a Linux board or a Pico.</text>
+  <line x1="478" y1="450" x2="852" y2="450" stroke="#e3e6eb" stroke-width="1.5"/>
+  <text class="s" x="478" y="474">In Settings → Devices pick CH9329, the serial port</text>
+  <text class="s" x="478" y="492">(/dev/cu.usbserial-… or COM3) and the module's baud</text>
+  <text class="s" x="478" y="510">rate. Most modules ship at 9600.</text>
+
+  <!-- legend -->
+  <g transform="translate(32,576)">
+    <line x1="0" y1="0" x2="26" y2="0" class="c usb"/><text class="s" x="34" y="4">USB</text>
+    <line x1="90" y1="0" x2="116" y2="0" class="c uart"/><text class="s" x="124" y="4">Serial / UART (TX, RX)</text>
+    <line x1="290" y1="0" x2="316" y2="0" class="c gnd"/><text class="s" x="324" y="4">Ground</text>
+  </g>
+</svg>

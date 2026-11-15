@@ -1,0 +1,10 @@
+[package]
+name = "ns2bench-netd"
+description = "Interface-bound offline DHCP, local DNS and connectivity-test responder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+libc = "0.2"
+serde_json.workspace = true

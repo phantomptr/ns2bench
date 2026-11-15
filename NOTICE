@@ -1,0 +1,14 @@
+NS2Bench
+Copyright (c) 2026 PhantomPtr. MIT License (see LICENSE).
+
+This product includes material derived from GP2040-CE
+(https://github.com/OpenStickCommunity/GP2040-CE), MIT License,
+Copyright (c) 2024 OpenStickCommunity and (c) 2021 Jason Skuby.
+See LICENSES/GP2040-CE-MIT.txt. Used in native/crates/board/src/pro2.rs and its
+golden fixtures (Switch 2 Pro Controller descriptors, command replies, flash tables).
+
+Protocol notes were informed by ndeadly/switch2_controller_research (reference only;
+no code or text copied).
+
+Nintendo Switch is a trademark of Nintendo. NS2Bench is not affiliated with or
+endorsed by Nintendo.

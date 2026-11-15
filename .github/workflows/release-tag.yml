@@ -1,0 +1,105 @@
+# Cut a release from GitHub, the ps5upload way:
+#
+#   gh workflow run release-tag.yml --ref main -f version=0.1.0
+#
+# Validates the version, bumps VERSION and every version file (scripts/update-version.mjs),
+# names CHANGELOG.md's "## Unreleased" text "## 0.1.0", commits that on top of main, tags it
+# v0.1.0 and pushes the commit and the tag, then dispatches publish.yml at the tag (a tag
+# pushed with GITHUB_TOKEN does not trigger `push: tags` workflows by itself).
+# Write the release notes under "## Unreleased" in CHANGELOG.md first.
+name: release-tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, X.Y.Z (CHANGELOG.md needs text under '## Unreleased' or '## X.Y.Z')"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as a pre-release"
+        type: boolean
+        default: false
+      force:
+        description: "Tag even if ci has not passed on main's head (emergencies only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatched on main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::run this on main"
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: 22 }
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Version is X.Y.Z, new, and newer than every release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::'$VERSION' is not X.Y.Z"; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then echo "::error::v$VERSION exists"; exit 1; fi
+          last="$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)"
+          if [ -n "$last" ] && [ "$(printf '%s\n%s\n' "$last" "$VERSION" | sort -V | tail -n1)" != "$VERSION" ]; then
+            echo "::error::$VERSION is not newer than $last"; exit 1
+          fi
+
+      - name: ci passed on main's head
+        if: ${{ !inputs.force }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            c="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --json status,conclusion --jq '.[0] | "\(.status) \(.conclusion)"' || true)"
+            case "$c" in
+              "completed success") echo "ci passed on $GITHUB_SHA"; exit 0 ;;
+              "completed "*) echo "::error::ci on $GITHUB_SHA: $c. Fix it or re-run, then dispatch again."; exit 1 ;;
+              *) echo "waiting for ci ($c)"; sleep 30 ;;
+            esac
+          done
+          echo "::error::ci did not finish in 30 minutes"; exit 1
+
+      - name: Bump, name the CHANGELOG section, commit, tag, push
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/update-version.mjs "$VERSION"
+          node scripts/changelog.mjs release "$VERSION"
+          node scripts/changelog.mjs notes "$VERSION" > /dev/null
+          (cd native && cargo metadata --locked --format-version 1 > /dev/null)
+          (cd firmware/pico && cargo metadata --locked --format-version 1 > /dev/null)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A VERSION CHANGELOG.md native/Cargo.toml native/Cargo.lock firmware/pico/Cargo.toml firmware/pico/Cargo.lock native/crates/app/tauri.conf.json
+            git commit -q -m "Release $VERSION"
+            git push origin "HEAD:main"
+          fi
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "refs/tags/v$VERSION"
+          echo "### v$VERSION tagged at $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: gh workflow run publish.yml --ref "v$VERSION" -f tag="v$VERSION" -f prerelease="$PRERELEASE"

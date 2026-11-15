@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NS2Bench · See, hear and drive a Nintendo Switch 2 from your computer</title>
+<meta name="description" content="Free, open-source bench for the Nintendo Switch 2: live video and sound, keyboard/gamepad/AI-agent input through a USB input device, repeatable tests. The console stays offline.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="NS2Bench">
+<meta property="og:description" content="See, hear and drive a Nintendo Switch 2 from your computer, by hand or by AI agents. The console stays offline.">
+<meta property="og:image" content="https://ns2bench.phantomptr.com/assets/og.png">
+<meta property="og:url" content="https://ns2bench.phantomptr.com/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script>try{const t=localStorage.getItem('ns2bench.site.theme');if(t)document.documentElement.dataset.theme=t;}catch{}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./" aria-label="NS2Bench home"><span class="mark" aria-hidden="true"></span><span>NS2Bench</span></a>
+  <nav aria-label="Site">
+    <a href="#features">Features</a><a href="setup/">Setup</a><a href="#agents">Agents</a><a href="faq/">FAQ</a><a href="#download">Download</a><a href="#thanks">Support</a>
+    <a href="https://github.com/phantomptr/ns2bench" rel="noopener">GitHub</a>
+  </nav>
+  <button id="theme" type="button" aria-label="Switch between light and dark" title="Switch between light and dark">◐</button>
+</header>
+
+<main>
+<section class="hero">
+  <div class="hero-text">
+    <h1>See, hear and drive a Nintendo Switch 2 from your computer.</h1>
+    <p class="lead">By hand or by AI agents. Live video and sound, keyboard, mouse and gamepad input, repeatable tests. The console stays offline. Free and open source.</p>
+    <p class="cta">
+      <a class="button primary" id="dl-main" href="https://github.com/phantomptr/ns2bench/releases/latest">Download</a>
+      <a class="button" href="setup/">Setup guide</a>
+    </p>
+    <p class="small" id="dl-note">macOS · Windows · Linux · <span data-version>v__VERSION__</span></p>
+  </div>
+  <picture class="hero-shot">
+    <source media="(prefers-color-scheme: light)" srcset="assets/shots/main-light.webp">
+    <img src="assets/shots/main-dark.webp" alt="NS2Bench showing the console's System Settings with on-screen Joy-Con, the Driving and Video panels and logs" width="1440" height="900">
+  </picture>
+</section>
+
+<section id="features" aria-labelledby="features-h">
+  <h2 id="features-h">What it does</h2>
+  <div class="grid">
+    <article><h3>See and hear</h3><p>1080p60 video and sound from any USB HDMI capture card. Screenshots, 30-second clips and on-screen text reading. On macOS it shares the card with OBS.</p></article>
+    <article><h3>Drive</h3><p>Keyboard, mouse or your own gamepad, through a small input device on the console's USB port. On-screen Joy-Con light up with every press.</p></article>
+    <article><h3>Let agents drive</h3><p>An HTTP API and an MCP server with 23 tools. You see every agent action live, and one switch blocks agent input.</p></article>
+    <article><h3>Test</h3><p>Repeatable JSON tests with screenshots and a clip of the moments before any failure. A doctor tells you which part is broken.</p></article>
+    <article><h3>Offline by design</h3><p>An optional console network answers only the connectivity test. No forwarding, no NAT, no internet, and it can't be turned off.</p></article>
+    <article><h3>Yours</h3><p>Light, Peach, Dark and OLED themes and 11 languages. Everything stays on your computer; nothing is uploaded.</p></article>
+  </div>
+</section>
+
+<section id="connect" aria-labelledby="connect-h">
+  <h2 id="connect-h">How it connects</h2>
+  <figure class="diagram"><img src="setup/overview.svg" alt="Console in its dock: HDMI to a capture card on the computer, an input device on the console's USB port, NS2Bench on the computer for you and your agents" loading="lazy"></figure>
+  <div class="grid">
+    <a class="card-link" href="setup/#linux-usb-gadget-board"><h3>Linux board</h3><p>Luckfox, Raspberry Pi Zero 2 W, Pi 4/5. Every button, including C, GL and GR in Pro Controller mode. Keyboard and mouse.</p></a>
+    <a class="card-link" href="setup/#raspberry-pi-pico"><h3>Raspberry Pi Pico</h3><p>The cheapest controller option, with a 3.3 V USB-to-UART adapter. Keyboard and mouse too.</p></a>
+    <a class="card-link" href="setup/#ch9329-module"><h3>CH9329</h3><p>A keyboard and mouse for the console, no controller.</p></a>
+    <a class="card-link" href="setup/#view-only"><h3>View only</h3><p>Just a capture card: watch, record, take screenshots and read text.</p></a>
+  </div>
+</section>
+
+<section id="agents" aria-labelledby="agents-h">
+  <h2 id="agents-h">For AI agents</h2>
+  <p>The MCP server is built into the app. Add it to Claude Code, Codex, opencode or any MCP client, then ask your agent to open a menu, read the screen or run a test, and watch it work.</p>
+  <pre><code>claude mcp add ns2bench -- /Applications/NS2Bench.app/Contents/MacOS/ns2bench-app mcp</code></pre>
+  <p class="small">Settings → API &amp; MCP in the app shows the exact configuration for your computer. <a href="https://github.com/phantomptr/ns2bench/blob/main/docs/REFERENCE.md#agents-mcp-and-http-api">Tools and HTTP API</a>.</p>
+</section>
+
+<section id="download" aria-labelledby="download-h">
+  <h2 id="download-h">Download <span class="small" data-version>v__VERSION__</span></h2>
+  <table class="downloads">
+    <thead><tr><th>Computer</th><th>File</th></tr></thead>
+    <tbody>
+      <tr><td>Mac with Apple silicon</td><td><a data-asset="mac-arm64.dmg" href="#">.dmg (arm64)</a></td></tr>
+      <tr><td>Mac with Intel</td><td><a data-asset="mac-x64.dmg" href="#">.dmg (x64)</a></td></tr>
+      <tr><td>Windows 10/11</td><td><a data-asset="win-x64-setup.exe" href="#">setup.exe (x64)</a></td></tr>
+      <tr><td>Linux</td><td><a data-asset="linux-x64.AppImage" href="#">AppImage (x64)</a> · <a data-asset="linux-x64.deb" href="#">.deb (x64)</a> · <a data-asset="linux-arm64.AppImage" href="#">AppImage (arm64)</a> · <a data-asset="linux-arm64.deb" href="#">.deb (arm64)</a></td></tr>
+      <tr><td>Input device</td><td><a data-file="ns2bench-board-__VERSION__-linux-armv7" href="#">Linux board (ARMv7)</a> · <a data-file="ns2bench-board-__VERSION__-linux-arm64" href="#">Linux board (ARM64)</a> · <a data-file="ns2bench-pico-__VERSION__.uf2" href="#">Pico firmware (.uf2)</a></td></tr>
+    </tbody>
+  </table>
+  <p class="small">All files and checksums: <a href="https://github.com/phantomptr/ns2bench/releases/latest">latest release</a>. First launch on macOS or Windows may show a warning: see the <a href="faq/#app-and-updates">FAQ</a>.</p>
+</section>
+
+<section id="thanks" aria-labelledby="thanks-h">
+  <h2 id="thanks-h">Thanks &amp; support</h2>
+  <p>NS2Bench is free and open source, made by <strong>PhantomPtr</strong>. If it helps you, you can support its development.</p>
+  <p class="cta"><a class="button primary" href="https://ko-fi.com/B0B81S0WUA" rel="noopener">Support on Ko-fi</a> <a class="button" href="https://discord.gg/fzK3xddtrM" rel="noopener">Join the Discord</a> <a class="button" href="https://x.com/phantomptr" rel="noopener">Follow on X</a></p>
+  <div class="coins">
+    <figure><img src="assets/donate/btc.svg" alt="BTC QR code" loading="lazy"><figcaption>BTC<br><code>bc1q36gxkvd3wfxy9azm8hft3rru9m6m9hjvn7u20n</code></figcaption></figure>
+    <figure><img src="assets/donate/eth.svg" alt="ETH QR code" loading="lazy"><figcaption>ETH<br><code>0x2e787654db543B69FB011E16995C274dFAfc2286</code></figcaption></figure>
+    <figure><img src="assets/donate/sol.svg" alt="SOL QR code" loading="lazy"><figcaption>SOL<br><code>G1q5XCCn3mePYpcx7uY17CwDsUaAZTcty56huUDvVqjG</code></figcaption></figure>
+    <figure><img src="assets/donate/xrp.svg" alt="XRP QR code" loading="lazy"><figcaption>XRP (no tag)<br><code>rEVq3si3sm9NuWNuZiUZFKsUtwC3w9SrjR</code></figcaption></figure>
+  </div>
+</section>
+</main>
+
+<footer>
+  <p>MIT License · <a href="https://github.com/phantomptr/ns2bench">GitHub</a> · <a href="faq/">FAQ</a> · <a href="setup/">Setup</a> · <a href="https://github.com/phantomptr/ns2bench/issues/new/choose">Report a problem</a></p>
+  <p class="small">Not affiliated with or endorsed by Nintendo. Nintendo Switch is a trademark of Nintendo.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

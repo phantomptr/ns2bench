@@ -1,0 +1,32 @@
+# Changelog
+
+What's new in NS2Bench, written for humans.
+
+---
+
+## Unreleased
+
+## 0.0.1
+
+The first public release. NS2Bench lets you see, hear and drive a Nintendo Switch 2 from
+your computer, by hand or through AI agents, while the console stays offline.
+
+- **See and hear:** live 1080p60 video and sound from an HDMI capture card, with
+  screenshots, 30-second clips and on-screen text reading (OCR). On macOS it shares the
+  card with OBS.
+- **Drive:** keyboard, mouse or your own gamepad, sent through an input device on the
+  console's USB port: a Linux USB-gadget board, a Raspberry Pi Pico, or a CH9329 module
+  (keyboard and mouse only). A board can also act as a Switch 2 Pro Controller with C,
+  GL and GR.
+- **Agents:** an HTTP API and an MCP server with 23 tools. A manual-only switch blocks
+  agent input whenever you want the controls to yourself.
+- **Tests:** repeatable JSON tests with screenshots and a clip when a step fails,
+  navigation routes, calibration and a doctor that says which part is broken.
+- **Offline console network (optional):** local DHCP, a DNS that answers only the
+  connectivity test, and no forwarding, NAT or proxy. Windows can control a Linux helper.
+- **Desktop app:** for macOS, Windows and Linux, with verified updates, a getting-started
+  checklist, a fullscreen toolbar, a one-click bug report, Light, Peach, Dark and OLED
+  themes, and 11 interface languages.
+
+Tested on hardware: macOS capture and a Luckfox Linux board. Not yet tested on hardware:
+the Raspberry Pi Pico firmware, a real CH9329 module, and capture on Windows and Linux.

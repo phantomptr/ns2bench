@@ -1,0 +1,132 @@
+/* Flat Switch 2 controller beside the screen, in the style of the console's own drawings.
+   --h is the console height (set from JS to fit the window); everything scales from it. */
+.console {
+  --h: 480px;
+  --j: calc(var(--h) * 0.29);            /* Joy-Con width */
+  --body: #25272b; --edge: #393c43;
+  --btn: #474b54; --btn-hi: #565b66; --glyph: #eef0f4; --kl: #a3a9b4;
+  --accent-l: #2ccbe3;                   /* left: cyan (the Switch 2 stick ring) */
+  --accent-r: #ff6a45;                   /* right: coral */
+  --agent: #a98bff;                      /* agent presses */
+  display: grid; grid-template-columns: var(--j) calc(var(--h) * 1.6) var(--j); align-items: end; column-gap: calc(var(--h) * 0.012);
+  height: var(--h); width: calc(var(--h) * 2.204); max-width: 100%; margin-inline: auto;
+}
+.console.nopad { grid-template-columns: calc(var(--h) * 16 / 9); width: calc(var(--h) * 16 / 9); }
+.console.nopad .joycon { display: none; }
+.console .screen {
+  height: calc(var(--h) * 0.9); width: 100%; box-sizing: border-box;
+  border-radius: calc(var(--h) * 0.018); background: #000;
+  box-shadow: 0 0 0 1px var(--edge), 0 12px 32px rgb(0 0 0 / .4);
+}
+.console.nopad .screen { height: var(--h); }
+
+/* ---------------------------------------------------------------- body */
+.joycon { position: relative; width: var(--j); height: var(--h); display: grid;
+  grid-template-rows: calc(var(--h) * 0.1) 1fr; user-select: none; -webkit-user-select: none; touch-action: none; }
+.joycon .body { position: relative; background: var(--body); box-shadow: inset 0 0 0 1px var(--edge); }
+.joycon.left .body { border-radius: calc(var(--j) * 0.5) calc(var(--h) * 0.018) calc(var(--h) * 0.018) calc(var(--j) * 0.5); }
+.joycon.right .body { border-radius: calc(var(--h) * 0.018) calc(var(--j) * 0.5) calc(var(--j) * 0.5) calc(var(--h) * 0.018); }
+
+/* ---------------------------------------------------------------- buttons */
+.joycon .key { position: absolute; border: 0; padding: 0; background: none; cursor: pointer;
+  min-width: 44px; min-height: 44px; display: grid; place-items: center; translate: -50% -50%; color: var(--glyph); }
+.joycon .face { width: var(--d); height: var(--d); border-radius: 50%; background: var(--btn);
+  display: grid; place-items: center; align-content: center; gap: calc(var(--d) * 0.02);
+  transition: background-color .06s, transform .06s, box-shadow .06s; }
+.joycon .g { width: calc(var(--d) * 0.5); height: calc(var(--d) * 0.5); fill: currentColor; display: grid; place-items: center; }
+.joycon .g.letter { width: auto; height: auto; font: 700 calc(var(--d) * 0.42)/1 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.joycon .kl { display: none; font: 600 calc(var(--d) * 0.24)/1 system-ui, -apple-system, sans-serif; color: var(--kl);
+  letter-spacing: .02em; white-space: nowrap; }
+.console.show-keys .joycon .kl:not(:empty) { display: block; }
+.console.show-keys .joycon .key:has(.kl:not(:empty)) .g { width: calc(var(--d) * 0.4); height: calc(var(--d) * 0.4); }
+.console.show-keys .joycon .key:has(.kl:not(:empty)) .g.letter { font-size: calc(var(--d) * 0.36); width: auto; height: auto; }
+
+.joycon .key:hover:not(.unavailable) .face { background: var(--btn-hi); }
+.joycon .key.on .face { transform: scale(.94); }
+.joycon.left .key.on .face { background: var(--accent-l); color: #0c1014; box-shadow: 0 0 calc(var(--j) * 0.06) color-mix(in srgb, var(--accent-l) 55%, transparent); }
+.joycon.right .key.on .face { background: var(--accent-r); color: #140c0a; box-shadow: 0 0 calc(var(--j) * 0.06) color-mix(in srgb, var(--accent-r) 55%, transparent); }
+.joycon .key.on .kl { color: rgb(0 0 0 / .62); }
+.joycon .key.on.agent .face { background: var(--agent); color: #110c1d; box-shadow: 0 0 calc(var(--j) * 0.06) color-mix(in srgb, var(--agent) 60%, transparent); }
+.joycon .key.unavailable { cursor: not-allowed; }
+.joycon .key.unavailable .face { opacity: .4; }
+.joycon .key:focus-visible { outline: none; }
+.joycon .key:focus-visible .face { outline: 2px solid var(--accent-l); outline-offset: 2px; }
+
+/* layout, top to bottom (as on the real Joy-Con 2) */
+.joycon .cluster { position: absolute; left: 50%; width: calc(var(--j) * 0.8); aspect-ratio: 1; translate: -50% -50%; }
+.joycon .cluster .key { --d: calc(var(--j) * 0.265); width: 34%; height: 34%; }
+.joycon .cluster .n { left: 50%; top: 17%; } .joycon .cluster .s { left: 50%; top: 83%; }
+.joycon .cluster .w { left: 17%; top: 50%; } .joycon .cluster .e { left: 83%; top: 50%; }
+.joycon.left .dirs { top: 64%; }
+.joycon.right .abxy { top: 27%; }
+.joycon .mini { --d: calc(var(--j) * 0.19); width: calc(var(--j) * 0.24); height: calc(var(--j) * 0.24); }
+.joycon .minus { left: 74%; top: 6.5%; }
+.joycon .plus { left: 26%; top: 6.5%; }
+.joycon .capture { left: 68%; top: 89%; }
+.joycon .capture .face { border-radius: 26%; }
+.joycon .home { --d: calc(var(--j) * 0.21); left: 30%; top: 84%; }
+.joycon .home .face { box-shadow: inset 0 0 0 calc(var(--d) * 0.06) #6c717b; }
+.joycon .cbtn { --d: calc(var(--j) * 0.13); left: 70%; top: 92%; }
+
+/* ---------------------------------------------------------------- shoulders: two flat pills */
+.joycon .shoulders { display: flex; gap: calc(var(--j) * 0.05); align-items: center; padding-inline: calc(var(--j) * 0.04);
+  padding-bottom: calc(var(--h) * 0.014); }
+.joycon .pill { position: static; translate: none; flex: 1; min-width: 0; min-height: 0;
+  height: calc(var(--h) * 0.06); --d: calc(var(--h) * 0.06); }
+.joycon .pill .face { width: 100%; height: 100%; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--edge);
+  grid-auto-flow: column; gap: calc(var(--j) * 0.04); }
+.joycon .pill .g.letter, .console.show-keys .joycon .pill .g.letter { font-size: calc(var(--d) * 0.42); }
+.joycon .pill .kl { font-size: calc(var(--d) * 0.32); }
+
+/* ---------------------------------------------------------------- sticks */
+.joycon .stick { --size: calc(var(--j) * 0.56); --travel: calc(var(--size) * 0.16);
+  position: absolute; left: 50%; width: var(--size); translate: -50% -50%; display: grid; justify-items: center;
+  gap: calc(var(--j) * 0.03); }
+.joycon.left .stick { top: 29%; --ring: var(--accent-l); }
+.joycon.right .stick { top: 58%; --ring: var(--accent-r); }
+.joycon .stick .base { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; cursor: grab;
+  background: #1d1f23; box-shadow: inset 0 0 0 calc(var(--j) * 0.022) var(--ring), 0 0 calc(var(--j) * 0.05) color-mix(in srgb, var(--ring) 30%, transparent);
+  touch-action: none; }
+.joycon .stick .thumb { position: absolute; inset: 19%; border-radius: 50%; background: var(--btn);
+  box-shadow: inset 0 0 0 1px var(--btn-hi), 0 calc(var(--j) * 0.015) calc(var(--j) * 0.03) rgb(0 0 0 / .45);
+  transition: translate .05s linear, background-color .06s; pointer-events: none; }
+.joycon .stick.grab .base { cursor: grabbing; }
+.joycon .stick.active .base { box-shadow: inset 0 0 0 calc(var(--j) * 0.022) var(--ring), 0 0 calc(var(--j) * 0.09) color-mix(in srgb, var(--ring) 60%, transparent); }
+.joycon .stick.on .thumb { background: var(--ring); }
+.joycon .stick .sl { display: none; gap: calc(var(--j) * 0.04); align-items: baseline; white-space: nowrap;
+  font: 600 calc(var(--j) * 0.065)/1 system-ui, -apple-system, sans-serif; color: var(--kl); }
+.joycon .stick .sl b { color: var(--glyph); letter-spacing: .08em; font-weight: 700; }
+.console.show-keys .joycon .stick .sl { display: flex; }
+
+/* ---------------------------------------------------------------- hover tip */
+.kbdtip { position: fixed; z-index: 50; translate: -50% -100%; pointer-events: none; opacity: 0;
+  display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-radius: 8px;
+  background: rgb(20 21 24 / .94); color: #e7e9ee; border: 1px solid #3a3d44;
+  box-shadow: 0 6px 18px rgb(0 0 0 / .45); font: 12px/1.2 system-ui, sans-serif; transition: opacity .08s; }
+.kbdtip.show { opacity: 1; }
+.kbdtip span { display: flex; gap: 3px; align-items: center; }
+.kbdtip .none { color: #9aa0ab; max-width: 240px; }
+.kbdtip kbd { font: 700 11px/1 system-ui, sans-serif; color: #17181b; min-width: 20px; padding: 4px 5px; text-align: center;
+  border-radius: 5px; background: linear-gradient(#fbfbfc, #dfe2e7); border: 1px solid #b4b8c0; box-shadow: 0 2px 0 #8c9099; }
+
+/* ---------------------------------------------------------------- press trail */
+.trail { display: flex; gap: 6px; justify-content: center; align-items: center; min-height: 26px; margin-top: 8px; overflow: hidden; }
+.trail .chip { display: inline-flex; gap: 5px; align-items: center; padding: 3px 9px; border-radius: 999px;
+  font: 600 12px/1.3 system-ui, sans-serif; color: var(--text);
+  background: color-mix(in srgb, #2ccbe3 16%, transparent); border: 1px solid color-mix(in srgb, #2ccbe3 45%, transparent);
+  transition: opacity 1.2s; }
+.trail .chip.agent { background: color-mix(in srgb, #a98bff 20%, transparent); border-color: color-mix(in srgb, #a98bff 55%, transparent); }
+.trail .chip small { color: var(--muted); font-weight: 500; }
+.trail .chip.old { opacity: .35; }
+
+/* C is a shortcut (opens GameChat via the HOME menu): dashed ring marks it as not a real press */
+.joycon .key.macro .face { box-shadow: inset 0 0 0 1.5px var(--kl); background: transparent; }
+.joycon .key.macro:hover .face { background: var(--btn); }
+
+/* Pro Controller mode: C is a real button, GL/GR (the Pro Controller's back buttons) appear */
+.joycon .grip { display: none; --d: calc(var(--j) * 0.17); }
+.joycon.left .grip.gl { left: 32%; top: 89%; }
+.joycon.right .grip.gr { left: 70%; top: 82%; }
+.console.pro .joycon .grip { display: grid; }
+.console.pro .joycon .grip .face { border-radius: 999px; width: calc(var(--d) * 1.5); }
+.console.pro .joycon .key.macro .face { box-shadow: none; background: var(--btn); }

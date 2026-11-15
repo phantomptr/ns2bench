@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" role="img" aria-labelledby="title desc">
+  <title id="title">View only: capture card, no input device</title>
+  <desc id="desc">The simplest setup. The console in its dock sends HDMI to a USB capture card, which gives the computer video and audio. No input device is connected. NS2Bench can show the live picture, record, take screenshots and read on-screen text.</desc>
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#111214}
+    .ti{font-size:22px;font-weight:700}
+    .h{font-size:14px;font-weight:600}
+    .s{font-size:12px;fill:#4a5260}
+    .p{font-size:10px;fill:#4a5260}
+    .m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+    .c{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+    .hdmi{stroke:#2563eb}.usb{stroke:#16a34a}
+    .lh{fill:#1d4ed8;font-weight:600}.lu{fill:#15803d;font-weight:600}
+    .box{fill:#fff;stroke:#c9ced6;stroke-width:1.5}
+  </style>
+  <defs>
+    <marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2563eb"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#16a34a"/></marker>
+  </defs>
+
+  <rect width="900" height="420" rx="16" fill="#f6f7f9"/>
+  <text class="ti" x="32" y="48">View only: just a capture card</text>
+  <text class="s" x="32" y="70">No input device. NS2Bench Settings → Devices → Input connection: View only.</text>
+
+  <!-- console in dock -->
+  <g transform="translate(30,100)">
+    <rect x="10" y="0" width="200" height="92" rx="16" fill="#3a4049"/>
+    <rect x="50" y="0" width="120" height="92" fill="#23272d"/>
+    <rect x="58" y="8" width="104" height="44" rx="3" fill="#cfe0f5"/>
+    <circle cx="30" cy="26" r="8" fill="#23272d"/><circle cx="190" cy="40" r="8" fill="#23272d"/>
+    <circle cx="190" cy="16" r="3" fill="#23272d"/><circle cx="30" cy="46" r="3" fill="#23272d"/>
+    <rect x="30" y="56" width="160" height="100" rx="10" fill="#e3e6eb" stroke="#9aa3ae" stroke-width="1.5"/>
+    <text class="p" x="66" y="140" text-anchor="middle">dock</text>
+    <rect x="186" y="80" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="88" text-anchor="end">HDMI</text>
+    <rect x="186" y="104" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="112" text-anchor="end">USB</text>
+    <rect x="186" y="128" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="136" text-anchor="end">LAN</text>
+    <text class="h" x="110" y="180" text-anchor="middle">Console in its dock</text>
+  </g>
+
+  <!-- capture card -->
+  <text class="h" x="415" y="148" text-anchor="middle">USB capture card</text>
+  <rect class="box" x="350" y="160" width="130" height="48" rx="8"/>
+  <rect x="344" y="176" width="6" height="16" rx="1" fill="#2b2f36"/><rect x="480" y="176" width="6" height="16" rx="1" fill="#2b2f36"/>
+  <text class="s" x="415" y="189" text-anchor="middle">UVC · 1080p60</text>
+  <text class="s" x="415" y="230" text-anchor="middle">video and audio</text>
+  <path class="c hdmi" d="M226 184 H340" marker-end="url(#ab)"/>
+  <text class="s lh" x="286" y="175" text-anchor="middle">HDMI</text>
+  <path class="c usb" d="M486 184 H622" marker-end="url(#ag)"/>
+  <text class="s lu" x="555" y="175" text-anchor="middle">USB</text>
+
+  <!-- computer -->
+  <rect x="630" y="100" width="230" height="140" rx="8" fill="#fff" stroke="#2b2f36" stroke-width="3"/>
+  <text class="h" x="745" y="130" text-anchor="middle">NS2Bench</text>
+  <text class="m" x="745" y="152" text-anchor="middle">Input: View only</text>
+  <rect x="680" y="170" width="130" height="22" rx="11" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="745" y="185" text-anchor="middle" style="font-size:11px;fill:#14532d;font-weight:600">video 1080p60</text>
+  <rect x="680" y="200" width="130" height="22" rx="11" fill="#eef0f3" stroke="#9aa3ae"/>
+  <text x="745" y="215" text-anchor="middle" style="font-size:11px;fill:#4a5260;font-weight:600">Bridge not configured</text>
+  <path d="M610 240 H880 L868 256 H622 Z" fill="#d5dae1" stroke="#2b2f36" stroke-width="2" stroke-linejoin="round"/>
+  <text class="h" x="745" y="278" text-anchor="middle">Your computer</text>
+
+  <!-- what you can do -->
+  <g transform="translate(32,306)">
+    <rect class="box" x="0" y="0" width="200" height="56" rx="10"/>
+    <circle cx="26" cy="28" r="12" fill="#dbeafe"/><circle cx="26" cy="28" r="5" fill="#2563eb"/>
+    <text class="h" x="46" y="25">Watch live</text><text class="s" x="46" y="42">in the browser or app</text>
+    <rect class="box" x="212" y="0" width="200" height="56" rx="10"/>
+    <circle cx="238" cy="28" r="12" fill="#fee2e2"/><circle cx="238" cy="28" r="6" fill="#dc2626"/>
+    <text class="h" x="258" y="25">Record</text><text class="s" x="258" y="42">video clips</text>
+    <rect class="box" x="424" y="0" width="200" height="56" rx="10"/>
+    <rect x="438" y="18" width="24" height="20" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/><circle cx="450" cy="28" r="4" fill="#16a34a"/>
+    <text class="h" x="472" y="25">Screenshots</text><text class="s" x="472" y="42">full resolution</text>
+    <rect class="box" x="636" y="0" width="200" height="56" rx="10"/>
+    <rect x="650" y="16" width="24" height="24" rx="4" fill="#ede9fe"/><text x="662" y="33" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#6d28d9">Aa</text>
+    <text class="h" x="684" y="25">Read text (OCR)</text><text class="s" x="684" y="42">for agents and logs</text>
+  </g>
+
+  <!-- legend -->
+  <g transform="translate(32,394)">
+    <line x1="0" y1="0" x2="26" y2="0" class="c hdmi"/><text class="s" x="34" y="4">HDMI</text>
+    <line x1="90" y1="0" x2="116" y2="0" class="c usb"/><text class="s" x="124" y="4">USB</text>
+  </g>
+</svg>

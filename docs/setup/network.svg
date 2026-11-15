@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900" role="img" aria-labelledby="title desc">
+  <title id="title">Optional offline console network</title>
+  <desc id="desc">Three ways to give the console a local network with no internet. A: a direct Ethernet cable to a dedicated adapter on a macOS or Linux computer running ns2bench-netd, which hands out 192.168.80.10 to 13 and answers only the connectivity test. B: an isolated router, VLAN or Wi-Fi with internet blocked; the router does DHCP. C: for a Windows host, netd runs on a Linux board or PC that owns the console's Ethernet, and Windows controls it over a private management link.</desc>
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#111214}
+    .ti{font-size:22px;font-weight:700}
+    .h{font-size:14px;font-weight:600}
+    .s{font-size:12px;fill:#4a5260}
+    .p{font-size:10px;fill:#4a5260}
+    .m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+    .c{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+    .usb{stroke:#16a34a}.lan{stroke:#8b5cf6}.mgmt{stroke:#8b5cf6;stroke-dasharray:10 6}.no{stroke:#94a3b8;stroke-width:2.5;stroke-dasharray:4 5}
+    .ll{fill:#6d28d9;font-weight:600}.lu{fill:#15803d;font-weight:600}
+    .panel{fill:#fff;stroke:#dfe3e8;stroke-width:1.5}
+    .tag{font-size:13px;font-weight:700;fill:#fff}
+  </style>
+  <defs>
+    <g id="dock">
+      <rect x="10" y="0" width="200" height="92" rx="16" fill="#3a4049"/>
+      <rect x="50" y="0" width="120" height="92" fill="#23272d"/>
+      <rect x="58" y="8" width="104" height="44" rx="3" fill="#cfe0f5"/>
+      <circle cx="30" cy="26" r="8" fill="#23272d"/><circle cx="190" cy="40" r="8" fill="#23272d"/>
+      <circle cx="190" cy="16" r="3" fill="#23272d"/><circle cx="30" cy="46" r="3" fill="#23272d"/>
+      <rect x="30" y="56" width="160" height="100" rx="10" fill="#e3e6eb" stroke="#9aa3ae" stroke-width="1.5"/>
+      <rect x="186" y="80" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="88" text-anchor="end">HDMI</text>
+      <rect x="186" y="104" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="112" text-anchor="end">USB</text>
+      <rect x="186" y="128" width="10" height="8" rx="1.5" fill="#2b2f36"/><text class="p" x="180" y="136" text-anchor="end">LAN</text>
+    </g>
+    <g id="noweb">
+      <circle r="14" fill="#fff" stroke="#64748b" stroke-width="2"/>
+      <ellipse rx="6" ry="14" fill="none" stroke="#64748b" stroke-width="1.5"/>
+      <line x1="-14" y1="0" x2="14" y2="0" stroke="#64748b" stroke-width="1.5"/>
+      <line x1="-16" y1="16" x2="16" y2="-16" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="3.5" markerHeight="3.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#16a34a"/></marker>
+  </defs>
+
+  <rect width="900" height="900" rx="16" fill="#f6f7f9"/>
+  <text class="ti" x="32" y="48">Optional: an offline console network</text>
+  <text class="s" x="32" y="70">Only needed for local network tools. Capture and USB input work without it. NS2Bench never gives the console internet:</text>
+  <text class="s" x="32" y="86">no forwarding, no NAT, no sharing, no upstream DNS.</text>
+
+  <!-- ===== A: direct ===== -->
+  <rect class="panel" x="20" y="100" width="860" height="236" rx="12"/>
+  <rect x="36" y="114" width="26" height="22" rx="6" fill="#8b5cf6"/><text class="tag" x="49" y="130" text-anchor="middle">A</text>
+  <text class="h" x="72" y="130">Direct cable to a macOS or Linux computer</text>
+  <use href="#dock" transform="translate(40,150) scale(0.8)"/>
+  <text class="h" x="128" y="294" text-anchor="middle">Console</text>
+  <path class="c lan" d="M200 256 H430"/>
+  <text class="s ll" x="315" y="246" text-anchor="middle">Ethernet</text>
+  <text class="p" x="315" y="274" text-anchor="middle">dock LAN port or USB-Ethernet adapter</text>
+  <rect x="436" y="238" width="80" height="36" rx="6" fill="#e3e6eb" stroke="#6b7480" stroke-width="1.5"/>
+  <rect x="446" y="248" width="20" height="16" rx="2" fill="#2b2f36"/><rect x="451" y="264" width="10" height="4" fill="#2b2f36"/>
+  <text class="s" x="476" y="294" text-anchor="middle">dedicated Ethernet</text>
+  <text class="s" x="476" y="310" text-anchor="middle">adapter</text>
+  <path class="c usb" d="M516 256 H594" marker-end="url(#ag)"/>
+  <rect x="600" y="150" width="200" height="120" rx="8" fill="#fff" stroke="#2b2f36" stroke-width="3"/>
+  <text class="m" x="700" y="174" text-anchor="middle">ns2bench-netd</text>
+  <text class="s" x="700" y="196" text-anchor="middle">this side: 192.168.80.1</text>
+  <text class="s" x="700" y="214" text-anchor="middle">DHCP 192.168.80.10–13</text>
+  <text class="s" x="700" y="232" text-anchor="middle">DNS: connectivity test only</text>
+  <text class="s" x="700" y="250" text-anchor="middle">no forwarding · no NAT</text>
+  <path d="M584 270 H816 L806 284 H594 Z" fill="#d5dae1" stroke="#2b2f36" stroke-width="2" stroke-linejoin="round"/>
+  <text class="h" x="700" y="306" text-anchor="middle">macOS / Linux computer</text>
+  <path class="no" d="M804 210 H826"/>
+  <use href="#noweb" transform="translate(846,210)"/>
+  <text class="p" x="846" y="242" text-anchor="middle">internet</text>
+  <text class="p" x="846" y="254" text-anchor="middle">blocked</text>
+
+  <!-- ===== B: router ===== -->
+  <rect class="panel" x="20" y="350" width="860" height="236" rx="12"/>
+  <rect x="36" y="364" width="26" height="22" rx="6" fill="#8b5cf6"/><text class="tag" x="49" y="380" text-anchor="middle">B</text>
+  <text class="h" x="72" y="380">Isolated router, VLAN or Wi-Fi (any computer OS)</text>
+  <use href="#dock" transform="translate(40,400) scale(0.8)"/>
+  <text class="h" x="128" y="544" text-anchor="middle">Console</text>
+  <path class="c lan" d="M200 506 H420"/>
+  <text class="s ll" x="310" y="496" text-anchor="middle">Ethernet or Wi-Fi</text>
+  <line x1="446" y1="478" x2="440" y2="452" stroke="#2b2f36" stroke-width="3" stroke-linecap="round"/>
+  <line x1="526" y1="478" x2="532" y2="452" stroke="#2b2f36" stroke-width="3" stroke-linecap="round"/>
+  <rect x="426" y="476" width="120" height="52" rx="8" fill="#e3e6eb" stroke="#6b7480" stroke-width="1.5"/>
+  <circle cx="446" cy="512" r="3" fill="#16a34a"/><circle cx="458" cy="512" r="3" fill="#16a34a"/><circle cx="470" cy="512" r="3" fill="#9aa3ae"/>
+  <rect x="496" y="506" width="12" height="12" rx="1.5" fill="#2b2f36"/><rect x="514" y="506" width="12" height="12" rx="1.5" fill="#2b2f36"/>
+  <text class="h" x="486" y="550" text-anchor="middle">Isolated router</text>
+  <text class="s" x="486" y="567" text-anchor="middle">the router does DHCP</text>
+  <path class="no" d="M486 476 V432"/>
+  <use href="#noweb" transform="translate(486,414)"/>
+  <text class="s" x="508" y="418">internet blocked, including IPv6</text>
+  <path class="c lan" d="M546 506 H674"/>
+  <text class="s ll" x="610" y="496" text-anchor="middle">optional</text>
+  <rect x="680" y="440" width="180" height="100" rx="8" fill="#fff" stroke="#2b2f36" stroke-width="3"/>
+  <text class="h" x="770" y="464" text-anchor="middle">NS2Bench</text>
+  <text class="s" x="770" y="484" text-anchor="middle">Settings → Network</text>
+  <text class="s" x="770" y="502" text-anchor="middle">Isolated router / VLAN / Wi-Fi</text>
+  <text class="s" x="770" y="520" text-anchor="middle">local DHCP + DNS turned off</text>
+  <path d="M664 540 H876 L866 554 H674 Z" fill="#d5dae1" stroke="#2b2f36" stroke-width="2" stroke-linejoin="round"/>
+  <text class="h" x="770" y="574" text-anchor="middle">Computer</text>
+
+  <!-- ===== C: Windows + remote helper ===== -->
+  <rect class="panel" x="20" y="600" width="860" height="250" rx="12"/>
+  <rect x="36" y="614" width="26" height="22" rx="6" fill="#8b5cf6"/><text class="tag" x="49" y="630" text-anchor="middle">C</text>
+  <text class="h" x="72" y="630">Windows computer with a remote Linux helper</text>
+  <use href="#dock" transform="translate(40,654) scale(0.8)"/>
+  <text class="h" x="128" y="798" text-anchor="middle">Console</text>
+  <path class="c lan" d="M200 760 H380"/>
+  <text class="s ll" x="290" y="750" text-anchor="middle">Ethernet</text>
+  <rect x="386" y="730" width="120" height="60" rx="6" fill="#1f7a4d"/>
+  <rect x="380" y="748" width="14" height="24" rx="2" fill="#c0c6ce" stroke="#6b7480"/>
+  <rect x="430" y="742" width="36" height="36" rx="2" fill="#15171a"/>
+  <rect x="498" y="748" width="14" height="24" rx="2" fill="#c0c6ce" stroke="#6b7480"/>
+  <text class="h" x="446" y="810" text-anchor="middle">Linux helper</text>
+  <text class="s" x="446" y="826" text-anchor="middle">board or PC · runs ns2bench-netd</text>
+  <text class="s" x="446" y="842" text-anchor="middle">owns the console's Ethernet</text>
+  <path class="no" d="M446 730 V684"/>
+  <use href="#noweb" transform="translate(446,666)"/>
+  <text class="s" x="468" y="670">internet blocked</text>
+  <path class="c mgmt" d="M512 760 H674"/>
+  <text class="s ll" x="593" y="740" text-anchor="middle">private link</text>
+  <text class="m" x="593" y="782" style="font-size:11px" text-anchor="middle">192.168.79.1:7632</text>
+  <text class="p" x="593" y="796" text-anchor="middle">token required</text>
+  <rect x="680" y="694" width="180" height="100" rx="8" fill="#fff" stroke="#2b2f36" stroke-width="3"/>
+  <text class="h" x="770" y="718" text-anchor="middle">NS2Bench</text>
+  <text class="m" x="770" y="740" text-anchor="middle">network.helper</text>
+  <text class="m" x="770" y="758" style="font-size:10px" text-anchor="middle">http://192.168.79.1:7632</text>
+  <text class="s" x="770" y="778" text-anchor="middle">Network tab works remotely</text>
+  <path d="M664 794 H876 L866 808 H674 Z" fill="#d5dae1" stroke="#2b2f36" stroke-width="2" stroke-linejoin="round"/>
+  <text class="h" x="770" y="828" text-anchor="middle">Windows computer</text>
+
+  <!-- legend -->
+  <g transform="translate(32,876)">
+    <line x1="0" y1="0" x2="26" y2="0" class="c lan"/><text class="s" x="34" y="4">Ethernet / LAN</text>
+    <line x1="150" y1="0" x2="176" y2="0" class="c mgmt"/><text class="s" x="184" y="4">management link (private)</text>
+    <line x1="370" y1="0" x2="396" y2="0" class="c usb"/><text class="s" x="404" y="4">USB</text>
+    <line x1="460" y1="0" x2="486" y2="0" class="no"/><text class="s" x="494" y="4">no route to the internet</text>
+  </g>
+</svg>

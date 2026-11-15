@@ -1,0 +1,14 @@
+[package]
+name = "ns2bench-board"
+description = "NS2Bench NS2Bench Bridge daemon for Linux USB-gadget boards: network -> USB gamepad/keyboard/mouse, Switch 2 Pro Controller over FunctionFS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ns2bench-board"
+path = "src/main.rs"
+
+[dependencies]
+libc = "0.2"
+serde_json.workspace = true

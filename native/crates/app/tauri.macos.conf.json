@@ -1,0 +1,12 @@
+{
+  "build": {
+    "beforeBuildCommand": "sh -c 'd=$PWD; while [ ! -f \"$d/scripts/build-capture.sh\" ] && [ \"$d\" != / ]; do d=$(dirname \"$d\"); done; exec sh \"$d/scripts/build-capture.sh\"'"
+  },
+  "bundle": {
+    "macOS": {
+      "files": {
+        "MacOS/ns2capture": "../../../capture/build/ns2capture"
+      }
+    }
+  }
+}

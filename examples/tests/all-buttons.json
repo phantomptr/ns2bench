@@ -1,0 +1,173 @@
+{
+ "name": "Every button on the console test screen",
+ "steps": [
+  {
+   "note": "Works in both controller modes; GL/GR only show in Pro mode, so they are not asserted."
+  },
+  {
+   "navigate": "test_buttons"
+  },
+  {
+   "press": [
+    "A"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "B"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "X"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "Y"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "L"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "R"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "ZL"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "ZR"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "screenshot": "face-and-shoulders"
+  },
+  {
+   "press": [
+    "MINUS"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "PLUS"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "LSTICK"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "RSTICK"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "UP"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "DOWN"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "LEFT"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "press": [
+    "RIGHT"
+   ],
+   "hold_ms": 120
+  },
+  {
+   "wait_ms": 300
+  },
+  {
+   "screenshot": "system-and-dpad"
+  },
+  {
+   "press": [
+    "B"
+   ],
+   "hold_ms": 2500
+  },
+  {
+   "expect_text": "Test Controller Buttons"
+  },
+  {
+   "navigate": "home"
+  }
+ ]
+}

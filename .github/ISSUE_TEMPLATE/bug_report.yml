@@ -1,0 +1,45 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. In the app, **Bundle** (top bar) saves a bug-report zip with logs and status; please attach it. It contains no tokens.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where?
+      options: [Video / capture, Sound, Input / Bridge, Console network, Tests / OCR / navigation, API / MCP, Desktop app / updates, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Input device
+      options: [Linux USB-gadget board, Raspberry Pi Pico, CH9329, View only, Not relevant]
+  - type: input
+    id: versions
+    attributes:
+      label: NS2Bench version and OS
+      placeholder: "0.0.1, macOS 15.2 (Apple silicon)"
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Capture card and board
+      placeholder: "UGREEN 15389, Luckfox Pico Max"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or diagnostics
+      description: Settings-free paste from **Diagnostics** (top bar). Remove anything private.
+      render: markdown

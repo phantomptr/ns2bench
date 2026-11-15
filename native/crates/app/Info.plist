@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSCameraUsageDescription</key>
+  <string>NS2Bench shows the console's HDMI picture from your capture card.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>NS2Bench plays and records the console's audio from your capture card.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>NS2Bench connects to NS2Bench Bridge on your input device over your local network.</string>
+</dict>
+</plist>

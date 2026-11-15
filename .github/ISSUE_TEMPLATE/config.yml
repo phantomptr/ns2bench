@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://discord.gg/fzK3xddtrM
+    about: Ask on Discord.
+  - name: Setup guide and FAQ
+    url: https://ns2bench.phantomptr.com/faq/
+    about: Most setup questions are answered here.

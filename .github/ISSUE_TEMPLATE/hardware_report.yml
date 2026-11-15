@@ -1,0 +1,23 @@
+name: Hardware report
+description: Tell us which board, capture card or setup worked (or didn't)
+labels: [hardware]
+body:
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options: [Works, Works with problems, Doesn't work]
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "Raspberry Pi Zero 2 W, Pico + CP2102, CH9329 module, capture card model…"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Setup and details
+      description: How it was connected (see the setup guide), OS, what you tested.

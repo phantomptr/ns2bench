@@ -1,0 +1,425 @@
+{
+ "name": "switch2",
+ "notes": "Learned on hardware 2026-11-14 (System Settings list opens on Airplane Mode; HOME bottom row starts at Nintendo Switch Online; LEFT on the first game tile wraps to Show More). HOME on the HOME menu returns to the running software, so routes start with {\"ensure\": \"home\"}. The screen dims after inactivity and the first press only wakes it, so routes start with B (no-op on HOME). DOWN from a game tile lands on the icon below that tile, so routes find icons by their label.",
+ "screens": {
+  "home": {
+   "re": [
+    "\\b\\d{1,2}:\\d{2}\\s*[ap]\\.?m"
+   ],
+   "any": [
+    "Close Software",
+    "Change User",
+    "Show More"
+   ]
+  },
+  "system_settings": {
+   "any": [
+    "System Settings"
+   ]
+  },
+  "controllers": {
+   "all": [
+    "Change Grip/Order",
+    "Search for Controllers"
+   ]
+  },
+  "test_input_devices": {
+   "all": [
+    "Test Controller Buttons",
+    "Test Touch Screen"
+   ]
+  },
+  "test_buttons": {
+   "any": [
+    "The symbols for any buttons you press"
+   ]
+  },
+  "calibrate_sticks": {
+   "any": [
+    "Tilt the control stick"
+   ]
+  },
+  "loader": {
+   "any": [
+    "Awaiting payload at",
+    "Executing payload"
+   ]
+  },
+  "no_signal": {
+   "any": [
+    "No Signal"
+   ]
+  }
+ },
+ "routes": {
+  "home": {
+   "steps": [
+    {
+     "ensure": "home"
+    }
+   ],
+   "expect": "home"
+  },
+  "controllers": {
+   "steps": [
+    {
+     "ensure": "home"
+    },
+    {
+     "press": [
+      "B"
+     ]
+    },
+    {
+     "wait_ms": 400
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 500
+    },
+    {
+     "select": "Controllers",
+     "region": [
+      0,
+      0.75,
+      1,
+      0.2
+     ],
+     "move": "RIGHT",
+     "max": 12
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 1500
+    }
+   ],
+   "expect": "controllers"
+  },
+  "system_settings": {
+   "steps": [
+    {
+     "ensure": "home"
+    },
+    {
+     "press": [
+      "B"
+     ]
+    },
+    {
+     "wait_ms": 400
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 500
+    },
+    {
+     "select": "System Settings",
+     "region": [
+      0,
+      0.75,
+      1,
+      0.2
+     ],
+     "move": "RIGHT",
+     "max": 12
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 1500
+    }
+   ],
+   "expect": "system_settings"
+  },
+  "test_buttons": {
+   "steps": [
+    {
+     "ensure": "home"
+    },
+    {
+     "press": [
+      "B"
+     ]
+    },
+    {
+     "wait_ms": 400
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 500
+    },
+    {
+     "select": "System Settings",
+     "region": [
+      0,
+      0.75,
+      1,
+      0.2
+     ],
+     "move": "RIGHT",
+     "max": 12
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 1500
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 600
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 200
+    },
+    {
+     "wait_ms": 300
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 1500
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 1500
+    }
+   ],
+   "expect": "test_buttons",
+   "note": "Holding any button for ~2 s ends the test; B goes back."
+  },
+  "gamechat": {
+   "steps": [
+    {
+     "ensure": "home"
+    },
+    {
+     "press": [
+      "B"
+     ]
+    },
+    {
+     "wait_ms": 400
+    },
+    {
+     "press": [
+      "DOWN"
+     ]
+    },
+    {
+     "wait_ms": 500
+    },
+    {
+     "select": "GameChat",
+     "region": [
+      0,
+      0.75,
+      1,
+      0.2
+     ],
+     "move": "RIGHT",
+     "max": 12
+    },
+    {
+     "press": [
+      "A"
+     ]
+    },
+    {
+     "wait_ms": 1500
+    }
+   ],
+   "expect": null,
+   "note": "Stands in for the C button, which the emulated USB controller does not have."
+  }
+ }
+}

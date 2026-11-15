@@ -1,0 +1,261 @@
+# Builds every installer and binary for a tag and publishes the GitHub release.
+# Started by release-tag.yml (workflow_dispatch at the tag), or by pushing a vX.Y.Z tag.
+# Release notes come from CHANGELOG.md's "## X.Y.Z" section; latest.json (the desktop
+# updater's manifest, with SHA-256 per installer) and SHA256SUMS are generated here.
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish, vX.Y.Z"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as a pre-release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  actions: write
+
+concurrency:
+  group: publish-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { ref: "${{ env.TAG }}" }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: 22 }
+      - name: Tag matches VERSION, files agree, notes exist
+        id: v
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          [ "$(cat VERSION)" = "$version" ] || { echo "::error::$TAG does not match VERSION $(cat VERSION)"; exit 1; }
+          node scripts/update-version.mjs --check
+          node scripts/i18n.mjs --check
+          node scripts/changelog.mjs notes "$version" > /dev/null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  app:
+    needs: check
+    name: app (${{ matrix.platform }}-${{ matrix.arch }})
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, platform: mac, arch: arm64, target: aarch64-apple-darwin, bundles: "app,dmg" }
+          - { os: macos-15, platform: mac, arch: x64, target: x86_64-apple-darwin, bundles: "app,dmg" }
+          - { os: ubuntu-22.04, platform: linux, arch: x64, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb" }
+          - { os: ubuntu-22.04-arm, platform: linux, arch: arm64, target: aarch64-unknown-linux-gnu, bundles: "appimage,deb" }
+          - { os: windows-2022, platform: win, arch: x64, target: x86_64-pc-windows-msvc, bundles: "nsis" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { ref: "${{ env.TAG }}" }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: 22 }
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: app-${{ matrix.target }}-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: app-${{ matrix.target }}-
+      - name: Linux webview packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf file
+      - name: Build the desktop app
+        shell: bash
+        working-directory: native/crates/app
+        env:
+          # AppImage tooling runs without FUSE on CI runners.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          NO_STRIP: "true"
+        run: |
+          set -euo pipefail
+          for try in 1 2; do
+            if npx --yes @tauri-apps/cli@2.12.4 build --ci --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"; then exit 0; fi
+            echo "::warning::tauri build failed (try $try of 2)"
+          done
+          exit 1
+      - name: Collect installers
+        shell: bash
+        env:
+          V: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          b="native/target/${{ matrix.target }}/release/bundle"
+          mkdir -p out
+          n="NS2Bench-$V-${{ matrix.platform }}-${{ matrix.arch }}"
+          case "${{ matrix.platform }}" in
+            mac)
+              cp "$(find "$b/dmg" -name '*.dmg' | head -n1)" "out/$n.dmg"
+              # the updater mounts the image unattended: no licence prompt allowed
+              if hdiutil imageinfo "out/$n.dmg" | grep -q "Software License Agreement: true"; then
+                echo "::error::the .dmg has a licence agreement"; exit 1
+              fi ;;
+            linux)
+              cp "$(find "$b/appimage" -name '*.AppImage' | head -n1)" "out/$n.AppImage"
+              cp "$(find "$b/deb" -name '*.deb' | head -n1)" "out/$n.deb" ;;
+            win)
+              cp "$(find "$b/nsis" -name '*-setup.exe' | head -n1)" "out/$n-setup.exe" ;;
+          esac
+          ls -la out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: app-${{ matrix.platform }}-${{ matrix.arch }}
+          path: out/*
+          if-no-files-found: error
+
+  cli:
+    needs: check
+    name: CLI + netd (${{ matrix.os_name }}-${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-15, os_name: macos, arch: arm64, target: aarch64-apple-darwin }
+          - { os: macos-15, os_name: macos, arch: x64, target: x86_64-apple-darwin }
+          - { os: ubuntu-22.04, os_name: linux, arch: x64, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-22.04-arm, os_name: linux, arch: arm64, target: aarch64-unknown-linux-gnu }
+          - { os: windows-2022, os_name: windows, arch: x64, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { ref: "${{ env.TAG }}" }
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with: { targets: "${{ matrix.target }}" }
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: cli-${{ matrix.target }}-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: cli-${{ matrix.target }}-
+      - name: Build
+        shell: bash
+        working-directory: native
+        run: |
+          cargo build --locked --release --target ${{ matrix.target }} -p ns2bench
+          if [ "$RUNNER_OS" != Windows ]; then cargo build --locked --release --target ${{ matrix.target }} -p ns2bench-netd; fi
+      - name: Collect
+        shell: bash
+        env:
+          V: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          r="native/target/${{ matrix.target }}/release"
+          s="$V-${{ matrix.os_name }}-${{ matrix.arch }}"
+          if [ -f "$r/ns2bench.exe" ]; then cp "$r/ns2bench.exe" "out/ns2bench-cli-$s.exe"; else cp "$r/ns2bench" "out/ns2bench-cli-$s"; fi
+          if [ -f "$r/ns2bench-netd" ]; then cp "$r/ns2bench-netd" "out/ns2bench-netd-$s"; fi
+          ls -la out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cli-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: out/*
+          if-no-files-found: error
+
+  board:
+    needs: check
+    name: Bridge daemon + Pico firmware
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { ref: "${{ env.TAG }}" }
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with: { targets: "armv7-unknown-linux-musleabihf,aarch64-unknown-linux-musl,thumbv6m-none-eabi" }
+      - name: Build
+        env:
+          V: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          make board
+          make board BOARD_TARGET=aarch64-unknown-linux-musl
+          make pico
+          mkdir -p out
+          cp native/target/armv7-unknown-linux-musleabihf/release/ns2bench-board "out/ns2bench-board-$V-linux-armv7"
+          cp native/target/aarch64-unknown-linux-musl/release/ns2bench-board "out/ns2bench-board-$V-linux-arm64"
+          cp firmware/pico/ns2bench-pico.uf2 "out/ns2bench-pico-$V.uf2"
+          tar czf "out/ns2bench-board-scripts-$V.tar.gz" board
+          ls -la out
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: board
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    needs: [check, app, cli, board]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { ref: "${{ env.TAG }}" }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: 22 }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with: { path: artifacts }
+      - name: Assets, notes, manifest and checksums
+        env:
+          V: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f -exec cp -v {} release/ \;
+          cp LICENSE release/LICENSE
+          for name in "NS2Bench-$V-mac-arm64.dmg" "NS2Bench-$V-mac-x64.dmg" "NS2Bench-$V-win-x64-setup.exe" \
+                      "NS2Bench-$V-linux-x64.AppImage" "NS2Bench-$V-linux-arm64.AppImage" \
+                      "NS2Bench-$V-linux-x64.deb" "NS2Bench-$V-linux-arm64.deb" \
+                      "ns2bench-board-$V-linux-armv7" "ns2bench-board-$V-linux-arm64" "ns2bench-pico-$V.uf2"; do
+            [ -s "release/$name" ] || { echo "::error::missing $name"; exit 1; }
+          done
+          node scripts/changelog.mjs notes "$V" > RELEASE_NOTES.md
+          {
+            echo
+            echo "---"
+            echo
+            echo "**Downloads:** macOS \`.dmg\` (Apple silicon: \`mac-arm64\`, Intel: \`mac-x64\`), Windows \`-setup.exe\`, Linux \`.AppImage\` or \`.deb\`."
+            echo "Input devices: \`ns2bench-board-*\` for Linux USB-gadget boards, \`ns2bench-pico-*.uf2\` for a Raspberry Pi Pico."
+            echo "Setup guide: https://ns2bench.phantomptr.com/setup/ · FAQ: https://ns2bench.phantomptr.com/faq/"
+          } >> RELEASE_NOTES.md
+          RELEASE_NOTES_TEXT="$(node scripts/changelog.mjs notes "$V")" node scripts/release-manifest.mjs release "$TAG"
+          (cd release && sha256sum -- * > SHA256SUMS)
+          ls -la release
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: "release/*"
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        with:
+          tag_name: ${{ env.TAG }}
+          name: NS2Bench ${{ env.TAG }}
+          body_path: RELEASE_NOTES.md
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          make_latest: ${{ github.event.inputs.prerelease != 'true' }}
+          files: release/*
+          fail_on_unmatched_files: true
+      - name: Refresh the website's download links
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main || echo "::warning::could not dispatch pages"
