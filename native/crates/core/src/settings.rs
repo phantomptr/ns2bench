@@ -77,7 +77,7 @@ pub fn serial_device(s: &str) -> bool {
             && rest.chars().all(|c| c.is_ascii_alphanumeric() || "._-/".contains(c))
     });
     let com = s.trim_start_matches(r"\\.\");
-    let windows = com.len() > 3 && com[..3].eq_ignore_ascii_case("COM") && com[3..].chars().all(|c| c.is_ascii_digit());
+    let windows = com.len() > 3 && com.is_ascii() && com[..3].eq_ignore_ascii_case("COM") && com[3..].chars().all(|c| c.is_ascii_digit());
     unix || windows
 }
 
@@ -111,6 +111,15 @@ pub async fn set_input(State(b): State<S>, h: axum::http::HeaderMap, Json(v): Js
     let mut v = v;
     if let Some(o) = v.as_object_mut() { o.remove("source"); }
     validate_input(&v)?;
+    // The Bridge token is sent to the configured host: only the person at the page may point
+    // it somewhere new, or an agent could have it sent to a listener of its own.
+    if !v["token_file"].is_null() && !crate::server::from_browser(&h) {
+        let cur = b.input_cfg.lock().unwrap().clone();
+        if ["backend", "host", "port", "serial_port", "token_file"].iter().any(|k| v[*k] != cur[*k]) {
+            return Err(crate::server::ApiError(axum::http::StatusCode::FORBIDDEN,
+                "only the person at the NS2Bench page can change the Bridge address or its token file (Settings → Input)".into()));
+        }
+    }
     let _lock = b.settings_lock.lock().await;
     let _agent = b.hub.configuration_guard()?;
     // Persist before touching the working connection; a write failure keeps it running.

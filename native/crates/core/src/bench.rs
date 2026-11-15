@@ -39,7 +39,7 @@ impl Bench {
         let hub = InputHub::new(backend, logs.clone());
         let calibration: Value = std::fs::read_to_string(state_dir().join("calibration.json")).ok()
             .and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(json!({}));
-        hub.min_press_ms.store(calibration["min_press_ms"].as_u64().unwrap_or(crate::calib::DEFAULT_MIN_PRESS_MS), std::sync::atomic::Ordering::Relaxed);
+        hub.min_press_ms.store(crate::calib::clamp_min_press(calibration["min_press_ms"].as_u64().unwrap_or(crate::calib::DEFAULT_MIN_PRESS_MS)), std::sync::atomic::Ordering::Relaxed);
         let screen_log = cfg.raw["ocr"]["screen_log"].as_bool().unwrap_or(false);
         let bench = Arc::new(Bench {
             input_cfg: Mutex::new(cfg.input.clone()), settings_lock: tokio::sync::Mutex::new(()),
@@ -62,9 +62,12 @@ impl Bench {
     }
 
     pub fn restart_video(self: &Arc<Self>) {
-        if let Some(t) = self.video_task.lock().unwrap().take() { t.abort(); }
-        let t = tokio::spawn(crate::video::supervise(self.video_cfg.clone(), self.frames.clone(), self.logs.clone()));
-        *self.video_task.lock().unwrap() = Some(t);
+        {
+            // One lock across stop and start: two restarts at once must not leave two captures.
+            let mut task = self.video_task.lock().unwrap();
+            if let Some(t) = task.take() { t.abort(); }
+            *task = Some(tokio::spawn(crate::video::supervise(self.video_cfg.clone(), self.frames.clone(), self.logs.clone())));
+        }
         self.ext.audio.restart();
     }
 

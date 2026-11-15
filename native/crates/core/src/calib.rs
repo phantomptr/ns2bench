@@ -232,7 +232,7 @@ pub async fn calibrate(b: &Bench, forward: &[String], back: &[String], holds: &[
     let out = json!({
         "measured_at": chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
         "shortest_reliable_press_ms": shortest,
-        "min_press_ms": shortest.map_or(DEFAULT_MIN_PRESS_MS, |s| ((s as f64 * 1.5).round() as u64).max(40)),
+        "min_press_ms": shortest.map_or(DEFAULT_MIN_PRESS_MS, |s| clamp_min_press((s as f64 * 1.5).round() as u64)),
         "latency_ms_median": median(&mut all),
         "latency_ms_p90": p90,
         "sweep": sweep,
@@ -279,4 +279,10 @@ mod frame_tests {
         let (a, b) = (load("NS2_F0"), load("NS2_F1"));
         println!("rust diff {:.3}", super::diff(&a, &b));
     }
+}
+
+/// The minimum press every tap is stretched to: never so short the console misses it, never so
+/// long that a bad calibration run (or an edited file) makes every button feel stuck.
+pub fn clamp_min_press(ms: u64) -> u64 {
+    ms.clamp(40, 300)
 }

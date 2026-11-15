@@ -119,8 +119,11 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
 
   for (const b of all('.key:not(.unavailable)')) {
     const name = b.dataset.b;
+    // No context menu on a button: it would swallow the release and leave the button held.
+    b.addEventListener('contextmenu', (e) => e.preventDefault());
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault(); e.stopPropagation();
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (b.classList.contains('macro') && !leftRoot.closest('.pro')) { macroListener(name); return; }
       b.setPointerCapture(e.pointerId); held.add(name);
     });

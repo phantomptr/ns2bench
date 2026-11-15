@@ -66,7 +66,13 @@ impl FrameHub {
     }
 
     pub fn status(&self) -> Value {
-        let fps = self.times.lock().unwrap().len() as f64 / 2.0;
+        let fps = {
+            // count only the last 2 s, so a stopped capture reads 0 and not its last rate
+            let mut t = self.times.lock().unwrap();
+            let now = Instant::now();
+            while t.front().is_some_and(|x| now.duration_since(*x) > Duration::from_secs(2)) { t.pop_front(); }
+            t.len() as f64 / 2.0
+        };
         let f = self.latest();
         json!({
             "source": *self.source.lock().unwrap(), "fps": fps, "frames": f.as_ref().map_or(0, |f| f.seq),

@@ -256,7 +256,15 @@ impl Dev {
                 close(fd);
             }
             Dev::Mouse { fd, .. } => {
-                let _ = write_nb(fd, &[0; 4]);
+                // Like the pad and keyboard: keep trying briefly, or a report still in flight
+                // leaves the console with a mouse button down.
+                let deadline = Instant::now() + Duration::from_millis(200);
+                while Instant::now() < deadline {
+                    match write_nb(fd, &[0; 4]) {
+                        Ok(false) => std::thread::sleep(Duration::from_millis(10)),
+                        _ => break,
+                    }
+                }
                 close(fd);
             }
             Dev::Pro { sock, .. } => {

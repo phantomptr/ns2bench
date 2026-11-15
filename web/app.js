@@ -80,9 +80,11 @@ function fit() {
   // sizing video to the viewport and appending the logs below its bottom.
   const logsReserve = Math.max(stage.clientHeight * 0.32, $('.logs-head').offsetHeight + 110);
   const extras = outerHeight($('#trail')) + outerHeight($('#capture-hint')) + logsReserve + 12;
-  const availH = full ? window.innerHeight : desktop ? stage.clientHeight - extras
+  // Text size zooms the page: the screen's own pixels are the window's divided by that zoom.
+  const zoom = parseFloat(document.documentElement.style.zoom) || 1;
+  const availH = full ? window.innerHeight / zoom : desktop ? stage.clientHeight - extras
     : Math.min(window.innerHeight * 0.55, window.innerHeight - stage.getBoundingClientRect().top - 78);
-  const availW = full ? window.innerWidth : stage.clientWidth;
+  const availW = full ? window.innerWidth / zoom : stage.clientWidth;
   const h = Math.max(1, Math.min(availH, availW / ratio));
   consoleEl.style.setProperty('--h', `${Math.floor(h)}px`);
 }
@@ -104,11 +106,12 @@ showPad.addEventListener('change', applyPad);
 applyPad();
 
 // ------------------------------------------------------------ websocket
-let bridgeStatus = null, bridgeSeen = 0;
+let bridgeStatus = null, bridgeSeen = 0, canDrive = true;
 const inputWarning = $('#input-warning');
 function inputUnavailable() {
   if (ws?.readyState !== WebSocket.OPEN) return 'NS2Bench connection lost. Reconnecting automatically.';
   if (!bridgeStatus || performance.now() - bridgeSeen > 3000) return 'Waiting for NS2Bench Bridge status.';
+  if (!canDrive) return 'This browser tab can watch but not drive: the NS2Bench app is open, use its window.';
   if (!bridgeStatus.connected) return bridgeStatus.backend === 'none'
     ? 'NS2Bench Bridge is not configured. Set up an input device to send controls.'
     : 'NS2Bench Bridge is offline or starting. Check device power and its connection. Reconnecting automatically.';
@@ -133,13 +136,13 @@ function connect() {
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.t === 'pad') { serverPad = m.pad; serverAgent = m.agent ?? [0, 0]; }
-    else if (m.t === 'status') { showStatus(m.status); serverPad = m.status.input.pad; }
+    else if (m.t === 'status') { showStatus(m.status); serverPad = m.status.input.pad; canDrive = m.drive !== false; }
     else if (m.t === 'event') addEvent(m.event);
     else if (m.t === 'log') { addLog(m.entry); fromLog(m.entry); }
     else if (m.t === 'error') addEvent({ source: 'error', action: m.error, t: Date.now() / 1000 });
   };
   ws.onclose = () => { bridgeStatus = null; releaseAll(); setTimeout(connect, 1000); };
-  ws.onopen = () => { lastSent = ''; };
+  ws.onopen = () => { lastSent = ''; if (logsLoaded) loadLogs(); };
 }
 const send = (obj) => {
   const reason = inputUnavailable();
@@ -226,7 +229,11 @@ screenEl.addEventListener('keydown', (e) => {
   if (inputUnavailable()) { warnInput(); return; }
   held.add(e.code);
 });
-screenEl.addEventListener('keyup', (e) => { e.preventDefault(); held.delete(e.code); });
+screenEl.addEventListener('keyup', (e) => {
+  e.preventDefault(); held.delete(e.code);
+  // macOS sends no keyup for a key let go while Command is down: release them with Command.
+  if (e.code === 'MetaLeft' || e.code === 'MetaRight') for (const c of [...held]) if (!/^(Shift|Control|Alt|Meta)/.test(c)) held.delete(c);
+});
 screenEl.addEventListener('blur', () => held.clear());
 window.addEventListener('blur', releaseAll);
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
@@ -379,15 +386,27 @@ $('#usb-mode').addEventListener('change', async (e) => {
   const sel = e.target;
   sel.dataset.busy = '1'; sel.disabled = true;
   $('#usb-note').textContent = t('Switching… the console sees the controller reconnect (about 10 s).');
-  const r = await fetch('/api/control', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usb_mode: sel.value }) });
-  if (!r.ok) $('#usb-note').textContent = await r.text();
+  const idle = () => { delete sel.dataset.busy; sel.disabled = false; syncDriving(); };
+  let refused = '';
+  try {
+    const r = await fetch('/api/control', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usb_mode: sel.value }) });
+    if (!r.ok) refused = await r.text();
+  } catch (err) { refused = String(err.message || err); }
+  // Not switched: say why and give the control back at once.
+  if (refused) { $('#usb-note').textContent = refused; idle(); return; }
   syncDriving();
-  setTimeout(() => { delete sel.dataset.busy; sel.disabled = false; $('#usb-note').textContent = ''; syncDriving(); }, 12000);
+  setTimeout(() => { $('#usb-note').textContent = ''; idle(); }, 12000);
 });
-$('#manual-only').addEventListener('change', (e) =>
-  fetch('/api/control', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ manual_only: e.target.checked }) }));
+$('#manual-only').addEventListener('change', async (e) => {
+  let refused = '';
+  try {
+    const r = await fetch('/api/control', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manual_only: e.target.checked }) });
+    if (!r.ok) refused = await r.text();
+  } catch (err) { refused = String(err.message || err); }
+  if (refused) addEvent({ source: 'error', action: refused, t: Date.now() / 1000 });
+});
 
 $('#btn-shot').addEventListener('click', async () => {
   const r = await fetch('/api/screenshot?format=png');
@@ -414,7 +433,7 @@ async function soundOn() {
   audioWs.onclose = () => {
     if (!audioCtx) return;
     if (++audioFails > 5) { soundOff(); setSoundButton(false); addEvent({ source: 'error', action: t('No sound from the capture card. Turn sound on again to retry.'), t: Date.now() / 1000 }); return; }
-    setTimeout(() => { if (audioCtx) { soundOff(); soundOn().catch(() => {}); } }, 1000 * audioFails);
+    setTimeout(() => { if (audioCtx) { soundOff(); soundOn().catch(() => { soundOff(); setSoundButton(false); }); } }, 1000 * audioFails);
   };
 }
 function soundOff() {
@@ -442,8 +461,15 @@ $('#btn-sound').addEventListener('click', async (e) => {
 $('#btn-clip').addEventListener('click', async (e) => {
   const btn = e.currentTarget, label = btn.querySelector('span');
   label.textContent = 'Saving…';
-  const r = await fetch('/api/clip', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ label: 'manual' }) });
+  let r;
+  try {
+    r = await fetch('/api/clip', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: 'manual' }) });
+  } catch (err) {
+    label.textContent = 'Save clip';
+    addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 });
+    return;
+  }
   if (r.ok) {
     const d = await r.json();
     label.textContent = `${t('Saved')} ${d.seconds} s`;
@@ -583,9 +609,15 @@ let chipTimer = 0;
 function addLog(e) {
   logState.entries.push(e);
   logState.levelCounts[e.level in logState.levelCounts ? e.level : 'info']++;
-  if (logState.entries.length > 5000) logState.entries.splice(0, 1000);
   const fresh = !(e.source in logState.counts);
   logState.counts[e.source] = (logState.counts[e.source] ?? 0) + 1;
+  if (logState.entries.length > 5000) {
+    // dropped lines leave the chip counts too
+    for (const old of logState.entries.splice(0, 1000)) {
+      logState.counts[old.source]--;
+      logState.levelCounts[old.level in logState.levelCounts ? old.level : 'info']--;
+    }
+  }
   if (fresh) renderChips(); else if (!chipTimer) chipTimer = setTimeout(() => { chipTimer = 0; renderChips(); }, 500);
   if ($('#log-pause').checked || !visible(e)) return;
   const stick = logview.scrollHeight - logview.scrollTop - logview.clientHeight < 40;
@@ -626,13 +658,26 @@ $('#log-download').addEventListener('click', () => {
     download: `ns2bench-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.txt` });
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
-fetch('/api/logs?limit=2000&level=debug').then((r) => r.json()).then((d) => {
-  d.entries.forEach((e) => {
-    logState.entries.push(e); logState.counts[e.source] = (logState.counts[e.source] ?? 0) + 1;
-    logState.levelCounts[e.level in logState.levelCounts ? e.level : 'info']++;
-  });
-  renderChips(); renderLogs();
-});
+// History at start, and whatever was logged while the connection was down after a reconnect.
+// Lines are kept in order and once each (the socket may deliver some of the same ones).
+let logsLoaded = false;
+function loadLogs() {
+  const last = logState.entries.reduce((m, e) => Math.max(m, e.seq ?? 0), 0);
+  return fetch(`/api/logs?limit=2000&level=debug${last ? `&after=${last}` : ''}`).then((r) => r.json()).then((d) => {
+    const have = new Set(logState.entries.map((e) => e.seq));
+    logState.entries.push(...d.entries.filter((e) => !have.has(e.seq)));
+    logState.entries.sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+    logState.counts = {};
+    for (const k in logState.levelCounts) logState.levelCounts[k] = 0;
+    for (const e of logState.entries) {
+      logState.counts[e.source] = (logState.counts[e.source] ?? 0) + 1;
+      logState.levelCounts[e.level in logState.levelCounts ? e.level : 'info']++;
+    }
+    logsLoaded = true;
+    renderChips(); renderLogs();
+  }).catch(() => {});
+}
+loadLogs();
 
 fetch('/api/events').then((r) => r.json()).then((evs) => evs.forEach(addEvent));
 connect();

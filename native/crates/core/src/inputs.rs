@@ -361,12 +361,20 @@ pub enum Push {
     Event(Event),
 }
 
+/// Runs its closure when dropped: undoes a timed press even if the future holding it is cancelled.
+struct OnDrop<F: FnMut()>(F);
+impl<F: FnMut()> Drop for OnDrop<F> {
+    fn drop(&mut self) { (self.0)() }
+}
+
 struct HubState {
     ui: Layer,
     agent: Layer,
     last_pad: Pad,
     last_kbd: Kbd,
-    mouse_buttons: u8,
+    /// Mouse buttons held by the person and by agents (sent as their union).
+    ui_mouse: u8,
+    agent_mouse: u8,
     ui_down: HashMap<(char, u32), Instant>,
     ui_want: (u32, u8, Option<[u8; 4]>, u8, Vec<u8>),
     ui_timer: bool,
@@ -389,7 +397,7 @@ impl InputHub {
         Arc::new(InputHub {
             st: Mutex::new(HubState {
                 ui: Layer::default(), agent: Layer::default(), last_pad: NEUTRAL_PAD, last_kbd: NEUTRAL_KBD,
-                mouse_buttons: 0, ui_down: HashMap::new(), ui_want: (0, 0, None, 0, vec![]), ui_timer: false,
+                ui_mouse: 0, agent_mouse: 0, ui_down: HashMap::new(), ui_want: (0, 0, None, 0, vec![]), ui_timer: false,
             }),
             backend,
             manual_only: false.into(),
@@ -499,7 +507,7 @@ impl InputHub {
                 } else { false }
             });
             st.ui_down = down;
-            st.ui_want = (buttons, dpad, sticks, mods, ks.clone());
+            st.ui_want = (buttons, dpad, sticks, mods, keys6.clone());
             st.ui = Layer {
                 buttons: b, dpad: d,
                 sticks: sticks.filter(|s| *s != [CENTER; 4]),
@@ -534,15 +542,19 @@ impl InputHub {
             l.buttons |= mask;
             l.dpad |= dpad;
         }
+        // Released by the guard, also when the caller goes away mid-hold (request cancelled).
+        let release = OnDrop(|| {
+            {
+                let mut st = self.st.lock().unwrap();
+                let l = Self::layer(&mut st, source);
+                l.buttons &= !mask;
+                l.dpad &= !dpad;
+            }
+            let _ = self.flush();
+        });
         let r = self.flush();
         tokio::time::sleep(Duration::from_millis(hold)).await;
-        {
-            let mut st = self.st.lock().unwrap();
-            let l = Self::layer(&mut st, source);
-            l.buttons &= !mask;
-            l.dpad &= !dpad;
-        }
-        self.flush()?;
+        drop(release);
         r
     }
 
@@ -550,8 +562,13 @@ impl InputHub {
         let (mask, dpad) = parse_buttons(names)?;
         self.check_agent(source)?;
         self.log(source, "hold", json!({"buttons": names}));
-        { let mut st = self.st.lock().unwrap(); let l = Self::layer(&mut st, source); l.buttons |= mask; l.dpad |= dpad; }
-        self.flush()
+        let before = { let mut st = self.st.lock().unwrap(); let l = Self::layer(&mut st, source); let b = (l.buttons, l.dpad); l.buttons |= mask; l.dpad |= dpad; b };
+        self.flush().inspect_err(|_| {
+            // Not sent (Bridge offline): don't let it take effect later on reconnect.
+            let mut st = self.st.lock().unwrap();
+            let l = Self::layer(&mut st, source);
+            (l.buttons, l.dpad) = before;
+        })
     }
 
     pub fn release(&self, names: Option<&[String]>, source: &str) -> Result<()> {
@@ -576,36 +593,40 @@ impl InputHub {
             _ => anyhow::bail!("stick must be \"left\" or \"right\", not {which:?}"),
         };
         self.log(source, "stick", json!({"stick": which, "x": x, "y": y, "hold_ms": hold_ms}));
-        {
+        let set = |x: u8, y: u8| {
             let mut st = self.st.lock().unwrap();
             let l = Self::layer(&mut st, source);
-            let mut cur = l.sticks.unwrap_or([CENTER; 4]);
-            cur[i] = axis(x);
-            cur[i + 1] = axis(y);
+            let before = l.sticks;
+            let mut cur = before.unwrap_or([CENTER; 4]);
+            cur[i] = x;
+            cur[i + 1] = y;
             l.sticks = if cur == [CENTER; 4] { None } else { Some(cur) };
+            before
+        };
+        let before = set(axis(x), axis(y));
+        if let Err(e) = self.flush() {
+            // Not sent (Bridge offline): don't let it take effect later on reconnect.
+            let mut st = self.st.lock().unwrap();
+            Self::layer(&mut st, source).sticks = before;
+            return Err(e);
         }
-        self.flush()?;
         if let Some(h) = hold_ms {
+            // Centred by the guard, also when the caller goes away mid-hold.
+            let _center = OnDrop(|| { set(CENTER, CENTER); let _ = self.flush(); });
             tokio::time::sleep(Duration::from_millis(h.clamp(16, MAX_HOLD_MS))).await;
-            {
-                let mut st = self.st.lock().unwrap();
-                let l = Self::layer(&mut st, source);
-                let mut cur = l.sticks.unwrap_or([CENTER; 4]);
-                cur[i] = CENTER;
-                cur[i + 1] = CENTER;
-                l.sticks = if cur == [CENTER; 4] { None } else { Some(cur) };
-            }
-            self.flush()?;
         }
         Ok(())
     }
 
     async fn tap(&self, source: &str, mods: u8, code: u8, hold_ms: u64) -> Result<()> {
         { let mut st = self.st.lock().unwrap(); let l = Self::layer(&mut st, source); l.kbd_mods = mods; l.kbd_keys = vec![code]; }
+        let release = OnDrop(|| {
+            { let mut st = self.st.lock().unwrap(); let l = Self::layer(&mut st, source); l.kbd_mods = 0; l.kbd_keys.clear(); }
+            let _ = self.flush();
+        });
         let r = self.flush();
         tokio::time::sleep(Duration::from_millis(hold_ms.clamp(16, 2000))).await;
-        { let mut st = self.st.lock().unwrap(); let l = Self::layer(&mut st, source); l.kbd_mods = 0; l.kbd_keys.clear(); }
-        self.flush()?;
+        drop(release);
         r
     }
 
@@ -616,7 +637,7 @@ impl InputHub {
         let _g = self.agent_lock.lock().await;
         self.check_agent(source)?;
         self.log(source, "key", json!({"key": name, "modifiers": modifiers}));
-        self.tap(source, mods, code, hold_ms).await
+        self.tap(source, mods, code, hold_ms.max(self.min_press())).await
     }
 
     pub async fn type_text(&self, text: &str, delay_ms: u64, source: &str) -> Result<()> {
@@ -629,7 +650,8 @@ impl InputHub {
         // delay_ms is the time per character: half held, half released (each at least the minimum press)
         let delay_ms = delay_ms.clamp(16, 2000);
         let hold = (delay_ms / 2).max(self.min_press()).min(1000);
-        let gap = delay_ms.saturating_sub(hold).max(16);
+        // released long enough that a doubled letter ("ll") is two presses
+        let gap = delay_ms.saturating_sub(hold).max(40);
         for (m, c) in strokes {
             // Block agents stops typing between keys, not only before the first one.
             self.check_agent(source)?;
@@ -640,33 +662,69 @@ impl InputHub {
     }
 
     pub fn mouse(&self, dx: i32, dy: i32, wheel: i32, buttons: Option<u8>, source: &str) -> Result<()> {
-        if source != "ui" { self.check_agent(source)?; }
+        self.check_agent(source)?;
+        self.mouse_send(dx, dy, wheel, buttons.map(|b| (0x1F, b)), source)
+    }
+
+    /// Send a mouse report. `buttons` is (mask, value): the bits of this source's buttons to change.
+    fn mouse_send(&self, dx: i32, dy: i32, wheel: i32, buttons: Option<(u8, u8)>, source: &str) -> Result<()> {
         if !self.backend.devices().iter().any(|d| d == "mouse") {
             bail!("NS2Bench Bridge has no USB mouse in this mode");
         }
-        let b = { let mut st = self.st.lock().unwrap(); if let Some(b) = buttons { st.mouse_buttons = b & 0x1F; } st.mouse_buttons };
+        let b = {
+            let mut st = self.st.lock().unwrap();
+            let mine = if source == "ui" { &mut st.ui_mouse } else { &mut st.agent_mouse };
+            if let Some((mask, v)) = buttons { *mine = (*mine & !mask) | (v & mask & 0x1F); }
+            st.ui_mouse | st.agent_mouse
+        };
         self.backend.send(Msg::Mouse([b as i32, dx.clamp(-4096, 4096), dy.clamp(-4096, 4096), wheel.clamp(-64, 64)]))
     }
 
     pub async fn click(&self, button: &str, hold_ms: u64, source: &str) -> Result<()> {
         let bit = match button { "left" => 1, "right" => 2, "middle" => 4, _ => bail!("button is left, right or middle") };
         let _g = self.agent_lock.lock().await;
+        self.check_agent(source)?;
         self.log(source, "click", json!({"button": button}));
-        let cur = self.st.lock().unwrap().mouse_buttons;
-        self.mouse(0, 0, 0, Some(cur | bit), source)?;
-        tokio::time::sleep(Duration::from_millis(hold_ms.clamp(16, 2000))).await;
-        let cur = self.st.lock().unwrap().mouse_buttons;
-        self.mouse(0, 0, 0, Some(cur & !bit), source)
+        // Released by the guard (not subject to Block agents), also when the caller goes away mid-hold.
+        let release = OnDrop(|| { let _ = self.mouse_send(0, 0, 0, Some((bit, 0)), source); });
+        let r = self.mouse_send(0, 0, 0, Some((bit, bit)), source);
+        if r.is_ok() {
+            tokio::time::sleep(Duration::from_millis(hold_ms.clamp(self.min_press().min(2000), 2000))).await;
+        }
+        drop(release);
+        r
+    }
+
+    /// Let go of mouse buttons: the person's (`ui`), agents' (`agent`), or both.
+    fn mouse_up(&self, ui: bool, agent: bool) {
+        let (was, now) = {
+            let mut st = self.st.lock().unwrap();
+            let was = st.ui_mouse | st.agent_mouse;
+            if ui { st.ui_mouse = 0; }
+            if agent { st.agent_mouse = 0; }
+            (was, st.ui_mouse | st.agent_mouse)
+        };
+        if was != now {
+            let _ = self.backend.send(Msg::Mouse([now as i32, 0, 0, 0]));
+        }
+    }
+
+    /// The page went away: release what the person was holding.
+    pub fn release_ui(self: &Arc<Self>) {
+        let _ = self.set_ui_state(0, 0, None, 0, vec![]);
+        self.mouse_up(true, false);
     }
 
     pub fn release_all(&self) {
         { let mut st = self.st.lock().unwrap(); st.ui = Layer::default(); st.agent = Layer::default(); st.ui_down.clear(); }
         let _ = self.flush();
+        self.mouse_up(true, true);
     }
 
     pub fn clear_agent(&self) {
         self.st.lock().unwrap().agent = Layer::default();
         let _ = self.flush();
+        self.mouse_up(false, true);
     }
 
     pub fn status(&self) -> Value {
@@ -825,6 +883,56 @@ pub(crate) mod tests {
         tokio::time::timeout(Duration::from_secs(2), async {
             while hub.status()["pad"][0] != 0 { tokio::time::sleep(Duration::from_millis(10)).await; }
         }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn short_key_tap_is_released_after_the_minimum_press() {
+        let (hub, _rx) = fake();
+        hub.min_press_ms.store(60, std::sync::atomic::Ordering::Relaxed);
+        hub.set_ui_state(0, 0, None, 0, vec![4]).unwrap();
+        hub.set_ui_state(0, 0, None, 0, vec![]).unwrap();
+        assert_eq!(hub.status()["kbd"][1], 4);
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while hub.status()["kbd"][1] != 0 { tokio::time::sleep(Duration::from_millis(10)).await; }
+        }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelled_press_and_blocked_click_let_go() {
+        let (hub, mut rx) = fake();
+        hub.backend.status.lock().unwrap().devices = vec!["mouse".into()];
+        // the caller goes away mid-hold (request cancelled)
+        let h = hub.clone();
+        let t = tokio::spawn(async move { h.press(&["A".into()], 5000, "api", false).await });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_ne!(hub.status()["pad"][0], 0);
+        t.abort();
+        let _ = t.await;
+        assert_eq!(hub.status()["pad"][0], 0);
+        // Block agents during a click: the button still comes up, and a held one is released
+        let h = hub.clone();
+        let t = tokio::spawn(async move { h.click("left", 200, "api").await });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        hub.manual_only.store(true, std::sync::atomic::Ordering::Relaxed);
+        t.await.unwrap().unwrap();
+        hub.manual_only.store(false, std::sync::atomic::Ordering::Relaxed);
+        hub.mouse(0, 0, 0, Some(1), "api").unwrap();
+        hub.clear_agent();
+        let mut last = None;
+        while let Ok(m) = rx.try_recv() { if let Msg::Mouse(r) = m { last = Some(r[0]); } }
+        assert_eq!(last, Some(0));
+    }
+
+    #[tokio::test]
+    async fn hold_that_was_not_sent_does_not_apply_on_reconnect() {
+        let (hub, _rx) = fake();
+        hub.backend.status.lock().unwrap().connected = false;
+        assert!(hub.hold(&["A".into()], "api").is_err());
+        assert!(hub.stick("left", 1.0, 0.0, None, "api").await.is_err());
+        hub.backend.status.lock().unwrap().connected = true;
+        hub.resend();
+        assert_eq!(hub.status()["pad"][0], 0);
+        assert_eq!(hub.status()["pad"][2], 128);
     }
 
 }

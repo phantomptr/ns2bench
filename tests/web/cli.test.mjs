@@ -129,3 +129,23 @@ test('agents cannot switch USB mode or video while blocked', async () => {
   const v = await fetch(`${URL}/api/video`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fps: 10 }) });
   assert.equal(v.status, 409);
 });
+
+test('the page still works while agents are blocked, and agents cannot redirect the Bridge token', async () => {
+  const json = { 'Content-Type': 'application/json' };
+  const page = { ...json, Origin: URL, 'X-NS2Bench-Source': 'ui' };
+  // the page's own requests are the person at the bench, not an agent
+  const log = await fetch(`${URL}/api/control`, { method: 'POST', headers: page, body: JSON.stringify({ screen_log: false }) });
+  assert.equal(log.status, 200);
+  // an agent can't turn Block agents off, and nothing else in that request is applied
+  const off = await fetch(`${URL}/api/control`, { method: 'POST', headers: json, body: JSON.stringify({ manual_only: false, screen_log: true }) });
+  assert.equal(off.status, 403);
+  // the page can
+  const on = await fetch(`${URL}/api/control`, { method: 'POST', headers: page, body: JSON.stringify({ manual_only: false }) });
+  assert.equal(on.status, 200);
+  assert.equal((await on.json()).input.manual_only, false);
+  // an agent may not point the Bridge (and so its token) at another host
+  writeFileSync(join(home, '.ns2bench', 'hidd.token'), 'secret-token\n');
+  const move = await fetch(`${URL}/api/input`, { method: 'POST', headers: json,
+    body: JSON.stringify({ backend: 'hidd', host: '127.0.0.1', port: 9, token_file: '~/.ns2bench/hidd.token' }) });
+  assert.equal(move.status, 403);
+});

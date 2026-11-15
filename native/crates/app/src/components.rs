@@ -131,7 +131,10 @@ fn valid_host(h: &str) -> bool {
 /// Run `cmd` on the board with `ssh -o BatchMode=yes` (keys only: the app never handles passwords).
 fn ssh(host: &str, cmd: &str, stdin: Option<&[u8]>) -> Result<String> {
     use std::io::Write;
-    let mut child = Command::new("ssh")
+    let mut ssh = Command::new("ssh");
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut ssh, 0x0800_0000); // CREATE_NO_WINDOW
+    let mut child = ssh
         .args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=3", "--", host, cmd])
         .stdin(if stdin.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
@@ -140,7 +143,14 @@ fn ssh(host: &str, cmd: &str, stdin: Option<&[u8]>) -> Result<String> {
         .context("Could not run ssh. Install an OpenSSH client.")?;
     if let Some(data) = stdin {
         let mut pipe = child.stdin.take().context("ssh stdin")?;
-        pipe.write_all(data)?;
+        // A closed pipe means the far side gave up: its own message (below) says why.
+        if let Err(e) = pipe.write_all(data) {
+            if e.kind() != std::io::ErrorKind::BrokenPipe {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(e.into());
+            }
+        }
     }
     let out = child.wait_with_output()?;
     let text = String::from_utf8_lossy(&out.stdout).to_string();
@@ -189,7 +199,13 @@ async fn board_install(host: String) -> Result<Value> {
         }
         log.push(format!("uploaded ns2bench-board {VERSION} and {} scripts", BOARD_SCRIPTS.len()));
         // An existing board token is never replaced (this computer would lose access).
-        if ssh(&host, "test -s /opt/ns2bench/token", None).is_err() {
+        // Asked so that a dropped connection is an error, never mistaken for "no token".
+        let has_token = match ssh(&host, "if [ -s /opt/ns2bench/token ]; then echo yes; else echo no; fi", None)?.trim() {
+            "yes" => true,
+            "no" => false,
+            other => bail!("Could not tell whether the board already has a token ({other})"),
+        };
+        if !has_token {
             let token = match std::fs::read_to_string(&token_file).ok().filter(|t| !t.trim().is_empty()) {
                 Some(t) => t,
                 None => {

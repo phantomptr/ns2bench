@@ -103,6 +103,8 @@ pub fn tools() -> Vec<Value> {
 enum Out {
     Text(String),
     Image(Vec<u8>, &'static str),
+    /// What happened, then the screen.
+    Both(String, Vec<u8>, &'static str),
 }
 
 struct Mcp {
@@ -226,7 +228,11 @@ impl Mcp {
             "run_test" => {
                 let mut b = json!({"stop_on_fail": a["stop_on_fail"].as_bool().unwrap_or(true), "source": "mcp"});
                 if let Some(p) = a["path"].as_str() {
-                    b["path"] = p.into();
+                    // Read here (this process runs where the agent's files are) and send the test itself.
+                    let full = crate::config::expand(p);
+                    if full.extension().and_then(|e| e.to_str()) != Some("json") { bail!("{p}: a test file is a .json file"); }
+                    let text = std::fs::read_to_string(&full).map_err(|e| anyhow::anyhow!("{p}: {e}"))?;
+                    b["test"] = serde_json::from_str(&text).map_err(|e| anyhow::anyhow!("{p}: {e}"))?;
                 } else {
                     b["test"] = json!({"name": a["name"].as_str().unwrap_or("agent test"), "steps": a.get("steps").cloned().unwrap_or(json!([]))});
                 }
@@ -257,12 +263,15 @@ impl Mcp {
                 let mut b = json!({"until": a["until"].as_str().unwrap_or("change"), "timeout_ms": u("timeout_ms", 5000), "stable_ms": u("stable_ms", 500)});
                 if a["region"].is_array() { b["region"] = a["region"].clone(); }
                 let d = self.json("POST", "/api/wait_screen", Some(b)).await?;
-                if a["screenshot"].as_bool() == Some(true) { return self.grab(1280, false).await; }
-                Out::Text(if d["ok"] == true {
+                let text = if d["ok"] == true {
                     format!("{} after {} ms", if d["until"] == "stable" { "screen is still" } else { "screen changed" }, d["waited_ms"])
                 } else {
                     format!("{} within {} ms", d["message"].as_str().unwrap_or("timed out"), d["waited_ms"])
-                })
+                };
+                if a["screenshot"].as_bool() == Some(true) {
+                    return Ok(match self.grab(1280, false).await? { Out::Image(b, m) => Out::Both(text, b, m), o => o });
+                }
+                Out::Text(text)
             }
             "find_text" => {
                 let regex = a["regex"].as_bool() == Some(true);
@@ -354,6 +363,7 @@ async fn handle(m: &Mcp, msg: &Value) -> Option<Value> {
             Ok(match m.run(name, &args).await {
                 Ok(Out::Text(t)) => json!({"content": [{"type": "text", "text": t}], "isError": false}),
                 Ok(Out::Image(b, mime)) => json!({"content": [{"type": "image", "data": base64::engine::general_purpose::STANDARD.encode(b), "mimeType": mime}], "isError": false}),
+                Ok(Out::Both(t, b, mime)) => json!({"content": [{"type": "text", "text": t}, {"type": "image", "data": base64::engine::general_purpose::STANDARD.encode(b), "mimeType": mime}], "isError": false}),
                 Err(e) => json!({"content": [{"type": "text", "text": e.to_string()}], "isError": true}),
             })
         }

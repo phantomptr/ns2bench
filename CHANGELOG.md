@@ -6,6 +6,25 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- Fixed: with **Block agents** on, the app's own window was refused too. Switching the USB mode, changing video or input settings, saving a clip and the screen-text log now work for the person at the window while agents stay blocked.
+- Fixed inputs that could stay held:
+  - a keyboard key tapped very briefly
+  - a key pressed together with Command on macOS
+  - a mouse button held by an agent when Block agents was turned on, or held when the window closed
+  - an on-screen button that was right-clicked
+- Fixed: a hold or stick move sent while the Bridge was offline no longer takes effect later when it reconnects.
+- Security: an agent can no longer change the Bridge address or token file, which could have sent the Bridge token to another computer. Only the person at the app window can.
+- A browser tab opened next to the desktop app now says it can watch but not drive, instead of silently ignoring input.
+- Fullscreen fits the screen at every Text size.
+- Logs catch up after a reconnect, and the live picture keeps trying to reconnect after the engine restarts.
+- Tests stop when Block agents is turned on, are limited to 500 steps and save one failure clip per run.
+- Windows: installing the command line tool keeps entries like `%USERPROFILE%` in your PATH as they were, and no console windows flash up.
+- Linux: a `.deb` install is told where to get the new `.deb`, instead of downloading an update it can't install. The network helper also refuses to run when any single interface has forwarding on.
+- "Install command line tool" no longer replaces an `ns2bench` that something else put there.
+- A Bridge board install that fails to start puts the previous version back.
+- MCP: `run_test` with a file path works, and `wait_for_screen` with a screenshot also says whether the screen changed.
+- The website's download buttons always point at the latest published release.
+
 ## 0.0.3
 
 - macOS remembers Camera and Microphone permission. The app now has a fixed signature, so it asks once instead of after every update. Updating from 0.0.2 asks one last time.

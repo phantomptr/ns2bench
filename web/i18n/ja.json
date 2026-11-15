@@ -327,6 +327,7 @@
   "There’s no sound": "音が出ない",
   "This board is not supported.": "このボードには対応していません。",
   "This browser can’t show notifications.": "このブラウザは通知を表示できません。",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "このブラウザータブは表示のみで操作できません。NS2Bench アプリが開いているので、そのウィンドウを使ってください。",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "この NS2Bench にはコマンドラインツールが含まれていません。GitHub のリリースからダウンロードしてください。",
   "to press buttons, or stay view only.": "するとボタンを押せます。表示のみでも使えます。",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "翻訳の対象はインターフェースです。ログ、本体のテキスト、API メッセージはそのまま表示されます。",

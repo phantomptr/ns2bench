@@ -327,6 +327,7 @@
   "There’s no sound": "Нет звука",
   "This board is not supported.": "Эта плата не поддерживается.",
   "This browser can’t show notifications.": "Этот браузер не может показывать уведомления.",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "Эта вкладка браузера может только показывать, но не управлять: приложение NS2Bench открыто, используйте его окно.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "В этой копии NS2Bench нет инструмента командной строки. Скачайте его из релиза на GitHub.",
   "to press buttons, or stay view only.": "чтобы нажимать кнопки, или оставайтесь в режиме просмотра.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Переведён только интерфейс. Журналы, текст консоли и сообщения API остаются без изменений.",

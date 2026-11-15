@@ -167,7 +167,9 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 | `GET/POST /api/input` · `GET/POST /api/network` · `GET /api/integrations` | input device, console network, MCP/API setup |
 | `POST /api/control` | `{"usb_mode": "standard\|hori\|pro"}`, `{"manual_only": true}`, `{"screen_log": true}` |
 
-While **Block agents** (manual-only) is on, agent requests that press, switch the USB mode or change video settings get `409`; only the NS2Bench page can turn it off. Requests from other web pages are refused (`403`) and logged.
+While **Block agents** (manual-only) is on, agent requests that press, type, click, run tests, probes or calibration, save a clip, switch the USB mode, or change video, input, network or screen-log settings get `409`. Only the NS2Bench page can turn it off (`403` for anyone else), and only the page can change the Bridge address or token file (`403`). Requests from other web pages are refused (`403`) and logged.
+
+The desktop app proves which requests come from its own window with a key it creates at each launch. `ns2bench serve` on its own has no such window, so there any local program that can reach the port can also act as the page: use `server.token` if other users or untrusted programs share the computer.
 
 Buttons: `A B X Y L R ZL ZR PLUS MINUS HOME CAPTURE LSTICK RSTICK UP DOWN LEFT RIGHT`, plus `C GL GR` in Pro mode.
 

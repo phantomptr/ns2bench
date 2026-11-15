@@ -122,7 +122,14 @@ pub fn forwarding_off() -> bool {
     {
         let v4 = fs::read_to_string("/proc/sys/net/ipv4/ip_forward").ok();
         let v6 = fs::read_to_string("/proc/sys/net/ipv6/conf/all/forwarding").ok();
-        forwarding_values(v4.as_deref(), v6.as_deref())
+        // The kernel decides per incoming interface, so one interface with forwarding on is
+        // enough to route for the console even while the global switches read 0.
+        let per_interface_off = |family: &str| {
+            fs::read_dir(format!("/proc/sys/net/{family}/conf")).is_ok_and(|dir| {
+                dir.flatten().all(|e| fs::read_to_string(e.path().join("forwarding")).map_or(true, |v| v.trim() == "0"))
+            })
+        };
+        forwarding_values(v4.as_deref(), v6.as_deref()) && per_interface_off("ipv4") && per_interface_off("ipv6")
     }
     #[cfg(target_os = "macos")]
     {

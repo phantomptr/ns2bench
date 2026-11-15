@@ -124,8 +124,17 @@ jobs:
             mac)
               cp "$(find "$b/dmg" -name '*.dmg' | head -n1)" "out/$n.dmg"
               # the updater mounts the image unattended: no licence prompt allowed
-              if hdiutil imageinfo "out/$n.dmg" | grep -q "Software License Agreement: true"; then
-                echo "::error::the .dmg has a licence agreement"; exit 1
+              info="$(hdiutil imageinfo "out/$n.dmg")"
+              case "$info" in *"Software License Agreement: true"*)
+                echo "::error::the .dmg has a licence agreement"; exit 1 ;;
+              esac
+              # Installed apps only accept an update signed with NS2Bench's certificate
+              # (RELEASE_REQUIREMENT in updates.rs): never publish one they would all reject.
+              if [ "$GITHUB_REPOSITORY" = "phantomptr/ns2bench" ]; then
+                app="$(find "$b/macos" -maxdepth 1 -name '*.app' | head -n1)"
+                if ! codesign --verify --deep --strict -R='identifier "io.github.phantomptr.ns2bench" and certificate leaf = H"6b2b62e6d97e5a307b41534ba2c5d1baf5e35455"' "$app"; then
+                  echo "::error::the app is not signed with the NS2Bench certificate (is the MACOS_SIGNING_P12 secret set?)"; exit 1
+                fi
               fi ;;
             linux)
               cp "$(find "$b/appimage" -name '*.AppImage' | head -n1)" "out/$n.AppImage"
@@ -265,6 +274,15 @@ jobs:
           RELEASE_NOTES_TEXT="$(node scripts/changelog.mjs notes "$V")" node scripts/release-manifest.mjs release "$TAG"
           (cd release && sha256sum -- * > SHA256SUMS)
           ls -la release
+      - name: Is this the newest stable release?
+        # Publishing an older tag again must not move "latest" (and the updater) backwards.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRE: ${{ github.event.inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          newest="$( { gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts --limit 100 --json tagName -q '.[].tagName'; echo "$TAG"; } | sort -V | tail -n1)"
+          if [ "$PRE" != "true" ] && [ "$newest" = "$TAG" ]; then echo "LATEST=true" >> "$GITHUB_ENV"; else echo "LATEST=false" >> "$GITHUB_ENV"; fi
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-path: "release/*"
@@ -274,12 +292,12 @@ jobs:
           name: NS2Bench ${{ env.TAG }}
           body_path: RELEASE_NOTES.md
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-          make_latest: ${{ github.event.inputs.prerelease != 'true' }}
+          make_latest: ${{ env.LATEST }}
           files: release/*
           fail_on_unmatched_files: true
       - name: Refresh the website's download links
         # A pre-release must not move the site's download links.
-        if: ${{ github.event.inputs.prerelease != 'true' }}
+        if: ${{ env.LATEST == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run pages.yml --ref main || echo "::warning::could not dispatch pages"

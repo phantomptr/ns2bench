@@ -327,6 +327,7 @@
   "There’s no sound": "There’s no sound",
   "This board is not supported.": "This board is not supported.",
   "This browser can’t show notifications.": "This browser can’t show notifications.",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "This browser tab can watch but not drive: the NS2Bench app is open, use its window.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "This copy of NS2Bench has no command line tool. Download it from the GitHub release.",
   "to press buttons, or stay view only.": "to press buttons, or stay view only.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Translations cover the interface. Logs, console text and API messages stay as they are.",

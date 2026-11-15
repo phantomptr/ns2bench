@@ -52,6 +52,9 @@ pub type R<T> = std::result::Result<T, ApiError>;
 /// Secret the desktop app gives its own window (kept in memory only). When set, only
 /// requests that carry it count as the person at the NS2Bench page, so a local script
 /// or an agent with a shell can't pose as the page by faking an Origin header.
+/// True once this process's own engine holds the port (the app only trusts its own engine).
+pub static SERVING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 static UI_KEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 pub fn set_ui_key(key: String) {
@@ -337,6 +340,10 @@ async fn stream(State(b): State<S>) -> Response {
 async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R<Json<Value>> {
     let who = source_of(&h, &body);
     let blocked = who != "ui" && b.hub.manual_only.load(std::sync::atomic::Ordering::Relaxed);
+    // Checked before anything in this request is applied.
+    if body["manual_only"].as_bool() == Some(false) && !from_browser(&h) {
+        return Err(ApiError(StatusCode::FORBIDDEN, "only the person at the NS2Bench page can turn off manual-only mode".into()));
+    }
     if let Some(m) = body["usb_mode"].as_str() {
         if !["standard", "hori", "pro"].contains(&m) {
             return Err(bad("usb_mode must be standard, hori or pro"));
@@ -357,9 +364,6 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
         b.logs.add("bench", format!("screen log {}", if on { "on" } else { "off" }));
     }
     if let Some(on) = body["manual_only"].as_bool() {
-        if !on && !from_browser(&h) {
-            return Err(bad("only the person at the NS2Bench page can turn off manual-only mode"));
-        }
         b.hub.manual_only.store(on, std::sync::atomic::Ordering::Relaxed);
         b.hub.log(&source_of(&h, &body), "manual_only", json!({"on": on}));
         if on { b.hub.clear_agent(); }
@@ -486,7 +490,7 @@ async fn ui_socket(b: S, sock: WebSocket, drive: bool) {
                     Err(_) => continue,
                 },
                 l = logs.recv() => match l { Ok(e) => json!({"t": "log", "entry": e}), Err(_) => continue },
-                _ = tick.tick() => json!({"t": "status", "status": b2.status()}),
+                _ = tick.tick() => json!({"t": "status", "status": b2.status(), "drive": drive}),
             };
             if tx.send(Message::Text(msg.to_string().into())).await.is_err() {
                 break;
@@ -512,7 +516,7 @@ async fn ui_socket(b: S, sock: WebSocket, drive: bool) {
         let _ = r; // errors surface through status (input offline) rather than per message
     }
     sender.abort();
-    if drive { let _ = b.hub.set_ui_state(0, 0, None, 0, vec![]); } // tab closed: release human input
+    if drive { b.hub.release_ui(); } // tab closed: release human input
 }
 
 #[cfg(test)]

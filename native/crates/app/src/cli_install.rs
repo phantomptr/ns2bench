@@ -65,11 +65,33 @@ fn same_dir(a: &Path, b: &Path) -> bool {
     n(a) == n(b)
 }
 
+/// PowerShell without a console window flashing up (the app has no console of its own).
+#[cfg(windows)]
+fn powershell(script: &str) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut c = std::process::Command::new("powershell");
+    c.args(["-NoProfile", "-NonInteractive", "-Command", script]).creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    c
+}
+
+/// The user's PATH as stored (entries like %USERPROFILE%\bin kept unexpanded), with or without
+/// our folder, written back as an expandable value; then open programs are told it changed.
+#[cfg(windows)]
+fn windows_set_path(add: bool) -> String {
+    let script = r#"$d=$env:NS2BENCH_DIR
+$k=Get-Item 'HKCU:\Environment'
+$p=$k.GetValue('Path','','DoNotExpandEnvironmentNames')
+$parts=@($p -split ';' | Where-Object { $_ -and ([Environment]::ExpandEnvironmentVariables($_).TrimEnd('\') -ne $d.TrimEnd('\')) })
+ADD
+Set-ItemProperty -Path 'HKCU:\Environment' -Name Path -Value ($parts -join ';') -Type ExpandString
+# setting (here: clearing) a user variable through .NET tells open programs the environment changed
+[Environment]::SetEnvironmentVariable('NS2BENCH_PATH_REFRESH', $null, 'User')"#;
+    script.replace("ADD", if add { "$parts=@($d)+$parts" } else { "" })
+}
+
 #[cfg(windows)]
 fn windows_user_path() -> Vec<PathBuf> {
-    let out = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", "[Environment]::GetEnvironmentVariable('Path','User')"])
-        .output();
+    let out = powershell("[Environment]::GetEnvironmentVariable('Path','User')").output();
     match out {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
             .trim()
@@ -89,13 +111,34 @@ fn points_to_bundled(p: &Path) -> bool {
     }
 }
 
+/// Did NS2Bench put `p` there? A link to this app's CLI (or to another NS2Bench.app's, after
+/// the app moved), or the copy an AppImage makes of its own CLI.
+#[cfg(not(windows))]
+fn ours(p: &Path) -> bool {
+    if points_to_bundled(p) {
+        return true;
+    }
+    let Ok(meta) = std::fs::symlink_metadata(p) else { return false };
+    if meta.file_type().is_symlink() {
+        return std::fs::read_link(p).is_ok_and(|t| t.ends_with(format!("NS2Bench.app/Contents/MacOS/{EXE}")));
+    }
+    // An AppImage's files are gone when it exits, so its CLI is copied: same bytes = ours.
+    appimage() && bundled().is_some_and(|b| match (std::fs::read(&b), std::fs::read(p)) {
+        (Ok(a), Ok(c)) => a == c,
+        _ => false,
+    })
+}
+
 fn appimage() -> bool {
     cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some()
 }
 
 pub fn status() -> Value {
     let found = on_path();
-    let ours = found.as_deref().is_some_and(|p| cfg!(windows) || points_to_bundled(p) || appimage());
+    #[cfg(windows)]
+    let ours = found.is_some();
+    #[cfg(not(windows))]
+    let ours = found.as_deref().is_some_and(ours);
     let dir_on_path = target()
         .and_then(|t| t.parent().map(Path::to_path_buf))
         .is_some_and(|d| cfg!(windows) || path_dirs().contains(&d));
@@ -125,11 +168,7 @@ pub fn install() -> anyhow::Result<Value> {
         let dir = src.parent().context("install folder")?;
         // Prepend to the user PATH (no administrator rights); SetEnvironmentVariable
         // tells new terminals about the change.
-        let ps = "$d=$env:NS2BENCH_DIR; $p=[Environment]::GetEnvironmentVariable('Path','User'); \
-                  $parts=@($p -split ';' | Where-Object { $_ -and ($_.TrimEnd('\\') -ne $d.TrimEnd('\\')) }); \
-                  [Environment]::SetEnvironmentVariable('Path', (@($d) + $parts) -join ';', 'User')";
-        let ok = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", ps])
+        let ok = powershell(&windows_set_path(true))
             .env("NS2BENCH_DIR", dir)
             .status()
             .context("Could not run PowerShell")?
@@ -141,10 +180,8 @@ pub fn install() -> anyhow::Result<Value> {
     }
     #[cfg(not(windows))]
     {
-        if let Ok(meta) = std::fs::symlink_metadata(&dst) {
-            if !meta.file_type().is_symlink() && !points_to_bundled(&dst) && !appimage() {
-                bail!("{} already exists and isn't NS2Bench's. Remove it first, then try again.", dst.display());
-            }
+        if std::fs::symlink_metadata(&dst).is_ok() && !ours(&dst) {
+            bail!("{} already exists and isn't NS2Bench's. Remove it first, then try again.", dst.display());
         }
         let dir = dst.parent().context("target folder")?;
         let direct = (|| -> std::io::Result<()> {
@@ -200,10 +237,7 @@ pub fn uninstall() -> anyhow::Result<Value> {
     #[cfg(windows)]
     {
         let dir = bundled().and_then(|b| b.parent().map(Path::to_path_buf)).context("install folder")?;
-        let ps = "$d=$env:NS2BENCH_DIR; $p=[Environment]::GetEnvironmentVariable('Path','User'); \
-                  [Environment]::SetEnvironmentVariable('Path', (@($p -split ';' | Where-Object { $_ -and ($_.TrimEnd('\\') -ne $d.TrimEnd('\\')) }) -join ';'), 'User')";
-        let ok = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", ps])
+        let ok = powershell(&windows_set_path(false))
             .env("NS2BENCH_DIR", &dir)
             .status()?
             .success();
@@ -216,8 +250,7 @@ pub fn uninstall() -> anyhow::Result<Value> {
     {
         let dst = target().context("Could not find your home folder")?;
         // Only remove what the app put there.
-        let is_link = std::fs::symlink_metadata(&dst).is_ok_and(|m| m.file_type().is_symlink());
-        if !(points_to_bundled(&dst) || (is_link && std::fs::read_link(&dst).is_ok_and(|t| t.ends_with(format!("MacOS/{EXE}")))) || (appimage() && dst.is_file())) {
+        if !ours(&dst) {
             bail!("{} wasn't installed by NS2Bench", dst.display());
         }
         match std::fs::remove_file(&dst) {
@@ -249,4 +282,33 @@ pub async fn cli_action(action: String) -> Result<Value, String> {
     .await
     .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    /// Runs the real PowerShell against the real user PATH, so only on CI runners.
+    #[test]
+    fn path_edit_adds_and_removes_one_entry_and_keeps_the_rest() {
+        if std::env::var_os("CI").is_none() {
+            return;
+        }
+        let raw = || {
+            let o = powershell("(Get-Item 'HKCU:\\Environment').GetValue('Path','','DoNotExpandEnvironmentNames')").output().unwrap();
+            String::from_utf8_lossy(&o.stdout).trim().split(';').filter(|p| !p.is_empty()).map(str::to_string).collect::<Vec<_>>()
+        };
+        // an entry with a variable in it must come through unexpanded
+        assert!(powershell("$k='HKCU:\\Environment'; $p=(Get-Item $k).GetValue('Path','','DoNotExpandEnvironmentNames'); Set-ItemProperty -Path $k -Name Path -Value ($p + ';%USERPROFILE%\\ns2bench-test-keep') -Type ExpandString").status().unwrap().success());
+        let before = raw();
+        assert!(before.iter().any(|p| p == "%USERPROFILE%\\ns2bench-test-keep"), "{before:?}");
+        let dir = std::env::temp_dir().join("ns2bench path test");
+        assert!(powershell(&windows_set_path(true)).env("NS2BENCH_DIR", &dir).status().unwrap().success());
+        assert!(windows_user_path().iter().any(|d| same_dir(d, &dir)));
+        let mut with = vec![dir.display().to_string()];
+        with.extend(before.clone());
+        assert_eq!(raw(), with);
+        assert!(powershell(&windows_set_path(false)).env("NS2BENCH_DIR", &dir).status().unwrap().success());
+        assert_eq!(raw(), before);
+    }
 }

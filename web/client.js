@@ -29,5 +29,7 @@ export function apiFetch(path, init = {}) {
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (UI) headers.set('X-NS2Bench-UI', UI);
+  // This page is the person at the bench, not an agent (the engine checks that claim).
+  if (!headers.has('X-NS2Bench-Source')) headers.set('X-NS2Bench-Source', 'ui');
   return fetch(path, { ...init, headers });
 }

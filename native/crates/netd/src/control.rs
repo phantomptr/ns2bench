@@ -102,11 +102,13 @@ fn read_json(path: &Path, fallback: Value) -> Value {
 }
 
 pub fn write_controls(state: &Path, v: &Value) -> io::Result<()> {
-    let tmp = state.join("network-controls.tmp");
+    // A name of its own: two writers at once must not share (and interleave in) one temp file.
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let tmp = state.join(format!("network-controls.{}.{}.tmp", std::process::id(), N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
     let mut f = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&tmp)?;
     f.write_all(v.to_string().as_bytes())?;
     f.sync_all()?;
-    fs::rename(tmp, state.join("network-controls.json"))
+    fs::rename(&tmp, state.join("network-controls.json")).inspect_err(|_| { let _ = fs::remove_file(&tmp); })
 }
 
 /// Route one authenticated request. Returns (status, json body).

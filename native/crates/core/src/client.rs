@@ -107,7 +107,7 @@ fn parse(raw: &[u8]) -> Result<Resp> {
         let mut rest = &body[..];
         while let Some(p) = rest.windows(2).position(|w| w == b"\r\n") {
             let n = usize::from_str_radix(String::from_utf8_lossy(&rest[..p]).split(';').next().unwrap_or("0").trim(), 16).unwrap_or(0);
-            if n == 0 || rest.len() < p + 2 + n {
+            if n == 0 || n > rest.len() || rest.len() < p + 2 + n {
                 break;
             }
             out.extend_from_slice(&rest[p + 2..p + 2 + n]);

@@ -18,7 +18,9 @@ export function release(text, version) {
   if (section(text, version)) return text;
   const unreleased = section(text, 'Unreleased');
   if (!unreleased) throw new Error(`CHANGELOG.md has no text under "## Unreleased" for ${version}`);
-  return text.replace(/^## Unreleased\s*\n[\s\S]*?(?=^## |(?![\s\S]))/m, `## Unreleased\n\n## ${version}\n\n${unreleased}\n\n`);
+  return text.replace(/^## Unreleased\s*\n[\s\S]*?(?=^## |(?![\s\S]))/m,
+    // a function: the notes are text, not a replacement pattern ($& and $' would be expanded)
+    () => `## Unreleased\n\n## ${version}\n\n${unreleased}\n\n`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

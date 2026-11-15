@@ -327,6 +327,7 @@
   "There’s no sound": "소리가 나지 않습니다",
   "This board is not supported.": "이 보드는 지원되지 않습니다.",
   "This browser can’t show notifications.": "이 브라우저는 알림을 표시할 수 없습니다.",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "이 브라우저 탭은 볼 수만 있고 조작할 수 없습니다. NS2Bench 앱이 열려 있으니 앱 창을 사용하세요.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "이 NS2Bench에는 명령줄 도구가 없습니다. GitHub 릴리스에서 내려받으세요.",
   "to press buttons, or stay view only.": "하면 버튼을 누를 수 있고, 보기 전용으로 둘 수도 있습니다.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "번역은 인터페이스에만 적용됩니다. 로그, 본체 텍스트, API 메시지는 그대로 유지됩니다.",

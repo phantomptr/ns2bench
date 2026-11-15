@@ -79,7 +79,7 @@ impl Dvr {
             bail!("nothing recorded yet");
         }
         std::fs::create_dir_all(clips_dir())?;
-        let stem = format!("{}-{label}", chrono::Local::now().format("%Y%m%d-%H%M%S"));
+        let stem = format!("{}-{label}", chrono::Local::now().format("%Y%m%d-%H%M%S%.3f"));
         let path = path.unwrap_or_else(|| clips_dir().join(format!("{stem}.mp4")));
         let (t0, t1) = (frames[0].0, frames[frames.len() - 1].0);
         let span = t1 - t0;

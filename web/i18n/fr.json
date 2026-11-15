@@ -327,6 +327,7 @@
   "There’s no sound": "Pas de son",
   "This board is not supported.": "Cette carte n’est pas prise en charge.",
   "This browser can’t show notifications.": "Ce navigateur ne peut pas afficher de notifications.",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "Cet onglet du navigateur peut regarder mais pas piloter : l’app NS2Bench est ouverte, utilisez sa fenêtre.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "Cette copie de NS2Bench n’inclut pas l’outil en ligne de commande. Téléchargez-le depuis la version GitHub.",
   "to press buttons, or stay view only.": "pour appuyer sur les boutons, ou restez en mode lecture seule.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Les traductions couvrent l’interface. Les journaux, le texte de la console et les messages de l’API restent inchangés.",

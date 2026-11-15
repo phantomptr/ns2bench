@@ -529,6 +529,10 @@ async fn run(cli: Cli) -> Res<ExitCode> {
         }
         Cmd::Clips { name: Some(name), output } => {
             if name.contains(['/', '\\']) { return Err("give the clip's file name, as `clips` lists it".into()); }
+            // Without -o the clip lands in this folder under its own name: never over a file already there.
+            if output.is_none() && std::path::Path::new(&name).exists() {
+                return Err(format!("{name} already exists here; choose another name with -o"));
+            }
             let r = api(&c, "GET", &format!("/clips/{name}"), None).await?;
             save(output, name.clone(), &r.body)?;
         }
@@ -552,12 +556,12 @@ async fn run(cli: Cli) -> Res<ExitCode> {
 
         Cmd::UsbMode { mode } => {
             let m = match mode { Mode::Standard => "standard", Mode::Pro => "pro" };
-            post(&c, "/api/control", json!({"usb_mode": m})).await?;
-            println!("switching to {m}: the console sees the controller reconnect (about 10 s)");
+            let v = post(&c, "/api/control", json!({"usb_mode": m})).await?;
+            if raw { pretty(&v) } else { println!("switching to {m}: the console sees the controller reconnect (about 10 s)"); }
         }
         Cmd::ManualOnly { state } => {
-            post(&c, "/api/control", json!({"manual_only": state == OnOff::On})).await?;
-            println!("agents {}", if state == OnOff::On { "blocked" } else { "allowed" });
+            let v = post(&c, "/api/control", json!({"manual_only": state == OnOff::On})).await?;
+            if raw { pretty(&v) } else { println!("agents {}", if state == OnOff::On { "blocked" } else { "allowed" }); }
         }
         Cmd::Video { device, size, fps, quality } => {
             if device.is_none() && size.is_none() && fps.is_none() && quality.is_none() {
@@ -615,8 +619,8 @@ async fn run(cli: Cli) -> Res<ExitCode> {
         }
         Cmd::ScreenLog { state } => {
             let on = matches!(state, OnOff::On);
-            post(&c, "/api/control", json!({"screen_log": on})).await?;
-            println!("screen log {}", if on { "on" } else { "off" });
+            let v = post(&c, "/api/control", json!({"screen_log": on})).await?;
+            if raw { pretty(&v) } else { println!("screen log {}", if on { "on" } else { "off" }); }
         }
         Cmd::Devices { local } => {
             let d = if local { ns2bench_core::video::list_devices().await } else { get(&c, "/api/video").await?["devices"].clone() };

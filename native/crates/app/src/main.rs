@@ -124,6 +124,12 @@ fn main() {
             std::thread::sleep(Duration::from_millis(100));
         }
     }
+    // Our own engine holds the port (not something else that happens to answer on it): only
+    // then does the page get the UI key and the install/update commands.
+    let ours = !attach && ns2bench_core::server::SERVING.load(std::sync::atomic::Ordering::Relaxed);
+    if !attach && !ours {
+        eprintln!("NS2Bench: the engine could not start on {url} (is another program using that port?)");
+    }
 
     let mut target: tauri::Url = url.parse().expect("engine url");
     if let Some(token) = cfg.token() { target.query_pairs_mut().append_pair("token", &token); }
@@ -136,7 +142,7 @@ fn main() {
             // app started itself, never to whatever else may be answering on the port.
             let mut cap = tauri::ipc::CapabilityBuilder::new("engine-ui").local(false).window("main")
                 .remote(format!("{}/*", target.origin().ascii_serialization())).permission("notification:default");
-            if !attach {
+            if ours {
                 cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action");
             }
             app.add_capability(cap)?;
@@ -146,7 +152,7 @@ fn main() {
             window.visible = false;
             let origin = target.origin();
             let nav_origin = origin.clone();
-            let key_script = if attach { String::new() } else { format!("window.__NS2BENCH_UI__ = {ui_key:?};") };
+            let key_script = if !ours { String::new() } else { format!("window.__NS2BENCH_UI__ = {ui_key:?};") };
             let main = WebviewWindowBuilder::from_config(app, &window)?
                 .initialization_script(&key_script)
                 // The engine's pages stay in the app; web links open in the browser.

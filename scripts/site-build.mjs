@@ -236,7 +236,10 @@ export const pages = {
 
 export function build({ checkWords = true } = {}) {
   if (checkWords) check({ pageHtml: Object.values(pages).map((p) => page({ ...p, main: '' })) });
-  const version = readFileSync(join(root, 'VERSION'), 'utf8').trim();
+  // Download links name a release that exists: the published one when the workflow passes it
+  // (VERSION on main is bumped before the release's files are built).
+  const version = (process.env.NS2BENCH_SITE_VERSION || '').replace(/^v/, '').match(/^\d+\.\d+\.\d+$/)?.[0]
+    ?? readFileSync(join(root, 'VERSION'), 'utf8').trim();
   rmSync(out, { recursive: true, force: true });
   cpSync(join(root, 'site'), out, { recursive: true });
   const index = readFileSync(join(out, 'index.html'), 'utf8')

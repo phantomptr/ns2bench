@@ -174,5 +174,5 @@ test('security: headers, cross-site and DNS-rebinding requests', async () => {
   assert.equal(status, 403);
   // Scripts can't claim to be the person at the controls.
   const c = await fetch(`${BASE}/api/control`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"manual_only":false}' });
-  assert.equal(c.status, 400);
+  assert.equal(c.status, 403);
 });

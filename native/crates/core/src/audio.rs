@@ -97,6 +97,8 @@ impl AudioHub {
     }
 
     async fn once(self: Arc<Self>, video_cfg: &Arc<Mutex<Value>>, logs: &LogHub) -> Result<()> {
+        // Before the settings are read: a change made while starting up is then noticed below.
+        let gen = self.generation.load(std::sync::atomic::Ordering::Relaxed);
         let vc = video_cfg.lock().unwrap().clone();
         let mut child = if cfg!(target_os = "macos") {
             let helper = crate::video::build_helper().await?;
@@ -124,13 +126,18 @@ impl AudioHub {
         self.st.lock().unwrap().error = None;
         let mut out = child.stdout.take().unwrap();
         let mut win: Vec<i16> = Vec::with_capacity(RATE * CHANNELS / 5);
-        let gen = self.generation.load(std::sync::atomic::Ordering::Relaxed);
         loop {
             if self.generation.load(std::sync::atomic::Ordering::Relaxed) != gen {
                 return Ok(()); // settings changed: start again with the new card
             }
             let mut buf = vec![0u8; CHUNK];
-            out.read_exact(&mut buf).await.map_err(|_| anyhow::anyhow!("audio capture stopped"))?;
+            // A capture that goes silent without exiting is restarted too.
+            match tokio::time::timeout(Duration::from_secs(5), out.read_exact(&mut buf)).await {
+                Ok(Ok(_)) => {}
+                Ok(Err(_)) => bail!("audio capture stopped"),
+                Err(_) if self.generation.load(std::sync::atomic::Ordering::Relaxed) != gen => return Ok(()),
+                Err(_) => bail!("audio capture stalled"),
+            }
             let now = crate::logs::now();
             let data = Bytes::from(buf);
             let _ = self.tx.send(data.clone()); // a slow browser lags and skips; capture never stalls

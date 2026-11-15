@@ -327,6 +327,7 @@
   "There’s no sound": "没有声音",
   "This board is not supported.": "不支持此开发板。",
   "This browser can’t show notifications.": "此浏览器无法显示通知。",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "此浏览器标签页只能观看，不能操作：NS2Bench 应用已打开，请使用它的窗口。",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "此 NS2Bench 未包含命令行工具。请从 GitHub 发布页下载。",
   "to press buttons, or stay view only.": "即可按键操作，也可以仅观看。",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "翻译仅覆盖界面。日志、主机文字和 API 消息保持原样。",

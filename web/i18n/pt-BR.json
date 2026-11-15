@@ -327,6 +327,7 @@
   "There’s no sound": "Não há som",
   "This board is not supported.": "Esta placa não é compatível.",
   "This browser can’t show notifications.": "Este navegador não pode mostrar notificações.",
+  "This browser tab can watch but not drive: the NS2Bench app is open, use its window.": "Esta aba do navegador pode assistir, mas não controlar: o app NS2Bench está aberto, use a janela dele.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "Esta cópia do NS2Bench não inclui a ferramenta de linha de comando. Baixe-a na release do GitHub.",
   "to press buttons, or stay view only.": "para pressionar botões, ou fique só no modo de visualização.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "As traduções cobrem a interface. Logs, textos do console e mensagens da API não são traduzidos.",

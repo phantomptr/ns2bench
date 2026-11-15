@@ -94,18 +94,28 @@ async fn run_step(b: &Bench, step: &Value, dir: &Path, shots: &mut Vec<String>, 
     bail!("unknown step: {step}")
 }
 
+const MAX_STEPS: usize = 500;
+
 pub async fn run_test(b: &Bench, test: &Value, source: &str, stop_on_fail: bool) -> Result<Value> {
     let name = test["name"].as_str().unwrap_or("test").to_string();
     let steps = test["steps"].as_array().filter(|s| !s.is_empty()).cloned()
         .ok_or_else(|| anyhow::anyhow!("a test needs a non-empty \"steps\" list"))?;
+    anyhow::ensure!(steps.len() <= MAX_STEPS, "a test has at most {MAX_STEPS} steps");
     let dir = reports_dir().join(format!("{}-{}", chrono::Local::now().format("%Y%m%d-%H%M%S"), slug(&name)));
     std::fs::create_dir_all(&dir)?;
     let log_from = b.logs.seq();
     b.logs.add("bench", format!("test started: {name} ({} steps)", steps.len()));
     let (mut shots, mut results, t0) = (vec![], vec![], Instant::now());
     let mut passed = true;
+    let mut clip_saved = false;
     for (i, step) in steps.iter().enumerate() {
         let n = i + 1;
+        // Block agents was turned on: stop here instead of failing every remaining step.
+        if source != "ui" && b.hub.manual_only.load(std::sync::atomic::Ordering::Relaxed) {
+            passed = false;
+            results.push(json!({"n": n, "step": step, "ok": false, "detail": "stopped: Block agents was turned on", "ms": 0}));
+            break;
+        }
         let s0 = Instant::now();
         let (ok, detail) = match run_step(b, step, &dir, &mut shots, source).await {
             Ok(r) => r,
@@ -119,9 +129,10 @@ pub async fn run_test(b: &Bench, test: &Value, source: &str, stop_on_fail: bool)
                 let _ = std::fs::write(dir.join(&fname), &f.jpeg);
                 shots.push(fname);
             }
-            if let Ok((clip, _)) = b.ext.dvr.save(Some(20.0), Some(dir.join(format!("failed-step-{n}.mp4"))), "failure", Some(&b.ext.audio)).await {
+            // One clip per run (the first failure): each one is a video encode.
+            if !std::mem::replace(&mut clip_saved, true) { if let Ok((clip, _)) = b.ext.dvr.save(Some(20.0), Some(dir.join(format!("failed-step-{n}.mp4"))), "failure", Some(&b.ext.audio)).await {
                 shots.push(clip.file_name().unwrap().to_string_lossy().into());
-            }
+            } }
             if let Ok(lines) = b.read_screen(None, false).await {
                 let _ = std::fs::write(dir.join(format!("failed-step-{n}-screen.txt")), ocr::join(&lines, "\n"));
             }

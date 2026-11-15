@@ -35,6 +35,8 @@ pub struct Update {
     notes: String,
     message: String,
     downloaded: bool,
+    /// The app can't install this one itself (a Linux system package): the person downloads it.
+    manual: bool,
     #[serde(skip)]
     url: Option<String>,
     #[serde(skip)]
@@ -275,7 +277,10 @@ async fn install(path: &Path) -> Result<()> {
         anyhow::bail!("Could not stage update");
     }
     let plist = stage.join("NS2Bench.app/Contents/Info.plist");
-    ensure!(plist.is_file(), "Update is missing its app bundle");
+    if !plist.is_file() {
+        let _ = std::fs::remove_dir_all(&stage);
+        anyhow::bail!("Update is missing its app bundle");
+    }
     let signature = tokio::process::Command::new("/usr/bin/codesign")
         // Any valid signature isn't enough: it must be NS2Bench's own certificate
         // (scripts/with-signing.sh), so a swapped download can't install itself.
@@ -305,6 +310,7 @@ if mv "$app" "$backup"; then
   fi
   mv "$backup" "$app"
 fi
+rm -rf "$stage"
 /usr/bin/open "$app"
 exit 1
 "#,
@@ -393,7 +399,14 @@ pub async fn update_action(
             }
             "check" => {
                 *u = check().await?;
+                // Only the AppImage can replace itself. A .deb install is told where the new one is,
+                // instead of downloading an AppImage it could never install.
+                if cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_none() && u.available {
+                    u.manual = true;
+                    u.message = "This copy was installed as a system package: download the new .deb from https://github.com/phantomptr/ns2bench/releases/latest".into();
+                }
             }
+            "download" if u.manual => bail!("{}", u.message.clone()),
             "download" => download(&mut u).await?,
             "install" => {
                 let path = u.path.as_deref().context("Download the update first")?;

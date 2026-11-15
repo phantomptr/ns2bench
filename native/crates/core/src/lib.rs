@@ -33,6 +33,7 @@ pub async fn serve(cfg: Config) -> anyhow::Result<()> {
     bench.start();
     let app = server::router(bench.clone());
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
+    server::SERVING.store(true, std::sync::atomic::Ordering::Relaxed);
     println!("NS2Bench: open {}/  (native engine)", cfg.url());
     let b2 = bench.clone();
     axum::serve(listener, app).with_graceful_shutdown(async move {

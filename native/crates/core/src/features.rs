@@ -145,19 +145,22 @@ async fn post_wait_screen(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Va
     let timeout = Duration::from_millis(v["timeout_ms"].as_u64().unwrap_or(5000).clamp(100, 120_000));
     let stable_ms = v["stable_ms"].as_u64().unwrap_or(500).clamp(100, 10_000);
     let region = ocr::parse_region(&v["region"])?;
-    Ok(Json(crate::calib::wait_screen(&b.frames, until, timeout, stable_ms, region).await.map_err(|e| bad(e.to_string()))?))
+    Ok(Json(crate::calib::wait_screen(&b.frames, until, timeout, stable_ms, region).await
+        .map_err(|e| if e.to_string().contains("no live video") { unavailable(e) } else { bad(e.to_string()) })?))
 }
 
 /// Every on-screen line that matches, with its box: where to look, or which item is highlighted.
 async fn get_find_text(State(b): State<S>, Query(q): Query<HashMap<String, String>>) -> R<Json<Value>> {
-    let regex = q.get("regex").is_some_and(|r| !r.is_empty());
-    let pattern = q.get("text").or(q.get("regex")).cloned().unwrap_or_default();
+    // ?regex=pattern or ?text=pattern&regex=true
+    let flag = matches!(q.get("regex").map(String::as_str), Some("1" | "true")) && q.contains_key("text");
+    let regex = flag || q.get("regex").is_some_and(|r| !r.is_empty());
+    let pattern = if flag { q.get("text") } else { q.get("regex").filter(|r| !r.is_empty()).or(q.get("text")) }.cloned().unwrap_or_default();
     if pattern.is_empty() {
         return Err(bad("text or regex required"));
     }
     if regex { regex::Regex::new(&pattern).map_err(|e| bad(format!("invalid regex: {e}")))?; }
     let region = ocr::parse_region(&q.get("region").map(|s| Value::String(s.clone())).unwrap_or(Value::Null))?;
-    let fast = q.get("fast").map(|f| f != "false").unwrap_or(false);
+    let fast = matches!(q.get("fast").map(String::as_str), Some("1" | "true"));
     let lines = b.read_screen(region, fast).await.map_err(unavailable)?;
     let hits: Vec<&ocr::Line> = lines.iter().filter(|l| ocr::matches(std::slice::from_ref(*l), &pattern, regex).is_some()).collect();
     Ok(Json(json!({"found": !hits.is_empty(), "matches": hits, "count": hits.len()})))
@@ -230,8 +233,9 @@ async fn get_ocr(State(b): State<S>, Query(q): Query<HashMap<String, String>>) -
 }
 
 async fn post_wait_text(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value>> {
-    let regex = v["regex"].as_str().is_some();
-    let pattern = v["text"].as_str().or(v["regex"].as_str()).unwrap_or("").to_string();
+    // {"regex": "pattern"} or {"text": "pattern", "regex": true}
+    let regex = v["regex"].as_str().is_some() || v["regex"].as_bool() == Some(true);
+    let pattern = v["regex"].as_str().or(v["text"].as_str()).unwrap_or("").to_string();
     if pattern.is_empty() {
         return Err(bad("text or regex required"));
     }
@@ -293,7 +297,7 @@ async fn post_calibrate(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Valu
     }
     let out = crate::calib::calibrate(&b, &or("forward", &["RIGHT"]), &or("back", &["LEFT"]), &holds,
         v["repeats"].as_u64().unwrap_or(4) as u32).await.map_err(unavailable)?;
-    b.hub.min_press_ms.store(out["min_press_ms"].as_u64().unwrap_or(50), Ordering::Relaxed);
+    b.hub.min_press_ms.store(crate::calib::clamp_min_press(out["min_press_ms"].as_u64().unwrap_or(crate::calib::DEFAULT_MIN_PRESS_MS)), Ordering::Relaxed);
     *b.calibration.lock().unwrap() = out.clone();
     b.logs.add("bench", format!("calibration done: min press {} ms, latency median {} ms", out["min_press_ms"], out["latency_ms_median"]));
     Ok(Json(out))

@@ -46,7 +46,12 @@ pub fn mouse(buttons: u8, dx: i32, dy: i32, wheel: i32) -> Vec<Vec<u8>> {
 /// Parse one reply frame from the front of `buf`; returns (cmd, data) and drops it from buf.
 pub fn take_reply(buf: &mut Vec<u8>) -> Option<(u8, Vec<u8>)> {
     loop {
-        let start = buf.windows(2).position(|w| w == [0x57, 0xAB])?;
+        let Some(start) = buf.windows(2).position(|w| w == [0x57, 0xAB]) else {
+            // No frame start in there: keep only a possible first half of one, not the noise.
+            let keep = usize::from(buf.last() == Some(&0x57));
+            buf.drain(..buf.len() - keep);
+            return None;
+        };
         buf.drain(..start);
         if buf.len() < 6 {
             return None;
@@ -82,7 +87,10 @@ pub async fn run(
             w.write_all(&frame(CMD_GET_INFO, &[])).await?;
             let t0 = Instant::now();
             let info = loop {
-                let n = tokio::time::timeout(Duration::from_secs(2), r.read(&mut chunk)).await
+                // One deadline for the whole answer: another device chattering on this port
+                // must not keep the handshake waiting forever.
+                let left = Duration::from_secs(3).saturating_sub(t0.elapsed());
+                let n = tokio::time::timeout(left, r.read(&mut chunk)).await
                     .map_err(|_| anyhow::anyhow!("no answer from the CH9329 (check port, wiring and baud)"))??;
                 if n == 0 { bail!("serial port closed"); }
                 buf.extend_from_slice(&chunk[..n]);

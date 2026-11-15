@@ -8,7 +8,7 @@ export function startLive(img, onMode = () => {}) {
   canvas.hidden = true;
   img.after(canvas);
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-  let ws = null, dec = null, mode = 'mjpeg', failures = 0, ts = 0, latest = null, needKey = false;
+  let ws = null, dec = null, mode = 'mjpeg', failures = 0, ts = 0, latest = null, needKey = false, retry = 0;
 
   const mjpeg = (why) => {
     if (mode !== 'mjpeg') console.info('[live] MJPEG fallback:', why);
@@ -70,14 +70,16 @@ export function startLive(img, onMode = () => {}) {
     ws.onclose = () => {
       ws = null;
       mjpeg('socket closed');
-      if (++failures < 5) setTimeout(connect, 1000 * failures);
+      // Keep trying (slower each time, at most every 15 s): the engine may be restarting.
+      clearTimeout(retry);
+      retry = setTimeout(connect, Math.min(15000, 1000 * ++failures));
     };
   }
 
   connect();
   return {
     get mode() { return mode; },
-    reconnect() { failures = 0; ws ? ws.close() : connect(); },
+    reconnect() { failures = 0; clearTimeout(retry); ws ? ws.close() : connect(); },
   };
 }
 
