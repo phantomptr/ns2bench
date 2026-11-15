@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.7
+
 - Easier to find your way, like ps5upload:
   - a red bar says at once when the app loses its engine, with **Reconnect now**
   - with no picture, the screen itself says why and what to check, with buttons to the Video settings and the check
