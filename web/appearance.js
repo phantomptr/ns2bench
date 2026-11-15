@@ -14,6 +14,9 @@ export function applyTheme(theme) {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
   store.set('theme', theme);
+  // Remember the last light and dark picks for the toolbar's light/dark toggle.
+  if (theme === 'light' || theme === 'peach') store.set('theme.light', theme);
+  if (theme === 'dark' || theme === 'oled') store.set('theme.dark', theme);
   const select = $('#theme-select');
   if (select) select.value = theme;
 }

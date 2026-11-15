@@ -110,3 +110,31 @@ jobs:
           file native/target/armv7-unknown-linux-musleabihf/release/ns2bench-board | grep -q 'statically linked'
           file native/target/aarch64-unknown-linux-musl/release/ns2bench-board | grep -q 'statically linked'
           test -s firmware/pico/ns2bench-pico.uf2
+
+  ui:
+    name: UI end to end (engine + Chromium)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: 22 }
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: ui-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: ui-
+      - name: ffmpeg (synthetic video source)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Build the engine
+        working-directory: native
+        run: cargo build --locked -p ns2bench
+      - name: Playwright + Chromium
+        run: |
+          npm i --no-save --no-package-lock playwright@1.65.0
+          npx playwright install --with-deps chromium
+      - name: UI tests
+        run: node --test tests/web/*.test.mjs

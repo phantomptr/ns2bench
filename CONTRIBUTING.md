@@ -30,6 +30,7 @@ cd native && cargo clippy --workspace --all-targets -- -D warnings
 node scripts/update-version.mjs --check     # version files agree
 node scripts/i18n.mjs --check               # every language has every string
 node --test scripts/*.test.mjs
+node --test tests/web/*.test.mjs        # UI end to end (needs: cargo build -p ns2bench, ffmpeg, playwright)
 ```
 
 ## Guidelines
