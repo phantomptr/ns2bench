@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.6
+
 - `ns2bench serve` now prints a link ending in `?ui=…`. Open that link to drive from your browser. A page opened without it can watch but not drive, so other programs on the computer can no longer pose as you. The desktop app is unchanged.
 - Fixed: a serial input device (Pico, CH9329) that was plugged in but never answered slowly used up the engine's threads on macOS and Linux. The port is also set up more reliably on macOS.
 - Keyboard & mouse mode: Ctrl+Alt+U gives the keyboard back to the app, so you can leave the picture without a mouse.
