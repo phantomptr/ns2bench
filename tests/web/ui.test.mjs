@@ -233,3 +233,34 @@ test('a page opened without the link from `ns2bench serve` can watch but is not 
   assert.equal(ok, 200);
   await keyed.ctx.close();
 });
+
+test('guidance: shortcuts, action search, confirm before installing, What’s new after an update', async () => {
+  const { p, errors, ctx } = await page();
+  await p.waitForFunction(() => document.querySelector('#pill-video')?.textContent.includes('fps'), null, { timeout: 15000 });
+  assert.equal(await p.isVisible('#no-picture'), false);
+  await p.keyboard.press('?');
+  assert.equal(await p.isVisible('#shortcuts'), true);
+  await p.keyboard.press('Escape');
+  await p.keyboard.press('Control+k');
+  await p.keyboard.type('agent');
+  assert.equal(await p.textContent('#palette-list li[aria-selected="true"]'), 'Connect an agent');
+  await p.keyboard.press('Enter');
+  await p.waitForSelector('[data-pane="integrations"]:not([hidden])');
+  assert.match(await p.textContent('#mcp-url'), /\/mcp$/);
+  // nothing is installed without saying what happens first
+  await p.click('[data-tab="install"]');
+  await p.fill('#board-host', 'board.example');
+  await p.evaluate(() => { document.querySelector('#board-install').disabled = false; });
+  await p.click('#board-install');
+  await p.waitForSelector('#confirm[open]');
+  await p.click('#confirm-cancel');
+  await p.fill('#board-host', '');
+  await p.click('#settings-close');
+  // after an update (not a first install) the changes are shown once
+  await p.evaluate(() => localStorage.setItem('ns2bench.lastSeenVersion', '0.0.1'));
+  await p.reload();
+  await p.waitForSelector('#whatsnew[open]', { timeout: 10000 });
+  assert.ok((await p.textContent('#whatsnew-body')).length > 50);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

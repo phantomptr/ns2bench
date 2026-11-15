@@ -15,8 +15,16 @@ function snapshot() {
   } catch { /* storage blocked */ }
   return out;
 }
-let timer = 0, ready = false;
-const save = () => apiFetch('/api/prefs', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot()) }).catch(() => {});
+let timer = 0, ready = false, lastSaved = '', refused = false;
+// Only real changes are sent (some code stores the same value again on every status update),
+// and a page the engine refuses (a browser tab without the app's key) stops asking.
+const save = () => {
+  const body = JSON.stringify(snapshot());
+  if (refused || body === lastSaved) return Promise.resolve();
+  lastSaved = body;
+  return apiFetch('/api/prefs', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body })
+    .then((r) => { if (r.status === 403) refused = true; }).catch(() => { lastSaved = ''; });
+};
 // Nothing is saved before the saved file has been read: the defaults a fresh browser writes
 // while starting must not replace the person's choices.
 const later = () => { if (!ready) return; clearTimeout(timer); timer = setTimeout(save, 400); };
@@ -27,6 +35,8 @@ try {
   Storage.prototype.setItem = function (k, v) { setItem.call(this, k, v); if (this === localStorage && mine(k)) later(); };
   Storage.prototype.removeItem = function (k) { removeItem.call(this, k); if (this === localStorage && mine(k)) later(); };
 } catch { /* storage blocked */ }
+/** Save now (before a reload that must see the change). */
+export const savePrefsNow = () => { clearTimeout(timer); timer = 0; return save(); };
 addEventListener('pagehide', () => { if (timer) { clearTimeout(timer); save(); } });
 
 // At start: the saved file wins. If this browser had something else (a new browser, cleared
@@ -34,6 +44,7 @@ addEventListener('pagehide', () => { if (timer) { clearTimeout(timer); save(); }
 apiFetch('/api/prefs').then((r) => (r.ok ? r.json() : null)).then((saved) => {
   if (!saved) { window.__ns2benchPrefs = 'ready'; return; }
   ready = true;
+  lastSaved = JSON.stringify(Object.fromEntries(Object.entries(saved).filter(([k]) => mine(k))));
   const local = snapshot();
   const differs = Object.keys(saved).filter((k) => mine(k) && local[k] !== saved[k]);
   if (!Object.keys(saved).length || Object.keys(local).some((k) => !(k in saved))) later();   // first run, or new local-only choices

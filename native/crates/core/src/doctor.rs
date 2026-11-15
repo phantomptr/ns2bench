@@ -119,7 +119,7 @@ pub async fn run(b: &Bench, probe: bool) -> Value {
     let cal = b.calibration.lock().unwrap().clone();
     match cal["measured_at"].as_str() {
         Some(at) => out.push(check("calibration", "ok", format!("min press {} ms, latency {} ms, measured {at}", cal["min_press_ms"], cal["latency_ms_median"]), "")),
-        None => out.push(check("calibration", "warn", "never measured", "Run POST /api/calibrate on the HOME menu.")),
+        None => out.push(check("calibration", "warn", "never measured", "Go to the HOME menu, then Settings → Devices → Calibrate (or POST /api/calibrate).")),
     }
 
     // offline console network, if configured

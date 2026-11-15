@@ -138,6 +138,8 @@ pub fn routes(r: Router<S>) -> Router<S> {
         .route("/api/health", get(get_health))
         .route("/api/reports", get(get_reports))
         .route("/api/prefs", get(get_prefs).post(post_prefs))
+        .route("/api/changelog", get(|| async { ([(header::CONTENT_TYPE, "text/markdown; charset=utf-8")], CHANGELOG) }))
+        .route("/api/serial_ports", get(|| async { Json(json!({"ports": serial_ports()})) }))
 }
 
 /// Wait for the screen to react ("change") or to settle ("stable").
@@ -219,6 +221,31 @@ async fn get_reports() -> Json<Value> {
 fn unavailable(e: anyhow::Error) -> ApiError {
     ApiError(StatusCode::SERVICE_UNAVAILABLE, e.to_string())
 }
+/// What changed in each version, for the app's "What's new" (the same file as on GitHub).
+const CHANGELOG: &str = include_str!("../../../../CHANGELOG.md");
+
+/// Serial devices an input board could be on, for the Devices form's suggestions.
+fn serial_ports() -> Vec<String> {
+    #[cfg(unix)]
+    {
+        let wanted = |n: &str| ["cu.usb", "cu.wch", "cu.SLAB", "ttyACM", "ttyUSB", "ttyAMA", "ttyS0"].iter().any(|p| n.starts_with(p));
+        let mut v: Vec<String> = std::fs::read_dir("/dev").into_iter().flatten().flatten()
+            .filter_map(|e| e.file_name().into_string().ok()).filter(|n| wanted(n)).map(|n| format!("/dev/{n}")).collect();
+        v.sort();
+        v
+    }
+    #[cfg(windows)]
+    {
+        // The ports Windows has right now (the same list Device Manager shows).
+        let mut c = std::process::Command::new("reg");
+        std::os::windows::process::CommandExt::creation_flags(&mut c, 0x0800_0000);
+        let out = c.args(["query", r"HKLM\HARDWARE\DEVICEMAP\SERIALCOMM"]).output();
+        out.map(|o| String::from_utf8_lossy(&o.stdout).lines()
+            .filter_map(|l| l.split_whitespace().last().filter(|w| w.starts_with("COM")).map(str::to_string)).collect())
+            .unwrap_or_default()
+    }
+}
+
 /// The page's own preferences (theme, text size, language, notification choices…), kept in
 /// ~/.ns2bench/ui.json so they are the same in the app and in a browser, and outlive both.
 async fn get_prefs() -> Json<Value> {

@@ -6,6 +6,18 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- Easier to find your way, like ps5upload:
+  - a red bar says at once when the app loses its engine, with **Reconnect now**
+  - with no picture, the screen itself says why and what to check, with buttons to the Video settings and the check
+  - results show as short messages in the corner (screenshot saved, clip saved, errors)
+  - NS2Bench asks before anything that interrupts the console or removes something (installing on the board, flashing a Pico, installing an update, removing the helper, the command or an agent)
+  - **Ctrl+K / ⌘K** searches every action and setting; **?** lists the keyboard shortcuts (F fullscreen, S screenshot, M sound, "," settings)
+  - **What's new** appears once after an update, and Settings → Updates shows release notes formatted
+- Settings → Devices: a **Calibrate** button (Help pointed at one that didn't exist); after Apply it says right there whether the Bridge connected and the console accepted it; a pasted `address:port` is split into the two fields; serial ports are suggested.
+- Help: **Run the check** has a button next to each problem that goes where it is fixed. **Show getting started** brings the Get started card back; each of its steps is a link, with what is still wrong under it, and a fourth step to connect an agent.
+- Appearance: **Reset appearance and layout**. About: copy buttons on the support addresses.
+- Fixed: the page saved its preferences again every second, and a browser tab without the app's key kept retrying and filled the log with refused requests.
+
 - **Connect an agent in one click**, like ps5upload. Settings → API & MCP shows the MCP address and a card each for Claude Code, Codex and OpenCode: whether it has NS2Bench, an Add or Remove button, and the command to run yourself. Agents now connect to the running app by address (`http://127.0.0.1:7630/mcp`), with nothing to install or point at.
 - Settings → API & MCP is split into Connect an agent, Agent tools and API, with copy buttons on every command.
 

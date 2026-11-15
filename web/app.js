@@ -6,6 +6,7 @@ import { fromLog } from './notify.js';
 // NS2Bench browser client: video, Joy-Con, keyboard/mouse/gamepad driving, live activity.
 import { BIT, DPAD, mountPad } from './pad.js';
 import { startLive } from './live.js';
+import { toast } from './ui.js';
 
 const $ = (s) => document.querySelector(s);
 const KEYMAP = { // KeyboardEvent.code -> controller input (keyboard → controller mode)
@@ -132,17 +133,32 @@ consoleEl.addEventListener('pointerdown', (e) => {
     warnInput(); e.preventDefault(); e.stopImmediatePropagation();
   }
 }, true);
+// The engine went away (app closing, crash, sleep): say so at once instead of showing the last
+// status as if it were current, and offer a way out.
+let lostTimer = 0, lost = false;
+function engineLost() {
+  if (lost) return;
+  lost = true;
+  for (const p of [$('#pill-video'), $('#pill-input')]) { p.className = 'pill'; p.textContent = t('reconnecting…'); }
+  clearTimeout(lostTimer);
+  lostTimer = setTimeout(() => { $('#engine-lost').hidden = false; }, 2000);
+}
+function engineBack() {
+  if (!lost) return;
+  lost = false; clearTimeout(lostTimer); $('#engine-lost').hidden = true;
+}
+$('#engine-retry').addEventListener('click', () => $('#btn-refresh').click());
 function connect() {
   ws = new WebSocket(authURL('/ws').replace(/^http/, 'ws'));
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.t === 'pad') { serverPad = m.pad; serverAgent = m.agent ?? [0, 0]; }
-    else if (m.t === 'status') { showStatus(m.status); serverPad = m.status.input.pad; canDrive = m.drive !== false; }
+    else if (m.t === 'status') { engineBack(); showStatus(m.status); serverPad = m.status.input.pad; canDrive = m.drive !== false; }
     else if (m.t === 'event') addEvent(m.event);
     else if (m.t === 'log') { addLog(m.entry); fromLog(m.entry); }
     else if (m.t === 'error') addEvent({ source: 'error', action: m.error, t: Date.now() / 1000 });
   };
-  ws.onclose = () => { bridgeStatus = null; releaseAll(); setTimeout(connect, 1000); };
+  ws.onclose = () => { bridgeStatus = null; releaseAll(); engineLost(); setTimeout(connect, 1000); };
   ws.onopen = () => { lastSent = ''; if (logsLoaded) loadLogs(); };
 }
 const send = (obj) => {
@@ -315,6 +331,11 @@ function showStatus(s) {
   i.className = inp.connected && inp.usb === 'configured' ? 'pill ok' : 'pill bad';
   $('#manual-only').checked = inp.manual_only;
   if (s.ocr) $('#log-screen').checked = s.ocr.screen_log;
+  // No picture: say why inside the screen, with the way to fix it.
+  $('#no-picture').hidden = live || !s.video.error && performance.now() < 6000;
+  if (!live) $('#no-picture-why').textContent = s.video.error ? `${t('Capture says:')} ${s.video.error}` : t('Waiting for the first picture…');
+  $('#step-video-why').textContent = live ? '' : (s.video.error ?? '');
+  $('#step-input-why').textContent = inp.connected && inp.usb === 'configured' || inp.backend === 'none' ? '' : (inp.detail ?? (inp.connected ? t('console not ready') : ''));
   welcome(live, inp);
   const mode = inp.usb_mode ?? 'standard';
   consoleEl.classList.toggle('pro', mode === 'pro');
@@ -372,6 +393,7 @@ syncDriving();
 
 function addEvent(ev) {
   if (ev.action === 'mouse') return;               // too chatty for the log
+  if (ev.source === 'error' && ev.toast !== false) toast(String(ev.action), 'warn');
   const li = document.createElement('li');
   const agent = ev.source !== 'ui';
   const time = new Date(ev.t * 1000).toLocaleTimeString();
@@ -419,6 +441,7 @@ $('#btn-shot').addEventListener('click', async () => {
     href: URL.createObjectURL(await r.blob()),
     download: `ns2bench-${new Date().toISOString().replace(/[:.]/g, '-')}.png` });
   a.click();
+  toast(t('Screenshot saved to your Downloads folder.'), 'ok');
   // WebKit fails blob downloads revoked at once.
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
@@ -477,6 +500,7 @@ $('#btn-clip').addEventListener('click', async (e) => {
   if (r.ok) {
     const d = await r.json();
     label.textContent = `${t('Saved')} ${d.seconds} s`;
+    toast(`${t('Clip saved:')} ${d.seconds} s. ${t('It is in your Downloads folder.')}`, 'ok');
     // Download through the engine (the desktop app saves it to Downloads).
     Object.assign(document.createElement('a'), { href: authURL(d.url), download: d.url.split('/').pop() }).click();
   } else {
@@ -720,20 +744,104 @@ function welcome(videoOk, inp) {
   $('#step-input').classList.toggle('done', !!inputOk);
   $('#step-drive').classList.toggle('done', drove);
   // Once everything has worked, stay hidden (a sleeping console must not bring it back).
-  if (videoOk && inputOk && drove) store.set('welcomeHidden', true);
-  $('#welcome').hidden = store.get('welcomeHidden', false);
+  if (videoOk && inputOk && drove && !store.get('welcomeHidden', false)) store.set('welcomeHidden', true);
+  $('#welcome').hidden = !welcomeAsked && store.get('welcomeHidden', false);
 }
-$('#welcome-hide').addEventListener('click', () => { store.set('welcomeHidden', true); $('#welcome').hidden = true; });
+// Help → Show getting started brings the card back until it is closed again.
+let welcomeAsked = false;
+document.addEventListener('ns2bench:welcome', () => {
+  welcomeAsked = true; $('#welcome').hidden = false;
+  $('#welcome').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+// Each step goes where it is done.
+for (const b of document.querySelectorAll('#welcome .step')) {
+  b.addEventListener('click', () => {
+    const step = b.dataset.step;
+    if (step === 'video') $('#pill-video').click();
+    else if (step === 'input') document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'devices' }));
+    else if (step === 'drive') $('#screen').focus();
+    else document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'integrations' }));
+  });
+}
+$('#welcome-hide').addEventListener('click', () => { welcomeAsked = false; store.set('welcomeHidden', true); $('#welcome').hidden = true; });
 $('#welcome-devices').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'devices' })));
+$('#no-picture-video').addEventListener('click', (e) => { e.stopPropagation(); $('#pill-video').click(); });
+$('#no-picture-check').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'help' }));
+  setTimeout(() => $('#help-doctor').click(), 300);
+});
 $('#screen').addEventListener('focus', () => { if (!drove) { drove = true; store.set('drove', true); } });
 
-// "?" (outside the console screen and text fields) shows the keyboard map.
-document.addEventListener('keydown', (e) => {
-  if (e.key !== '?' || e.target.closest?.('#screen, input, select, textarea, dialog')) return;
+// ------------------------------------------------------------ shortcuts and the action search
+// Outside the picture and text fields: ? this list, Ctrl/⌘K search, "," settings, F fullscreen,
+// S screenshot, M sound. Inside the picture every key goes to the console.
+function showKeyMap() {
   const keys = $('details.keys');
   keys.open = true;
   keys.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   keys.classList.remove('flash'); void keys.offsetWidth; keys.classList.add('flash');
+}
+$('#shortcuts-map').addEventListener('click', () => { $('#shortcuts').close(); showKeyMap(); });
+for (const d of document.querySelectorAll('#shortcuts, #whatsnew')) d.querySelector('[data-close]')?.addEventListener('click', () => d.close());
+const settingsTab = (tab) => () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: tab }));
+const ACTIONS = [
+  ['Screenshot', 'save picture image capture', () => $('#btn-shot').click()],
+  ['Save clip', 'record video last 30 seconds', () => $('#btn-clip').click()],
+  ['Fullscreen', 'full screen big', () => $('#btn-full').click()],
+  ['Sound on or off', 'audio mute', () => $('#btn-sound').click()],
+  ['Reconnect the picture, sound and status', 'refresh reload retry', () => $('#btn-refresh').click()],
+  ['Switch between light and dark', 'theme dark light mode', () => $('#btn-theme').click()],
+  ['Video settings', 'capture card device resolution fps', () => $('#pill-video').click()],
+  ['Input device (Bridge)', 'devices bridge pico ch9329 serial input', settingsTab('devices')],
+  ['Calibrate presses', 'calibrate press length timing', () => { settingsTab('devices')(); setTimeout(() => $('#calibrate').scrollIntoView({ block: 'center' }), 300); }],
+  ['Console network', 'network dhcp dns offline', settingsTab('network')],
+  ['Connect an agent', 'mcp claude codex opencode ai agent', settingsTab('integrations')],
+  ['API', 'http api token curl', settingsTab('integrations')],
+  ['Block agents (on or off)', 'manual only stop agent', () => $('#manual-only').click()],
+  ['Install command line tool', 'cli terminal path pico board helper install', settingsTab('install')],
+  ['Appearance', 'theme text size language accessibility font', settingsTab('appearance')],
+  ['Notifications', 'alerts bell', settingsTab('notifications')],
+  ['Check for updates', 'update version upgrade', settingsTab('updates')],
+  ['What’s new', 'changelog release notes', () => { settingsTab('updates')(); setTimeout(() => $('#whatsnew-open').click(), 300); }],
+  ['Run the check', 'doctor diagnose broken problem', () => { settingsTab('help')(); setTimeout(() => $('#help-doctor').click(), 300); }],
+  ['Help', 'faq problems report bug', settingsTab('help')],
+  ['Save bug report', 'bundle zip issue', () => { settingsTab('help')(); setTimeout(() => $('#help-bundle').click(), 300); }],
+  ['Show getting started', 'welcome onboarding setup', () => document.dispatchEvent(new CustomEvent('ns2bench:welcome'))],
+  ['Show the keyboard map', 'keys keyboard map controls', showKeyMap],
+  ['Keyboard shortcuts', 'shortcuts hotkeys', () => $('#shortcuts').showModal()],
+  ['About', 'version license support thanks', settingsTab('about')],
+];
+let paletteHits = [], paletteAt = 0;
+function renderPalette() {
+  const q = $('#palette-q').value.trim().toLowerCase();
+  // Names that match come before matches on a related word.
+  const rank = ([label, words]) => (!q ? 0 : `${t(label)} ${label}`.toLowerCase().includes(q) ? 0 : words.includes(q) ? 1 : 2);
+  paletteHits = ACTIONS.map((a, i) => [a, rank(a), i]).filter(([, r]) => r < 2).sort((x, y) => x[1] - y[1] || x[2] - y[2]).map(([a]) => a).slice(0, 12);
+  paletteAt = Math.min(paletteAt, Math.max(0, paletteHits.length - 1));
+  $('#palette-list').replaceChildren(...paletteHits.map(([label], i) => {
+    const li = Object.assign(document.createElement('li'), { textContent: t(label) });
+    li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(i === paletteAt));
+    li.addEventListener('click', () => runPalette(i));
+    return li;
+  }));
+}
+function runPalette(i) { const a = paletteHits[i]; if (!a) return; $('#palette').close(); a[2](); }
+function openPalette() { $('#palette-q').value = ''; paletteAt = 0; renderPalette(); $('#palette').showModal(); $('#palette-q').focus(); }
+$('#palette-q').addEventListener('input', () => { paletteAt = 0; renderPalette(); });
+$('#palette-q').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); paletteAt = (paletteAt + (e.key === 'ArrowDown' ? 1 : -1) + paletteHits.length) % Math.max(1, paletteHits.length); renderPalette(); }
+  else if (e.key === 'Enter') { e.preventDefault(); runPalette(paletteAt); }
+});
+$('#palette').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest?.('#screen, input, select, textarea, dialog')) return;
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); $('#btn-settings').click(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const act = { '?': () => $('#shortcuts').showModal(), ',': () => $('#btn-settings').click(), f: () => $('#btn-full').click(),
+    s: () => $('#btn-shot').click(), m: () => $('#btn-sound').click() }[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+  if (act) { e.preventDefault(); act(); }
 });
 
 // ------------------------------------------------------------ fullscreen toolbar

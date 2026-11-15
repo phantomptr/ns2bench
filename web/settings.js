@@ -1,26 +1,30 @@
 import { apiFetch, authURL, setToken } from './client.js';
 import { t } from './i18n.js';
 import { inboxAdd, notify } from './notify.js';
+import { ask, toast } from './ui.js';
+import { savePrefsNow } from './prefs.js';
 const $ = (s) => document.querySelector(s);
 const dialog = $('#settings');
 let networkRevision = 0, inputRevision = 0;
 $('#network-settings').addEventListener('change', () => { networkRevision++; });
 $('#input-settings').addEventListener('input', () => { inputRevision++; });
 $('#input-settings').addEventListener('change', () => { inputRevision++; });
-const message = (s) => { $('#settings-message').textContent = s; };
+// Results of an action show as a toast next to where people are looking, not in a line at the top.
+const message = (s, tone = 'info') => { if (s) toast(t(s), tone); };
 async function api(path, body) {
   const r = await apiFetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
-function run(fn) { return async (event) => { event?.preventDefault(); try { await fn(event); } catch (e) { message(e.message || String(e)); } }; }
+function run(fn) { return async (event) => { event?.preventDefault(); try { await fn(event); } catch (e) { message(e.message || String(e), 'error'); } }; }
 $('#btn-settings').onclick = run(async () => { document.activeElement?.blur(); dialog.showModal(); await refresh(); });
 $('#settings-close').onclick = () => dialog.close();
 dialog.addEventListener('keydown', (e) => e.stopPropagation());
 async function showTab(tab) {
   dialog.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.tab === tab)));
   dialog.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== tab; });
-  message(''); if (tab === 'network') await network();
+  if (tab === 'network') await network();
+  if (tab === 'devices') serialPorts();
 }
 for (const b of dialog.querySelectorAll('[data-tab]')) b.onclick = run(() => showTab(b.dataset.tab));
 // Other parts of the page (status pills, the getting-started card) open a tab directly.
@@ -35,7 +39,7 @@ async function about() {
 async function refresh() {
   const results = await Promise.allSettled([input(), network(), integrations(), about()]);
   const errors = results.filter((r) => r.status === 'rejected').map((r) => r.reason.message);
-  message(errors.join(' · '));
+  message(errors.join(' · '), 'error');
 }
 function inputFields() {
   const kind = $('#input-kind').value;
@@ -57,10 +61,16 @@ async function input() {
 $('#input-settings').onsubmit = run(async () => {
   const kind = $('#input-kind').value;
   const s = { backend: kind };
-  if (kind === 'hidd') Object.assign(s, { host: $('#input-host').value.trim(), port: Number($('#input-port').value), token_file: $('#input-token-file').value.trim() || null });
+  if (kind === 'hidd') {
+    // A pasted "192.168.79.2:7631" or "http://host:7631/" goes into the two fields.
+    const m = $('#input-host').value.trim().replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '').match(/^([^:\s]+):(\d{1,5})$/);
+    if (m) { $('#input-host').value = m[1]; $('#input-port').value = m[2]; }
+    Object.assign(s, { host: $('#input-host').value.trim(), port: Number($('#input-port').value), token_file: $('#input-token-file').value.trim() || null });
+  }
   if (['serial', 'ch9329'].includes(kind)) Object.assign(s, { serial_port: $('#input-path').value.trim(), baud: Number($('#input-baud').value) });
-  await api('/api/input', s); message('Input settings saved. The previous connection was closed; Bridge readiness appears in the main toolbar.');
+  await api('/api/input', s);
   try { localStorage.setItem('ns2bench.viewOnly', JSON.stringify(kind === 'none')); } catch { /* private mode */ }
+  await checkInput(kind);
 });
 function networkFields() {
   const direct = $('#network-topology').value === 'direct';
@@ -112,7 +122,9 @@ async function integrations() {
     codex: `codex mcp add ns2bench --url ${url}`,
     opencode: `opencode mcp add ns2bench --url ${url}`,
   };
-  for (const card of dialog.querySelectorAll('.agent')) card.querySelector('.agent-cmd').textContent = commands[card.dataset.agent];
+  // Wrapped between words only (never inside "--scope" or the address); copying gives the same text.
+  const words = (el, text) => el.replaceChildren(...text.split(' ').flatMap((w, i) => [...(i ? [' '] : []), Object.assign(document.createElement('span'), { className: 'w', textContent: w })]));
+  for (const card of dialog.querySelectorAll('.agent')) words(card.querySelector('.agent-cmd'), commands[card.dataset.agent]);
   agents();
   $('#mcp-tools').replaceChildren(...i.tools.map((t) => { const p = document.createElement('p'); const b = document.createElement('b'); b.textContent = t.name; p.append(b, document.createTextNode(` — ${t.description || ''}`)); return p; }));
 }
@@ -159,6 +171,7 @@ for (const card of dialog.querySelectorAll('.agent')) {
   for (const [sel, action] of [['.agent-add', 'add'], ['.agent-remove', 'remove']]) {
     card.querySelector(sel).onclick = run(async (e) => {
       const b = e.currentTarget;
+      if (action === 'remove' && !(await ask({ title: t('Remove NS2Bench from this agent?'), body: t('The agent can no longer see or drive the console. You can add it again any time.'), confirm: t('Remove'), destructive: true }))) return;
       b.disabled = true;
       try { showAgent(await invoke('agent_action', { action, agent: card.dataset.agent })); message(action === 'add' ? t('Added. Start a new session in your agent to load it.') : t('Removed.')); }
       catch (err) { message(t(AGENT_ERRORS[String(err)] || String(err))); }
@@ -194,7 +207,7 @@ for (const [id, key, fallback] of [['#update-auto-check', 'check', true], ['#upd
 const invoke = window.__TAURI__?.core?.invoke;
 function renderUpdate() {
   $('#update-status').textContent = update ? `${t('Installed')} ${update.current_version}${update.latest_version ? ` · ${t('Latest')} ${update.latest_version}` : ''} · ${t(update.message)}` : 'Updates are available in the NS2Bench desktop app.';
-  $('#update-notes').textContent = update?.notes || '';
+  renderNotes($('#update-notes'), update?.notes || '');
   $('#update-check').disabled = busy || !invoke;
   $('#update-download').disabled = busy || !update?.available || update.downloaded || update.manual;
   $('#update-install').disabled = busy || !update?.downloaded;
@@ -210,7 +223,7 @@ async function updateAction(action) {
 }
 $('#update-check').onclick = run(() => updateAction('check'));
 $('#update-download').onclick = run(() => updateAction('download'));
-$('#update-install').onclick = run(() => updateAction('install'));
+$('#update-install').onclick = run(async () => (await ask({ title: t('Install the update now?'), body: t('NS2Bench closes, installs the new version and opens again. Held buttons are released and agents lose the connection until it is back.'), confirm: t('Install and restart') })) && updateAction('install'));
 async function automaticUpdates() {
   if (!invoke || busy) return;
   if ($('#update-auto-check').checked && Date.now() - lastAttempt > 900000 && Date.now() - Number(ls.get('ns2bench.update.lastCheck') || 0) > 86400000) await updateAction('check');
@@ -258,7 +271,7 @@ async function cliAction(action) {
   catch (e) { const m = String(e); renderCli(m === 'Cancelled' ? undefined : m); }
 }
 $('#cli-install').onclick = run(() => cliAction('install'));
-$('#cli-uninstall').onclick = run(() => cliAction('uninstall'));
+$('#cli-uninstall').onclick = run(async () => (await ask({ title: t('Remove the ns2bench command?'), body: t('Scripts and terminals that use ns2bench stop finding it. The app keeps working.'), confirm: t('Remove'), destructive: true })) && cliAction('uninstall'));
 renderCli();
 if (invoke) cliAction('status');
 
@@ -288,21 +301,21 @@ function renderNetd() {
 }
 $('#board-host').value = ls.get('ns2bench.board.host') || '';
 $('#board-host').oninput = () => { ls.set('ns2bench.board.host', $('#board-host').value.trim()); renderInstall(); };
-$('#pico-flash').onclick = run(() => installStep(['#pico-flash'], '#pico-status', t('Looking for a Pico in BOOTSEL mode… Hold BOOTSEL while you plug it in.'), async () => {
+$('#pico-flash').onclick = run(async () => (await ask({ title: t('Flash the Pico?'), body: t('The Pico in BOOTSEL mode gets the NS2Bench Bridge firmware. Anything else on it is replaced.'), confirm: t('Flash Pico') })) && installStep(['#pico-flash'], '#pico-status', t('Looking for a Pico in BOOTSEL mode… Hold BOOTSEL while you plug it in.'), async () => {
   say('#pico-status', (await component('pico', 'flash')).message);
 }));
 $('#board-probe').onclick = run(() => installStep(['#board-probe', '#board-install'], '#board-status', t('Connecting…'), async () => {
   const b = await component('board', 'probe', { host: $('#board-host').value.trim() });
   say('#board-status', `${b.arch} · ${b.installed ? `${t('Installed:')} ${b.installed}` : t('NS2Bench Bridge is not installed.')}${b.supported ? '' : ` · ${t('This board is not supported.')}`}`);
 }));
-$('#board-install').onclick = run(() => installStep(['#board-probe', '#board-install'], '#board-status', t('Installing… The Bridge restarts, so held buttons are released.'), async () => {
+$('#board-install').onclick = run(async () => (await ask({ title: t('Install on the board?'), body: t('NS2Bench uploads the Bridge to the board and restarts it. The console sees the controller disconnect for a few seconds, and held buttons are released. The current files are kept as a backup on the board.'), confirm: t('Install') })) && installStep(['#board-probe', '#board-install'], '#board-status', t('Installing… The Bridge restarts, so held buttons are released.'), async () => {
   const r = await component('board', 'install', { host: $('#board-host').value.trim() });
   say('#board-status', r.message); $('#board-log').textContent = r.log || ''; $('#board-log').hidden = !r.log;
 }));
 $('#netd-install').onclick = run(() => installStep(['#netd-install', '#netd-uninstall'], '#netd-status', t('Installing…'), async () => {
   const r = await component('netd', 'install'); netd = r.status; renderNetd(); $('#netd-status').textContent += ` · ${r.message}`;
 }));
-$('#netd-uninstall').onclick = run(() => installStep(['#netd-install', '#netd-uninstall'], '#netd-status', t('Removing…'), async () => {
+$('#netd-uninstall').onclick = run(async () => (await ask({ title: t('Remove the network helper?'), body: t('The console’s offline network stops: no more local addresses or connectivity test. Capture and USB input keep working.'), confirm: t('Remove'), destructive: true })) && installStep(['#netd-install', '#netd-uninstall'], '#netd-status', t('Removing…'), async () => {
   const r = await component('netd', 'uninstall'); netd = r.status; renderNetd();
 }));
 renderInstall();
@@ -346,3 +359,134 @@ $('#help-issue').onclick = run(async () => {
   const q = new URLSearchParams({ template: 'bug_report.yml', versions: `${s.version || '?'}, ${os}` });
   window.open(`https://github.com/phantomptr/ns2bench/issues/new?${q}`, '_blank', 'noopener');
 });
+
+// ---------------------------------------------------------------- Devices: check the connection, suggest serial ports
+// After Apply, watch the status for a few seconds and say right here whether it worked.
+async function checkInput(kind) {
+  const line = $('#input-check');
+  line.hidden = false; line.className = 'status info';
+  if (kind === 'none') { line.textContent = t('View only: the picture, sound and tools work; nothing presses buttons.'); line.className = 'status ok'; return; }
+  line.textContent = t('Saved. Connecting…');
+  let s = null;
+  for (let i = 0; i < 16; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    s = (await api('/api/status').catch(() => null))?.input;
+    if (s?.connected && s.usb === 'configured') break;
+  }
+  if (s?.connected && s.usb === 'configured') { line.className = 'status ok'; line.textContent = `${t('Connected. The console sees the controller.')} (${Math.max(1, Math.round(s.rtt_ms ?? 1))} ms)`; }
+  else if (s?.connected) { line.className = 'status warn'; line.textContent = t('Connected to the Bridge, but the console hasn’t accepted it yet. Wake the console and check the USB cable to the console.'); }
+  else { line.className = 'status bad'; line.textContent = `${s?.detail || t('Not connected yet.')} ${t('Check the device is powered (the console must be awake), its address or port, and the token file. It keeps trying in the background.')}`; }
+}
+async function serialPorts() {
+  const r = await api('/api/serial_ports').catch(() => null);
+  $('#serial-ports').replaceChildren(...(r?.ports || []).map((p) => Object.assign(document.createElement('option'), { value: p })));
+}
+
+// ---------------------------------------------------------------- Devices: calibrate presses
+$('#calibrate').onclick = run(async () => {
+  if (!(await ask({ title: t('Calibrate presses?'), body: t('Go to the HOME menu first. NS2Bench presses Right and Left about 25 times over half a minute and watches the screen. Don’t drive while it runs.'), confirm: t('Calibrate') }))) return;
+  const b = $('#calibrate'), note = $('#calibrate-note');
+  b.disabled = true; note.textContent = t('Calibrating… about 30 s.');
+  try {
+    const r = await api('/api/calibrate', {});
+    note.textContent = `${t('Done. Shortest press that always works:')} ${r.min_press_ms} ms · ${t('the console reacts in about')} ${Math.round(r.latency_ms_median ?? 0)} ms.`;
+    toast(t('Calibration saved.'), 'ok');
+  } catch (e) { note.textContent = String(e.message || e); }
+  finally { b.disabled = false; }
+});
+
+// ---------------------------------------------------------------- Help: what to do about each check
+const CHECK_ACTION = {
+  video: ['Video settings', () => { dialog.close(); $('#pill-video').click(); }],
+  'console picture': ['Video settings', () => { dialog.close(); $('#pill-video').click(); }],
+  'NS2Bench Bridge': ['Input settings', () => showTab('devices')],
+  'console USB': ['Input settings', () => showTab('devices')],
+  'console input': ['Input settings', () => showTab('devices')],
+  'agent input': ['Allow agents', () => { dialog.close(); $('#manual-only').scrollIntoView({ block: 'center' }); }],
+  calibration: ['Calibrate', () => showTab('devices').then(() => $('#calibrate').scrollIntoView({ block: 'center' }))],
+  'console network': ['Network settings', () => showTab('network')],
+  'console network isolation': ['Network settings', () => showTab('network')],
+  audio: ['Turn sound on', () => { dialog.close(); if ($('#btn-sound').getAttribute('aria-pressed') !== 'true') $('#btn-sound').click(); }],
+};
+new MutationObserver(() => {
+  for (const li of $('#help-checks').children) {
+    if (li.dataset.acted || !/\b(warn|fail)\b/.test(li.className)) continue;
+    li.dataset.acted = '1';
+    const a = CHECK_ACTION[li.querySelector('b')?.textContent];
+    if (!a) continue;
+    const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'check-act', textContent: t(a[0]) });
+    btn.onclick = run(a[1]);
+    li.append(btn);
+  }
+}).observe($('#help-checks'), { childList: true });
+
+// ---------------------------------------------------------------- Help and Appearance: start over
+$('#help-welcome').onclick = () => { dialog.close(); document.dispatchEvent(new CustomEvent('ns2bench:welcome')); };
+$('#help-shortcuts').onclick = () => { dialog.close(); $('#shortcuts').showModal(); };
+$('#prefs-reset').onclick = run(async () => {
+  if (!(await ask({ title: t('Reset appearance and layout?'), body: t('Theme, text size, language, accessibility, layout and log filters go back to their defaults. Devices, network and API settings are kept.'), confirm: t('Reset'), destructive: true }))) return;
+  const keep = /^ns2bench\.(update|board|inbox|notify|token|viewOnly|welcomeHidden|drove|lastSeenVersion)/;
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('ns2bench.') && !keep.test(k)) localStorage.removeItem(k); } catch { /* storage blocked */ }
+  await savePrefsNow();
+  location.reload();
+});
+
+// ---------------------------------------------------------------- What's new (after an update) and release notes
+// A little Markdown: headings, bullets (nested), bold, code and links. Text is set, never parsed as HTML.
+export function renderNotes(el, md) {
+  el.replaceChildren();
+  let list = null, sub = null;
+  const inline = (parent, text) => {
+    for (const part of text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/)) {
+      if (!part) continue;
+      let node;
+      if (part.startsWith('**')) node = Object.assign(document.createElement('b'), { textContent: part.slice(2, -2) });
+      else if (part.startsWith('`')) node = Object.assign(document.createElement('code'), { textContent: part.slice(1, -1) });
+      else if (part.startsWith('[')) {
+        const [, label, href] = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        node = /^https:\/\//.test(href) ? Object.assign(document.createElement('a'), { textContent: label, href, target: '_blank', rel: 'noopener' }) : document.createTextNode(label);
+      } else node = document.createTextNode(part);
+      parent.append(node);
+    }
+  };
+  for (const line of md.split('\n')) {
+    const h = line.match(/^#{1,3}\s+(.*)/), b = line.match(/^(\s*)[-*]\s+(.*)/);
+    if (h) { list = sub = null; const e = document.createElement('h4'); inline(e, h[1]); el.append(e); }
+    else if (b) {
+      const li = document.createElement('li'); inline(li, b[2]);
+      if (b[1].length >= 2 && list) { if (!sub) { sub = document.createElement('ul'); list.lastElementChild?.append(sub); } sub.append(li); }
+      else { if (!list) { list = document.createElement('ul'); el.append(list); } sub = null; list.append(li); }
+    } else if (line.trim()) { list = sub = null; const p = document.createElement('p'); inline(p, line.trim()); el.append(p); }
+  }
+}
+// The changelog sections newer than `since` and up to `upto` (the running version).
+const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+async function whatsNew(since, upto) {
+  const r = await apiFetch('/api/changelog'); if (!r.ok) return '';
+  const md = await r.text();
+  const out = [];
+  for (const sec of md.split(/^## /m).slice(1)) {
+    const v = sec.split('\n', 1)[0].trim();
+    if (!/^\d+\.\d+\.\d+$/.test(v) || newer(v, upto) || (since && !newer(v, since))) continue;
+    out.push(`### ${v}\n${sec.slice(sec.indexOf('\n') + 1).trim()}`);
+    if (!since) break;
+  }
+  return out.slice(0, 5).join('\n\n');
+}
+async function showWhatsNew(since, upto) {
+  const md = await whatsNew(since, upto);
+  if (!md) return;
+  renderNotes($('#whatsnew-body'), md);
+  $('#whatsnew-title').textContent = `${t('What’s new in NS2Bench')} ${upto}`;
+  $('#whatsnew').showModal();
+}
+$('#whatsnew-open').onclick = run(async () => { const s = await api('/api/status'); await showWhatsNew('', s.version); });
+// After an update (never on a first install): once, and a line in the bell.
+api('/api/status').then(async (s) => {
+  if (!s.version) return;
+  const seen = ls.get('ns2bench.lastSeenVersion');
+  ls.set('ns2bench.lastSeenVersion', s.version);
+  if (!seen || seen === s.version || !newer(s.version, seen)) return;
+  inboxAdd('Update installed', `${t('NS2Bench was updated to')} ${s.version}. ${t('Open Settings → Updates → What’s new to see what changed.')}`);
+  await showWhatsNew(seen, s.version);
+}).catch(() => {});
