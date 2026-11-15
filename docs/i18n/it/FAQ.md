@@ -10,7 +10,7 @@ A sviluppatori che testano software su hardware reale, a chi automatizza control
 
 ## Modifica la mia console?
 
-No. NS2Bench fa solo ciò che fanno una TV e un controller con cavo: riceve l’HDMI e preme pulsanti via USB. Sulla console non viene installato nulla.
+No. NS2Bench fa solo ciò che fanno una TV e un controller con cavo: riceve l’HDMI e preme pulsanti via USB. Sulla console non viene installato nulla. Funziona con qualsiasi Switch 2 così com’è appena tolta dalla scatola, con qualsiasi versione di sistema: niente jailbreak, niente modifiche e niente homebrew.
 
 ## La console va online?
 

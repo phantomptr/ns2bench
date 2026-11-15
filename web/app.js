@@ -1,4 +1,5 @@
 import { apiFetch as fetch, authURL } from './client.js';
+import './prefs.js';
 import './settings.js';
 import { t } from './i18n.js';
 import { fromLog } from './notify.js';

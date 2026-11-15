@@ -10,7 +10,7 @@ Aux développeurs qui testent un logiciel sur du vrai matériel, aux personnes q
 
 ## Modifie-t-il ma console ?
 
-Non. NS2Bench fait seulement ce que font une télé et une manette filaire : il reçoit le HDMI et appuie sur des boutons via USB. Rien n’est installé sur la console.
+Non. NS2Bench fait seulement ce que font une télé et une manette filaire : il reçoit le HDMI et appuie sur des boutons via USB. Rien n’est installé sur la console. Il fonctionne avec n’importe quelle Switch 2 telle qu’elle sort de sa boîte, quelle que soit la version du système : pas de jailbreak, pas de modification, pas de homebrew.
 
 ## La console va-t-elle en ligne ?
 

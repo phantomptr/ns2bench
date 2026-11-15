@@ -147,6 +147,7 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 | | |
 |---|---|
 | `GET /api/status` | video fps, input link, USB state, calibration |
+| `GET /api/prefs` | the page's saved preferences (theme, text size, language…), kept in `~/.ns2bench/ui.json`; only the page can change them |
 | `GET /api/health` | ready to drive? `{ok, video, input, agents_allowed, problems: [{area, problem, fix}]}` |
 | `GET /api/screenshot?format=png&max_width=1280&region=0,0.8,1,0.2` | latest frame (optionally cropped); headers `X-Frame-Seq`, `X-Frame-Age-Ms` |
 | `GET /stream.mjpg` | live MJPEG |

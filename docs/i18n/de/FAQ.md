@@ -10,7 +10,7 @@ Für Entwickler, die Software auf echter Hardware testen, für Leute, die wieder
 
 ## Verändert es meine Konsole?
 
-Nein. NS2Bench macht nur, was ein Fernseher und ein kabelgebundener Controller machen: Es empfängt HDMI und drückt Tasten über USB. Auf der Konsole wird nichts installiert.
+Nein. NS2Bench macht nur, was ein Fernseher und ein kabelgebundener Controller machen: Es empfängt HDMI und drückt Tasten über USB. Auf der Konsole wird nichts installiert. Es funktioniert mit jeder Switch 2 genau so, wie sie aus der Verpackung kommt, mit jeder Systemversion: kein Jailbreak, keine Mods und kein Homebrew.
 
 ## Geht die Konsole online?
 

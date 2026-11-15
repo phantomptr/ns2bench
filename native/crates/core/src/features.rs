@@ -137,6 +137,7 @@ pub fn routes(r: Router<S>) -> Router<S> {
         .route("/api/find_text", get(get_find_text))
         .route("/api/health", get(get_health))
         .route("/api/reports", get(get_reports))
+        .route("/api/prefs", get(get_prefs).post(post_prefs))
 }
 
 /// Wait for the screen to react ("change") or to settle ("stable").
@@ -218,6 +219,27 @@ async fn get_reports() -> Json<Value> {
 fn unavailable(e: anyhow::Error) -> ApiError {
     ApiError(StatusCode::SERVICE_UNAVAILABLE, e.to_string())
 }
+/// The page's own preferences (theme, text size, language, notification choices…), kept in
+/// ~/.ns2bench/ui.json so they are the same in the app and in a browser, and outlive both.
+async fn get_prefs() -> Json<Value> {
+    let v: Value = std::fs::read(crate::config::state_dir().join("ui.json")).ok()
+        .and_then(|d| serde_json::from_slice(&d).ok()).filter(Value::is_object).unwrap_or(json!({}));
+    Json(v)
+}
+
+async fn post_prefs(h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
+    if !crate::server::from_browser(&h) {
+        return Err(ApiError(StatusCode::FORBIDDEN, "only the NS2Bench page saves its preferences".into()));
+    }
+    let ok = v.as_object().is_some_and(|o| o.len() <= 200
+        && o.iter().all(|(k, x)| k.starts_with("ns2bench.") && k.len() <= 80 && x.as_str().is_some_and(|x| x.len() <= 2000)));
+    if !ok {
+        return Err(bad("preferences are up to 200 short \"ns2bench.*\" text values"));
+    }
+    crate::config::write_json(&crate::config::state_dir().join("ui.json"), &v).map_err(anyhow::Error::from)?;
+    Ok(Json(json!({"ok": true})))
+}
+
 fn not_manual_only(b: &S) -> R<()> {
     if b.hub.manual_only.load(Ordering::Relaxed) {
         return Err(ApiError(StatusCode::CONFLICT, "manual-only mode is on".into()));

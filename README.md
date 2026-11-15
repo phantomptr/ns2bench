@@ -17,9 +17,24 @@
 
 <p align="center"><b>See, hear and drive a Nintendo Switch 2 from your computer, by hand or by AI agents. The console stays offline.</b></p>
 
+<p align="center">Works with any Switch 2 as it comes out of the box. No jailbreak, no mods, no homebrew.</p>
+
 <p align="center"><a href="https://ns2bench.phantomptr.com/">Website</a> · <a href="https://github.com/phantomptr/ns2bench/releases/latest">Download</a> · <a href="docs/setup/README.md">Setup guide</a> · <a href="FAQ.md">FAQ</a></p>
 
 ---
+
+## What it is
+
+NS2Bench lets you use, develop for and test a Nintendo Switch 2 without touching it. The console sits in its dock; your computer shows its screen, plays its sound and presses its buttons. Anything you could do with the console in your hands, you or a script or an AI agent can do from the computer, and repeat exactly.
+
+It needs nothing from the console but its HDMI and USB ports. To the console, NS2Bench is a TV and a wired controller, so it works with a stock console on any system version.
+
+Good for:
+
+- **Developers and testers:** drive real hardware from your desk or from CI, with screenshots, clips and logs for every run.
+- **Automation:** repeat the same menu path or check a hundred times without picking up a controller.
+- **AI agents:** let an agent see the screen and play or test, while you watch and can stop it with one switch.
+- **Remote and hands-free use:** a console in another room, an accessibility setup, or a demo you control from a laptop.
 
 ## What it does
 
@@ -27,13 +42,14 @@
 - **Drive it:** keyboard, mouse or your own gamepad, sent through a small input device on the console's USB port. On-screen Joy-Con light up with every press.
 - **Let agents drive it:** an HTTP API and an MCP server (Claude Code, Codex, opencode and others). You watch every agent action live, and one switch blocks agent input.
 - **Test it:** repeatable JSON tests with screenshots, a clip of the moments before any failure, navigation routes and a doctor that says which part is broken.
+- **Remembers your setup:** theme, text size, language, layout and notification choices are saved on your computer and are the same in the app and in a browser.
 - **Know what's going on:** logs with levels, and for known problems what happened and what to do. Desktop notifications when the Bridge or the picture drops, a test finishes or an update is ready. **Help → Run the check** tests every part.
 - **Set up the rest from the app:** **Settings → Install** puts the `ns2bench` command on your PATH, flashes a Pico, installs the Bridge on a Linux board over SSH, and runs the offline network helper as a service.
 - **Keep it offline:** an optional console network with local DHCP and a DNS that answers only the connectivity test. No forwarding, no NAT, no internet.
 
 ## What it doesn't do
 
-- It doesn't modify the console, install anything on it, or need homebrew.
+- It doesn't modify the console, install anything on it, or need a jailbreak, mods or homebrew.
 - It never gives the console internet access or talks to Nintendo's servers.
 - It doesn't bypass any protection. It sees what a TV sees and presses what a controller presses.
 

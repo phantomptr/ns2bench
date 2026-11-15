@@ -194,3 +194,23 @@ test('security: headers, cross-site and DNS-rebinding requests', async () => {
   const c = await fetch(`${BASE}/api/control`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"manual_only":false}' });
   assert.equal(c.status, 403);
 });
+
+test('choices are saved by the engine and come back in a fresh browser', async () => {
+  const a = await page({ colorScheme: 'dark' });
+  await a.p.click('#btn-settings');
+  await a.p.click('[data-tab="appearance"]');
+  await a.p.click('[data-theme-pick="peach"]');
+  for (let i = 0; ; i++) {
+    if ((await (await fetch(`${BASE}/api/prefs`)).json())['ns2bench.theme'] === 'peach') break;
+    assert.ok(i < 50, 'the choice was not saved');
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  await a.ctx.close();
+  // a different browser profile: nothing stored locally, the saved choice is applied
+  const b = await page({ colorScheme: 'dark' });
+  await b.p.waitForFunction(() => document.documentElement.dataset.theme === 'peach', null, { timeout: 10000 });
+  await b.ctx.close();
+  // scripts can't rewrite the page's preferences
+  const r = await fetch(`${BASE}/api/prefs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"ns2bench.theme":"\\"dark\\""}' });
+  assert.equal(r.status, 403);
+});
