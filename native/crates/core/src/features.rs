@@ -141,7 +141,7 @@ pub fn routes(r: Router<S>) -> Router<S> {
         .route("/api/power", get(crate::power::get_power).post(crate::power::post_power))
         .route("/api/power/settings", post(crate::power::set_power))
         .route("/api/changelog", get(|| async { ([(header::CONTENT_TYPE, "text/markdown; charset=utf-8")], CHANGELOG) }))
-        .route("/api/serial_ports", get(|| async { Json(json!({"ports": serial_ports()})) }))
+        .route("/api/serial_ports", get(|| async { Json(json!({"ports": tokio::task::spawn_blocking(serial_ports).await.unwrap_or_default()})) }))
 }
 
 /// Wait for the screen to react ("change") or to settle ("stable").
@@ -260,14 +260,27 @@ async fn post_prefs(h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
     if !crate::server::from_browser(&h) {
         return Err(ApiError(StatusCode::FORBIDDEN, "only the NS2Bench page saves its preferences".into()));
     }
-    let ok = v.as_object().is_some_and(|o| o.len() <= 200
-        && o.iter().all(|(k, x)| k.starts_with("ns2bench.") && k.len() <= 80 && x.as_str().is_some_and(|x| x.len() <= 2000)));
+    // Changes only, merged into what is saved: {"ns2bench.key": "value" | null (remove)}.
+    // Two open windows then don't undo each other's choices.
+    let change = v.as_object().ok_or_else(|| bad("preferences must be an object"))?;
+    let ok = change.iter().all(|(k, x)| k.starts_with("ns2bench.") && k.len() <= 80 && (x.is_null() || x.as_str().is_some_and(|x| x.len() <= 2000)));
     if !ok {
-        return Err(bad("preferences are up to 200 short \"ns2bench.*\" text values"));
+        return Err(bad("preferences are short \"ns2bench.*\" text values (null removes one)"));
     }
-    crate::config::write_json(&crate::config::state_dir().join("ui.json"), &v).map_err(anyhow::Error::from)?;
+    let _one = PREFS.lock().await;
+    let path = crate::config::state_dir().join("ui.json");
+    let mut saved: serde_json::Map<String, Value> = std::fs::read(&path).ok()
+        .and_then(|d| serde_json::from_slice(&d).ok()).unwrap_or_default();
+    for (k, x) in change {
+        if x.is_null() { saved.remove(k); } else { saved.insert(k.clone(), x.clone()); }
+    }
+    if saved.len() > 200 {
+        return Err(bad("at most 200 preferences"));
+    }
+    crate::config::write_json(&path, &Value::Object(saved)).map_err(anyhow::Error::from)?;
     Ok(Json(json!({"ok": true})))
 }
+static PREFS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn not_manual_only(b: &S) -> R<()> {
     if b.hub.manual_only.load(Ordering::Relaxed) {

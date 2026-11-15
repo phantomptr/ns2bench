@@ -58,23 +58,48 @@ fn validate(v: &Value) -> anyhow::Result<Value> {
     }))
 }
 
-/// Which CEC tool this computer has.
-fn cec_tool() -> Option<&'static str> {
-    if crate::ocr::which("cec-client") {
-        Some("cec-client")
-    } else if cfg!(target_os = "linux") && crate::ocr::which("cec-ctl") {
-        Some("cec-ctl")
+/// Where programs are looked for: the app's own PATH (short when started from Finder) plus the
+/// places Homebrew, package managers and the Pulse-Eight installer put them.
+fn search_path() -> std::ffi::OsString {
+    let mut dirs: Vec<std::path::PathBuf> = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
+    if cfg!(windows) {
+        for d in [r"C:\Program Files (x86)\Pulse-Eight\USB-CEC Adapter", r"C:\Program Files\Pulse-Eight\USB-CEC Adapter"] {
+            dirs.push(d.into());
+        }
     } else {
-        None
+        for d in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
+            dirs.push(d.into());
+        }
+        if let Some(h) = std::env::var_os("HOME") {
+            dirs.push(std::path::PathBuf::from(h).join(".local/bin"));
+        }
     }
+    std::env::join_paths(dirs).unwrap_or_default()
 }
 
-/// Run a program with a time limit; returns (ok, last lines of output).
+fn find(name: &str) -> Option<std::path::PathBuf> {
+    let exe = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
+    std::env::split_paths(&search_path()).map(|d| d.join(&exe)).find(|p| p.is_file())
+}
+
+/// Which CEC tool this computer has, and where.
+fn cec_tool() -> Option<(&'static str, std::path::PathBuf)> {
+    find("cec-client").map(|p| ("cec-client", p))
+        .or_else(|| if cfg!(target_os = "linux") { find("cec-ctl").map(|p| ("cec-ctl", p)) } else { None })
+}
+
+/// Run a program with a time limit; returns (ok, last lines of output). The program gets the
+/// wider PATH; on a time-out its whole process group is stopped (a hung `curl` under `sh` too),
+/// and output is collected only briefly after it exits (a helper it started in the background
+/// may keep the pipes open).
 async fn run(mut c: Command, stdin: Option<&str>) -> (bool, String) {
-    c.stdin(if stdin.is_some() { std::process::Stdio::piped() } else { std::process::Stdio::null() })
+    c.env("PATH", search_path())
+        .stdin(if stdin.is_some() { std::process::Stdio::piped() } else { std::process::Stdio::null() })
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
+    #[cfg(unix)]
+    c.process_group(0);
     #[cfg(windows)]
     c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     let mut child = match c.spawn() {
@@ -85,15 +110,37 @@ async fn run(mut c: Command, stdin: Option<&str>) -> (bool, String) {
         let _ = pipe.write_all(text.as_bytes()).await;
         drop(pipe);
     }
-    match tokio::time::timeout(RUN_LIMIT, child.wait_with_output()).await {
-        Ok(Ok(out)) => {
-            let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
-            let tail: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
-            (out.status.success(), tail[tail.len().saturating_sub(3)..].join(" · "))
+    let collect = |pipe: Option<Box<dyn tokio::io::AsyncRead + Unpin + Send>>| {
+        tokio::spawn(async move {
+            let mut out = Vec::new();
+            if let Some(mut p) = pipe {
+                use tokio::io::AsyncReadExt;
+                let _ = p.read_to_end(&mut out).await;
+            }
+            out
+        })
+    };
+    let out = collect(child.stdout.take().map(|p| Box::new(p) as _));
+    let err = collect(child.stderr.take().map(|p| Box::new(p) as _));
+    let status = match tokio::time::timeout(RUN_LIMIT, child.wait()).await {
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => return (false, e.to_string()),
+        Err(_) => {
+            #[cfg(unix)]
+            if let Some(pid) = child.id() {
+                // SAFETY: signals the group this child leads (process_group(0) above).
+                unsafe { libc::killpg(pid as libc::pid_t, libc::SIGKILL) };
+            }
+            let _ = child.kill().await;
+            return (false, format!("no answer within {} s", RUN_LIMIT.as_secs()));
         }
-        Ok(Err(e)) => (false, e.to_string()),
-        Err(_) => (false, format!("no answer within {} s", RUN_LIMIT.as_secs())),
-    }
+    };
+    let grab = |h: tokio::task::JoinHandle<Vec<u8>>| async move {
+        tokio::time::timeout(Duration::from_secs(1), h).await.ok().and_then(Result::ok).unwrap_or_default()
+    };
+    let text = format!("{}{}", String::from_utf8_lossy(&grab(out).await), String::from_utf8_lossy(&grab(err).await));
+    let tail: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    (status.success(), tail[tail.len().saturating_sub(3)..].join(" · "))
 }
 
 /// Send "power on" (or "standby") to the console over HDMI-CEC.
@@ -101,16 +148,17 @@ async fn cec(s: &Value, on: bool) -> (bool, String) {
     let addr = s["cec_address"].as_u64().unwrap_or(4);
     let port = s["cec_port"].as_str().unwrap_or("");
     match cec_tool() {
-        Some("cec-client") => {
-            let mut c = Command::new("cec-client");
+        Some(("cec-client", path)) => {
+            let mut c = Command::new(path);
             c.args(["-s", "-d", "1"]);
             if !port.is_empty() {
                 c.arg(port);
             }
-            run(c, Some(&format!("{} {addr}\n", if on { "on" } else { "standby" }))).await
+            // cec-client reads the logical address as hexadecimal (11 is "b")
+            run(c, Some(&format!("{} {addr:x}\n", if on { "on" } else { "standby" }))).await
         }
-        Some(_) => {
-            let mut c = Command::new("cec-ctl");
+        Some((_, path)) => {
+            let mut c = Command::new(path);
             if !port.is_empty() {
                 c.args(["-d", port]);
             }
@@ -149,40 +197,83 @@ async fn button(s: &Value) -> (bool, String) {
     run(c, None).await
 }
 
-fn picture(b: &S) -> bool {
-    b.frames.latest().is_some_and(|f| f.at.elapsed() < Duration::from_secs(3))
+/// What the capture card shows.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Seen {
+    /// No frames: capture stopped, card unplugged, or another app owns it. Nothing is known
+    /// about the console, so the power button is never pressed on this.
+    NoCapture,
+    /// Frames, but black or the card's "No Signal" screen: the console is asleep or off.
+    NoSignal,
+    Picture,
 }
 
-/// Wait up to `limit` for a live picture.
+async fn seen(b: &S) -> Seen {
+    let Some(f) = b.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(3)) else { return Seen::NoCapture };
+    if let Ok(img) = crate::calib::small(&f).await {
+        let px: Vec<f64> = img.pixels().map(|p| p.0[0] as f64).collect();
+        let mean = px.iter().sum::<f64>() / px.len().max(1) as f64;
+        let var = px.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / px.len().max(1) as f64;
+        if mean < 14.0 && var.sqrt() < 6.0 {
+            return Seen::NoSignal;
+        }
+    }
+    if b.ext.ocr.is_some() {
+        if let Ok(lines) = b.read_screen(None, true).await {
+            if crate::ocr::join(&lines, " ").to_lowercase().contains("no signal") {
+                return Seen::NoSignal;
+            }
+        }
+    }
+    Seen::Picture
+}
+
+/// The console has its USB up for the Bridge: it is on, whatever the picture says.
+fn usb_up(b: &S) -> bool {
+    let s = b.hub.status();
+    s["connected"] == true && s["usb"] == "configured"
+}
+
 async fn wait_picture(b: &S, limit: Duration) -> bool {
     let t0 = Instant::now();
-    while t0.elapsed() < limit {
-        if picture(b) {
+    loop {
+        if seen(b).await == Seen::Picture {
             return true;
         }
-        tokio::time::sleep(Duration::from_millis(250)).await;
+        if t0.elapsed() >= limit {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
     }
-    picture(b)
 }
 
-/// Wake the console: CEC, then the power-button command if allowed, then a press for a dimmed
-/// screen. Each step says what it did.
-pub async fn wake(b: &S, source: &str) -> Value {
+/// One power action at a time: two wakes at once could press the button twice (on, then off).
+static BUSY: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Wake the console: HDMI-CEC, then (only when the card shows no signal and the console's USB is
+/// down) the power-button command if allowed, then a press for a dimmed screen.
+pub async fn wake(b: &S, source: &str, full: bool) -> Value {
     let s = settings();
     let mut steps = vec![];
-    let had_picture = picture(b);
-    if !had_picture && s["cec"] == true {
+    let before = seen(b).await;
+    if before != Seen::Picture && s["cec"] == true {
         let (ok, out) = cec(&s, true).await;
         steps.push(json!({"step": "HDMI-CEC power on", "ok": ok, "detail": out}));
-        if ok {
-            wait_picture(b, Duration::from_secs(15)).await;
+        if ok && before == Seen::NoSignal {
+            wait_picture(b, Duration::from_secs(30)).await;
         }
     }
-    if !picture(b) && s["wake_with_button"] == true && !s["button_command"].as_str().unwrap_or("").is_empty() {
-        let (ok, out) = button(&s).await;
-        steps.push(json!({"step": "power button", "ok": ok, "detail": out}));
-        if ok {
-            wait_picture(b, Duration::from_secs(30)).await;
+    let now = seen(b).await;
+    let button_set = s["wake_with_button"] == true && !s["button_command"].as_str().unwrap_or("").is_empty();
+    if now == Seen::NoSignal && button_set {
+        if usb_up(b) {
+            steps.push(json!({"step": "power button", "ok": false, "detail": "not pressed: the console's USB is up, so it is on (a press would put it to sleep)"}));
+        } else {
+            let (ok, out) = button(&s).await;
+            steps.push(json!({"step": "power button", "ok": ok, "detail": if full { out } else if ok { String::new() } else { "the command failed (details in Settings → Devices → Power and wake)".into() }}));
+            if ok {
+                wait_picture(b, Duration::from_secs(30)).await;
+            }
         }
     }
     // A dimmed screen wakes with any press; B does nothing on the HOME menu.
@@ -190,23 +281,29 @@ pub async fn wake(b: &S, source: &str) -> Value {
         let r = b.hub.press(&["B".into()], 100, source, false).await;
         steps.push(json!({"step": "press B (wakes a dimmed screen)", "ok": r.is_ok(), "detail": r.err().map(|e| e.to_string()).unwrap_or_default()}));
     }
-    let awake = picture(b);
-    let msg = if awake {
-        "the console is awake"
-    } else if steps.is_empty() {
-        "no picture, and no way to wake the console is set up: turn on HDMI-CEC or set a power-button command in Settings → Devices → Power and wake"
-    } else {
-        "still no picture: check the steps below, or press the console's power button"
+    let after = seen(b).await;
+    let awake = after == Seen::Picture;
+    let msg = match after {
+        Seen::Picture => "the console is awake",
+        Seen::NoCapture => "no picture from the capture card, so NS2Bench can't tell whether the console is on and didn't press its power button: check the capture card (and that no other app is using it)",
+        Seen::NoSignal if steps.is_empty() => "the capture card shows no signal, and no way to wake the console is set up: turn on HDMI-CEC or set a power-button command in Settings → Devices → Power and wake",
+        Seen::NoSignal => "the capture card still shows no signal: check the steps below, or press the console's power button",
     };
     b.logs.add("bench", format!("{source}: wake: {msg}"));
-    json!({"ok": awake, "picture": awake, "was_awake": had_picture, "message": msg, "steps": steps})
+    json!({"ok": awake, "picture": awake, "was_awake": before == Seen::Picture, "message": msg, "steps": steps})
 }
 
-pub async fn get_power(State(_b): State<S>) -> Json<Value> {
-    let s = settings();
-    Json(json!({"settings": s, "cec_tool": cec_tool(),
+pub async fn get_power(State(_b): State<S>, h: HeaderMap) -> Json<Value> {
+    let mut s = settings();
+    let set = !s["button_command"].as_str().unwrap_or("").is_empty();
+    // The command may hold a secret (a webhook address): only the page sees it.
+    if !crate::server::from_browser(&h) {
+        s["button_command"] = Value::Null;
+    }
+    s["button_command_set"] = set.into();
+    Json(json!({"settings": s, "cec_tool": cec_tool().map(|(n, _)| n),
         "can_wake": s["cec"] == true || (s["wake_with_button"] == true && !s["button_command"].as_str().unwrap_or("").is_empty()),
-        "can_sleep": s["cec"] == true, "can_press_button": !s["button_command"].as_str().unwrap_or("").is_empty()}))
+        "can_sleep": s["cec"] == true, "can_press_button": set}))
 }
 
 pub async fn set_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
@@ -216,6 +313,11 @@ pub async fn set_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
     }
     let v = validate(&v).map_err(|e| bad(e.to_string()))?;
     write_json(&path(), &v).map_err(anyhow::Error::from)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(path(), std::fs::Permissions::from_mode(0o600));
+    }
     b.logs.add("bench", format!("power settings saved: HDMI-CEC {}, power-button command {}",
         if v["cec"] == true { "on" } else { "off" }, if v["button_command"].as_str().unwrap_or("").is_empty() { "not set" } else { "set" }));
     Ok(Json(json!({"ok": true, "settings": v})))
@@ -225,24 +327,29 @@ pub async fn set_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
 pub async fn post_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
     crate::settings::agents_blocked(&b, &h, &v)?;
     let source = crate::server::source_of(&h, &v);
+    // The command's output can include what the command holds: only the page sees it.
+    let full = crate::server::from_browser(&h);
+    let Ok(_one) = BUSY.try_lock() else {
+        return Err(ApiError(StatusCode::CONFLICT, "a power action is already running".into()));
+    };
     let s = settings();
     match v["action"].as_str().unwrap_or("wake") {
-        "wake" => Ok(Json(wake(&b, &source).await)),
+        "wake" => Ok(Json(wake(&b, &source, full).await)),
         "sleep" => {
             if s["cec"] != true {
                 return Err(bad("putting the console to sleep needs HDMI-CEC (Settings → Devices → Power and wake)"));
             }
             let (ok, out) = cec(&s, false).await;
-            b.logs.add("bench", format!("{source}: sleep over HDMI-CEC: {}", if ok { "sent" } else { &out }));
+            b.logs.add("bench", format!("{source}: sleep over HDMI-CEC: {}", if ok { "sent" } else { "failed" }));
             Ok(Json(json!({"ok": ok, "detail": out})))
         }
         "button" => {
             let (ok, out) = button(&s).await;
-            b.logs.add("bench", format!("{source}: power button: {}", if ok { "pressed" } else { &out }));
+            b.logs.add("bench", format!("{source}: power button: {}", if ok { "pressed" } else { "the command failed" }));
             if !ok {
-                return Err(ApiError(StatusCode::SERVICE_UNAVAILABLE, out));
+                return Err(ApiError(StatusCode::SERVICE_UNAVAILABLE, if full { out } else { "the power-button command failed".into() }));
             }
-            Ok(Json(json!({"ok": true, "detail": out})))
+            Ok(Json(json!({"ok": true, "detail": if full { out } else { String::new() }})))
         }
         other => Err(bad(format!("action must be wake, sleep or button, not {other:?}"))),
     }

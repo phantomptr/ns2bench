@@ -1,4 +1,5 @@
 {
+  "(set; only visible in the NS2Bench app window)": "(impostato; visibile solo nella finestra dell’app NS2Bench)",
   "` (backquote)": "` (accento grave)",
   "~/.ns2bench/hidd.token": "~/.ns2bench/hidd.token",
   "A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.": "Uno schermo oscurato si riattiva con qualsiasi pressione. Dalla modalità standby, dopo un arresto anomalo o se spenta, la console ha bisogno di una di queste opzioni. Così anche agenti e test possono riattivarla.",
@@ -480,6 +481,7 @@
   "This board is not supported.": "Questa scheda non è supportata.",
   "This browser can’t show notifications.": "Questo browser non può mostrare notifiche.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "Questa copia di NS2Bench non include lo strumento da riga di comando. Scaricalo dalla release su GitHub.",
+  "This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).": "Questo motore richiede un token API, che la configurazione con un clic non può aggiungere. Aggiungi l’indirizzo nel tuo agente con un’intestazione Authorization: Bearer (vedi la scheda API).",
   "This engine asks for an API token. Agents need the same token as an Authorization: Bearer header: set it in your agent’s MCP settings after adding the address.": "Questo motore richiede un token API. Gli agenti devono inviare lo stesso token come intestazione Authorization: Bearer: impostalo nelle impostazioni MCP del tuo agente dopo aver aggiunto l’indirizzo.",
   "This list": "Questo elenco",
   "This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.": "Questa pagina può guardare ma non controllare. Usa la finestra dell’app NS2Bench o apri il link mostrato da ns2bench serve.",
@@ -495,6 +497,7 @@
   "Up": "Su",
   "Update": "Aggiorna",
   "Update available": "Aggiornamento disponibile",
+  "Update downloaded and verified. Install it from Settings → Updates.": "Aggiornamento scaricato e verificato. Installalo da Impostazioni → Aggiornamenti.",
   "Update helper": "Aggiorna helper",
   "Update installed": "Aggiornamento installato",
   "Updates": "Aggiornamenti",

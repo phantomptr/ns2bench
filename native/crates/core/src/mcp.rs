@@ -396,7 +396,14 @@ pub async fn http(axum::extract::State(b): axum::extract::State<crate::server::S
     let reply = match msg.as_array() {
         Some(batch) => {
             let mut out = vec![];
-            for one in batch.iter().take(50) {
+            for (i, one) in batch.iter().enumerate() {
+                if i >= 50 {
+                    // answered, not dropped: a client waits for every id it sent
+                    if let Some(id) = one.get("id") {
+                        out.push(json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32600, "message": "at most 50 requests in one batch"}}));
+                    }
+                    continue;
+                }
                 if let Some(r) = handle(&m, one).await { out.push(r); }
             }
             (!out.is_empty()).then_some(Value::Array(out))

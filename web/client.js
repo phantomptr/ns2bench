@@ -30,6 +30,8 @@ if (uiFromUrl) {
   history.replaceState(null, '', u);
 }
 const UI = typeof window.__NS2BENCH_UI__ === 'string' ? window.__NS2BENCH_UI__ : (uiFromUrl || uiKey.get());
+/** This page is the person at the bench (it can save preferences, drive, turn Block agents off). */
+export const hasUiKey = !!UI;
 export function setToken(value) { token = value.trim(); session.set(token); location.reload(); }
 export function authURL(path) {
   const url = new URL(path, location.href);

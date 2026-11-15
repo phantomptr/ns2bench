@@ -89,6 +89,7 @@ test('every settings tab opens; status pills open the right tab', async () => {
 test('toolbar: notifications list, update and reconnect buttons, Thank you link', async () => {
   const { p, errors, ctx } = await page();
   // the engine's start-up notifications (if any) are listed; opening the bell marks them read
+  await p.waitForFunction(() => document.querySelectorAll('#logview li').length > 0, null, { timeout: 10000 });
   await p.click('#btn-bell');
   assert.equal(await p.isVisible('#inbox'), true);
   await p.keyboard.press('Escape');
@@ -264,6 +265,11 @@ test('guidance: shortcuts, action search, confirm before installing, What’s ne
   await p.click('#settings-close');
   // after an update (not a first install) the changes are shown once
   await p.evaluate(() => localStorage.setItem('ns2bench.lastSeenVersion', '0.0.1'));
+  // saved by the engine before the reload reads it back
+  for (let i = 0; (await (await fetch(`${BASE}/api/prefs`)).json())['ns2bench.lastSeenVersion'] !== '0.0.1'; i++) {
+    assert.ok(i < 50, 'not saved');
+    await new Promise((r) => setTimeout(r, 100));
+  }
   await p.reload();
   await p.waitForSelector('#whatsnew[open]', { timeout: 10000 });
   assert.ok((await p.textContent('#whatsnew-body')).length > 50);

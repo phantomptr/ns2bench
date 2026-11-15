@@ -2,7 +2,7 @@ import { apiFetch, authURL, setToken } from './client.js';
 import { t } from './i18n.js';
 import { inboxAdd, notify } from './notify.js';
 import { ask, toast } from './ui.js';
-import { savePrefsNow } from './prefs.js';
+import { prefsReady, savePrefsNow } from './prefs.js';
 const $ = (s) => document.querySelector(s);
 const dialog = $('#settings');
 let networkRevision = 0, inputRevision = 0;
@@ -166,7 +166,8 @@ async function agents() {
   finally { agentsBusy = false; $('#agents-check').disabled = false; }
 }
 $('#agents-check').onclick = run(agents);
-const AGENT_ERRORS = { cli_not_found: 'This agent isn’t installed on this computer.', timed_out: 'The agent took too long to answer. Try again.' };
+const AGENT_ERRORS = { cli_not_found: 'This agent isn’t installed on this computer.', timed_out: 'The agent took too long to answer. Try again.',
+  token_required: 'This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).' };
 for (const card of dialog.querySelectorAll('.agent')) {
   for (const [sel, action] of [['.agent-add', 'add'], ['.agent-remove', 'remove']]) {
     card.querySelector(sel).onclick = run(async (e) => {
@@ -217,15 +218,33 @@ async function updateAction(action) {
   if (busy || !invoke) return;
   if (action === 'check') { lastAttempt = Date.now(); failedDownload = false; }
   busy = true; renderUpdate(); $('#update-status').textContent = `${action === 'download' ? 'Downloading and verifying update…' : action === 'install' ? 'Preparing installation…' : 'Checking update…'}`;
+  // While downloading, show how far it got (the download itself holds the updater, so it is asked separately).
+  const MB = (n) => (n / 1048576).toFixed(1);
+  let poll = 0;
+  if (action === 'download') {
+    $('#update-progress').hidden = false; $('#update-bar').removeAttribute('value'); $('#update-bytes').textContent = '';
+    poll = setInterval(async () => {
+      const p = await invoke('update_action', { action: 'progress' }).catch(() => null);
+      if (!p?.received) return;
+      if (p.total) { $('#update-bar').max = p.total; $('#update-bar').value = p.received; }
+      $('#update-bytes').textContent = p.total ? `${MB(p.received)} / ${MB(p.total)} MB · ${Math.floor((p.received / p.total) * 100)}%` : `${MB(p.received)} MB`;
+    }, 400);
+  }
   try { update = await invoke('update_action', { action }); if (action === 'check') ls.set('ns2bench.update.lastCheck', String(Date.now())); }
-  catch (e) { if (action === 'download') failedDownload = true; message(String(e)); if (update) update.message = String(e); }
-  finally { busy = false; renderUpdate(); }
+  catch (e) { if (action === 'download') failedDownload = true; message(String(e), 'error'); if (update) update.message = String(e); }
+  finally {
+    clearInterval(poll);
+    $('#update-progress').hidden = true;
+    busy = false; renderUpdate();
+    if (action === 'download' && update?.downloaded) toast(t('Update downloaded and verified. Install it from Settings → Updates.'), 'ok', { label: t('Install and restart'), run: () => $('#update-install').click() });
+  }
 }
 $('#update-check').onclick = run(() => updateAction('check'));
 $('#update-download').onclick = run(() => updateAction('download'));
 $('#update-install').onclick = run(async () => (await ask({ title: t('Install the update now?'), body: t('NS2Bench closes, installs the new version and opens again. Held buttons are released and agents lose the connection until it is back.'), confirm: t('Install and restart') })) && updateAction('install'));
 async function automaticUpdates() {
   if (!invoke || busy) return;
+  await prefsReady;
   if ($('#update-auto-check').checked && Date.now() - lastAttempt > 900000 && Date.now() - Number(ls.get('ns2bench.update.lastCheck') || 0) > 86400000) await updateAction('check');
   $('#btn-settings').classList.toggle('badge', !!update?.available);
   $('#btn-update').classList.toggle('badge', !!update?.available);
@@ -362,7 +381,9 @@ $('#help-issue').onclick = run(async () => {
 
 // ---------------------------------------------------------------- Devices: check the connection, suggest serial ports
 // After Apply, watch the status for a few seconds and say right here whether it worked.
+let checkRun = 0;
 async function checkInput(kind) {
+  const run = ++checkRun;                                   // a newer Apply replaces this check
   const line = $('#input-check');
   line.hidden = false; line.className = 'status info';
   if (kind === 'none') { line.textContent = t('View only: the picture, sound and tools work; nothing presses buttons.'); line.className = 'status ok'; return; }
@@ -371,6 +392,7 @@ async function checkInput(kind) {
   for (let i = 0; i < 16; i++) {
     await new Promise((r) => setTimeout(r, 500));
     s = (await api('/api/status').catch(() => null))?.input;
+    if (run !== checkRun) return;
     if (s?.connected && s.usb === 'configured') break;
   }
   if (s?.connected && s.usb === 'configured') { line.className = 'status ok'; line.textContent = `${t('Connected. The console sees the controller.')} (${Math.max(1, Math.round(s.rtt_ms ?? 1))} ms)`; }
@@ -483,7 +505,7 @@ async function showWhatsNew(since, upto) {
 }
 $('#whatsnew-open').onclick = run(async () => { const s = await api('/api/status'); await showWhatsNew('', s.version); });
 // After an update (never on a first install): once, and a line in the bell.
-api('/api/status').then(async (s) => {
+prefsReady.then(() => api('/api/status')).then(async (s) => {
   if (!s.version) return;
   const seen = ls.get('ns2bench.lastSeenVersion');
   ls.set('ns2bench.lastSeenVersion', s.version);
@@ -498,6 +520,7 @@ async function power() {
   const s = p.settings;
   $('#power-cec').checked = !!s.cec; $('#power-cec-port').value = s.cec_port || ''; $('#power-cec-address').value = s.cec_address || 4;
   $('#power-command').value = s.button_command || ''; $('#power-wake-button').checked = !!s.wake_with_button;
+  $('#power-command').placeholder = s.button_command === null && s.button_command_set ? t('(set; only visible in the NS2Bench app window)') : 'curl -X POST http://homeassistant.local:8123/api/webhook/switch-power';
   $('#power-cec-tool').textContent = p.cec_tool ? `${t('CEC tool found:')} ${p.cec_tool}` : t('No CEC tool on this computer yet: install libcec (macOS: brew install libcec; Windows: the Pulse-Eight installer; Linux: the libcec or cec-utils package).');
   powerButtons(p);
 }

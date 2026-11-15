@@ -6,6 +6,20 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Update progress:** Settings → Updates shows a progress bar (MB and percent) while an update downloads, and offers **Install and restart** when it's ready.
+- **Windows:** a serial input device (Pico, CH9329) that is plugged in but never answers no longer ties up a thread for good, as on macOS and Linux.
+- Waking is safer:
+  - the console counts as awake only when the picture shows something (not a black or "No Signal" screen);
+  - the power button is never pressed when there's no picture to judge by, or while the console's USB shows it is on;
+  - one power action runs at a time.
+- The saved power-button command (which may hold a webhook address) is shown only in the app window, kept private on disk, and kept out of the logs.
+- HDMI-CEC finds libcec where Homebrew and the Pulse-Eight installer put it, and works with every console address.
+- Fixed: the Reconnect button restarted the sound in a loop when sound was on.
+- Fixed: messages in the corner showed behind the Settings window.
+- Fixed: shortcuts fired while a dialog was open, and repeated while a key was held.
+- Preferences: choices made in two windows no longer undo each other, a watch-only browser tab keeps its own choices, and What's new no longer comes back after it was shown.
+- One-click agent setup says why it can't add NS2Bench when the engine asks for an API token, instead of adding an entry that can't connect.
+
 ## 0.0.8
 
 - The README, FAQ and website now say it plainly: no jailbreak needed, and a jailbroken Switch 2 works too.

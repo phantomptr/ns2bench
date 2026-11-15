@@ -140,6 +140,7 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 |---|---|
 | `GET /api/status` | video fps, input link, USB state, calibration |
 | `GET /api/power` · `POST /api/power {"action": "wake"\|"sleep"\|"button"}` | wake the console (HDMI-CEC, then the power-button command if allowed, then a press), sleep over HDMI-CEC, or press the power button; settings via `POST /api/power/settings` (the page only) |
+| `GET /api/changelog` · `GET /api/serial_ports` | the changelog (Markdown) for What's new; serial ports an input board could be on |
 | `GET /api/prefs` | the page's saved preferences (theme, text size, language…), kept in `~/.ns2bench/ui.json`; only the page can change them |
 | `GET /api/health` | ready to drive? `{ok, video, input, agents_allowed, problems: [{area, problem, fix}]}` |
 | `GET /api/screenshot?format=png&max_width=1280&region=0,0.8,1,0.2` | latest frame (optionally cropped); headers `X-Frame-Seq`, `X-Frame-Age-Ms` |
@@ -161,7 +162,7 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 | `GET/POST /api/input` · `GET/POST /api/network` · `GET /api/integrations` | input device, console network, MCP/API setup |
 | `POST /api/control` | `{"usb_mode": "standard\|hori\|pro"}`, `{"manual_only": true}`, `{"screen_log": true}` |
 
-While **Block agents** (manual-only) is on, agent requests that press, type, click, run tests, probes or calibration, save a clip, switch the USB mode, or change video, input, network or screen-log settings get `409`. Only the NS2Bench page can turn it off (`403` for anyone else), and only the page can change the Bridge address or token file (`403`). Requests from other web pages are refused (`403`) and logged.
+While **Block agents** (manual-only) is on, agent requests that press, type, click, run tests, probes or calibration, wake or power the console, save a clip, switch the USB mode, or change video, input, network or screen-log settings get `409`. Only the NS2Bench page can turn it off (`403` for anyone else), and only the page can change the Bridge address or token file (`403`). Requests from other web pages are refused (`403`) and logged.
 
 The desktop app proves which requests come from its own window with a key it creates at each launch. `ns2bench serve` prints a link ending in `?ui=…` when it starts; a browser opened with that link is the person at the bench (it can drive and turn Block agents off), and any other page or program can watch and use the API as an agent. Set `NS2BENCH_UI_KEY` to choose the key yourself. Use `server.token` as well if other users or untrusted programs share the computer.
 

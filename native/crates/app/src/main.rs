@@ -107,6 +107,7 @@ fn main() {
     let cfg = load_config();
     let url = format!("{}/", cfg.url());
     let _ = agents::ENGINE_URL.set(cfg.url());
+    agents::TOKEN_REQUIRED.store(cfg.token().is_some(), std::sync::atomic::Ordering::Relaxed);
     let attach = tauri::async_runtime::block_on(running(&cfg));
     // The window's proof that it is the app (kept in memory, never written anywhere).
     let ui_key = updates::hex(&rand::random::<[u8; 24]>());

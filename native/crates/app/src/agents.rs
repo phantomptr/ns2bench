@@ -155,6 +155,9 @@ pub struct AgentMcpStatus {
     read_failed: bool,
 }
 
+/// Set once at start: the engine asks for an API token, which these one-click entries can't carry.
+pub static TOKEN_REQUIRED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// Set once at start: where this app's engine listens.
 pub static ENGINE_URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
@@ -449,6 +452,9 @@ async fn agent_mcp_add(agent: String) -> Result<AgentMcpStatus, String> {
     not_on_phones()?;
     let agent = agent_from(&agent)?;
     tauri::async_runtime::spawn_blocking(move || {
+        if TOKEN_REQUIRED.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err("token_required".to_string());
+        }
         let path = search_path();
         let before = status_of(agent, &path);
         if !before.found {

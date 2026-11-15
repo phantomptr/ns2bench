@@ -1,4 +1,5 @@
 {
+  "(set; only visible in the NS2Bench app window)": "(definido; visível só na janela do app NS2Bench)",
   "` (backquote)": "` (crase)",
   "~/.ns2bench/hidd.token": "~/.ns2bench/hidd.token",
   "A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.": "Uma tela escurecida acorda com qualquer toque. A partir do modo de espera, de uma falha ou desligado, o console precisa de uma destas opções. Assim, agentes e testes também podem acordá-lo.",
@@ -480,6 +481,7 @@
   "This board is not supported.": "Esta placa não é compatível.",
   "This browser can’t show notifications.": "Este navegador não pode mostrar notificações.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "Esta cópia do NS2Bench não inclui a ferramenta de linha de comando. Baixe-a na release do GitHub.",
+  "This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).": "Este motor pede um token de API, que a configuração com um clique não consegue adicionar. Adicione o endereço no seu agente com um cabeçalho Authorization: Bearer (veja a aba API).",
   "This engine asks for an API token. Agents need the same token as an Authorization: Bearer header: set it in your agent’s MCP settings after adding the address.": "Este motor pede um token da API. Os agentes precisam do mesmo token como cabeçalho Authorization: Bearer: defina-o nas configurações de MCP do seu agente depois de adicionar o endereço.",
   "This list": "Esta lista",
   "This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.": "Esta página pode assistir, mas não controlar. Use a janela do app NS2Bench ou abra o link que o ns2bench serve mostrou.",
@@ -495,6 +497,7 @@
   "Up": "Cima",
   "Update": "Atualizar",
   "Update available": "Atualização disponível",
+  "Update downloaded and verified. Install it from Settings → Updates.": "Atualização baixada e verificada. Instale em Configurações → Atualizações.",
   "Update helper": "Atualizar auxiliar",
   "Update installed": "Atualização instalada",
   "Updates": "Atualizações",

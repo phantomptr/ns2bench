@@ -151,6 +151,11 @@ async fn check() -> Result<Update> {
         env!("CARGO_PKG_VERSION"),
     )
 }
+/// Bytes of the installer received so far, and its size (0 when the server doesn't say), for
+/// the progress bar in Settings → Updates.
+static RECEIVED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 async fn download(u: &mut Update) -> Result<()> {
     ensure!(u.available, "Check for an update first");
     let url = u.url.as_deref().context("No update asset")?;
@@ -178,6 +183,9 @@ async fn download(u: &mut Update) -> Result<()> {
         response.content_length().is_none_or(|n| n <= MAX_DOWNLOAD),
         "installer too large"
     );
+    use std::sync::atomic::Ordering::Relaxed;
+    TOTAL.store(response.content_length().unwrap_or(0), Relaxed);
+    RECEIVED.store(0, Relaxed);
     let mut file = tokio::fs::File::create(&tmp).await?;
     let mut chunks = response.bytes_stream();
     let mut hash = Sha256::new();
@@ -186,6 +194,7 @@ async fn download(u: &mut Update) -> Result<()> {
         while let Some(chunk) = chunks.next().await {
             let chunk = chunk?;
             size += chunk.len() as u64;
+            RECEIVED.store(size, Relaxed);
             ensure!(size <= MAX_DOWNLOAD, "installer too large");
             hash.update(&chunk);
             file.write_all(&chunk).await?;
@@ -386,6 +395,11 @@ pub async fn update_action(
     app: AppHandle,
     state: State<'_, Updates>,
 ) -> Result<Value, String> {
+    // Asked while a download runs (which holds the lock): answered without waiting for it.
+    if action == "progress" {
+        use std::sync::atomic::Ordering::Relaxed;
+        return Ok(json!({"received": RECEIVED.load(Relaxed), "total": TOTAL.load(Relaxed)}));
+    }
     let mut u = state
         .0
         .try_lock()

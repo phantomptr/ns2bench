@@ -57,6 +57,12 @@ impl Link {
                 if let Ok(port) = unix_serial::open(path, *baud) {
                     return Ok((Box::new(unix_serial::Half(port.clone())), Box::new(unix_serial::Half(port))));
                 }
+                // Windows: reads that time out every 200 ms on one reader thread, which ends with the
+                // connection (a plain blocking read would keep a thread forever on a silent device).
+                #[cfg(windows)]
+                if let Ok((r, w)) = win_serial::open(path) {
+                    return Ok((Box::new(r), Box::new(w)));
+                }
                 // Separate handles for reading and writing: a tokio File runs one operation at a time,
                 // so a split File would block every write behind the pending read.
                 let f = std::fs::OpenOptions::new().read(true).write(true).open(path)?;
@@ -85,6 +91,89 @@ async fn configure_serial(path: &str, baud: u32) {
         // `mode` is mode.com: Command::new("mode") would look for mode.exe and fail.
         let mode = std::path::Path::new(&std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into())).join(r"System32\mode.com");
         let _ = tokio::process::Command::new(mode).args([port, &format!("BAUD={b}"), "PARITY=N", "DATA=8", "STOP=1"]).status().await;
+    }
+}
+
+#[cfg(windows)]
+pub(crate) mod win_serial {
+    use std::io::{self, Read};
+    use std::os::windows::io::AsRawHandle;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+    use tokio::io::{AsyncRead, ReadBuf};
+    use tokio::sync::mpsc;
+    use windows_sys::Win32::Devices::Communication::{SetCommTimeouts, COMMTIMEOUTS};
+
+    /// Reads that return within 200 ms even when nothing arrives (0 bytes), and writes that give
+    /// up after 2 s: so the reader thread can notice the connection is gone and end.
+    fn timeouts(f: &std::fs::File) -> io::Result<()> {
+        let t = COMMTIMEOUTS {
+            ReadIntervalTimeout: u32::MAX,
+            ReadTotalTimeoutMultiplier: u32::MAX,
+            ReadTotalTimeoutConstant: 200,
+            WriteTotalTimeoutMultiplier: 0,
+            WriteTotalTimeoutConstant: 2000,
+        };
+        // SAFETY: the handle belongs to `f`, which is open for the duration of the call.
+        if unsafe { SetCommTimeouts(f.as_raw_handle() as _, &t) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    pub fn open(path: &str) -> io::Result<(ChanReader, tokio::fs::File)> {
+        let f = std::fs::OpenOptions::new().read(true).write(true).open(path)?;
+        timeouts(&f)?;
+        let w = f.try_clone()?;
+        let (tx, rx) = mpsc::channel::<io::Result<Vec<u8>>>(64);
+        std::thread::Builder::new().name("ns2bench-serial".into()).spawn(move || {
+            let mut f = f;
+            let mut buf = [0u8; 512];
+            // Ends when the connection is dropped (nobody receives) or the port goes away.
+            while !tx.is_closed() {
+                match f.read(&mut buf) {
+                    Ok(0) => continue, // nothing within 200 ms
+                    Ok(n) => {
+                        if tx.blocking_send(Ok(buf[..n].to_vec())).is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.blocking_send(Err(e));
+                        break;
+                    }
+                }
+            }
+        })?;
+        Ok((ChanReader { rx, pending: Vec::new(), at: 0 }, tokio::fs::File::from_std(w)))
+    }
+
+    /// The reading side: bytes the reader thread received.
+    pub struct ChanReader {
+        rx: mpsc::Receiver<io::Result<Vec<u8>>>,
+        pending: Vec<u8>,
+        at: usize,
+    }
+
+    impl AsyncRead for ChanReader {
+        fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+            if self.at >= self.pending.len() {
+                match self.rx.poll_recv(cx) {
+                    Poll::Pending => return Poll::Pending,
+                    Poll::Ready(None) => return Poll::Ready(Ok(())), // port closed: end of input
+                    Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
+                    Poll::Ready(Some(Ok(data))) => {
+                        self.pending = data;
+                        self.at = 0;
+                    }
+                }
+            }
+            let n = buf.remaining().min(self.pending.len() - self.at);
+            let at = self.at;
+            buf.put_slice(&self.pending[at..at + n]);
+            self.at += n;
+            Poll::Ready(Ok(()))
+        }
     }
 }
 

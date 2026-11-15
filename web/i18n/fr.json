@@ -1,4 +1,5 @@
 {
+  "(set; only visible in the NS2Bench app window)": "(défini ; visible seulement dans la fenêtre de l’app NS2Bench)",
   "` (backquote)": "` (accent grave)",
   "~/.ns2bench/hidd.token": "~/.ns2bench/hidd.token",
   "A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.": "Un écran assombri se rallume à la moindre pression. Depuis le mode veille, un plantage ou l’arrêt, la console a besoin de l’une de ces options. Les agents et les tests peuvent alors aussi la réveiller.",
@@ -480,6 +481,7 @@
   "This board is not supported.": "Cette carte n’est pas prise en charge.",
   "This browser can’t show notifications.": "Ce navigateur ne peut pas afficher de notifications.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "Cette copie de NS2Bench n’inclut pas l’outil en ligne de commande. Téléchargez-le depuis la version GitHub.",
+  "This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).": "Ce moteur demande un jeton d’API, que la configuration en un clic ne peut pas ajouter. Ajoutez l’adresse dans votre agent avec un en-tête Authorization: Bearer (voir l’onglet API).",
   "This engine asks for an API token. Agents need the same token as an Authorization: Bearer header: set it in your agent’s MCP settings after adding the address.": "Ce moteur demande un jeton d’API. Les agents ont besoin du même jeton dans un en-tête Authorization: Bearer : définissez-le dans les réglages MCP de votre agent après avoir ajouté l’adresse.",
   "This list": "Cette liste",
   "This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.": "Cette page peut regarder mais pas piloter. Utilisez la fenêtre de l’app NS2Bench ou ouvrez le lien affiché par ns2bench serve.",
@@ -495,6 +497,7 @@
   "Up": "Haut",
   "Update": "Mettre à jour",
   "Update available": "Mise à jour disponible",
+  "Update downloaded and verified. Install it from Settings → Updates.": "Mise à jour téléchargée et vérifiée. Installez-la depuis Réglages → Mises à jour.",
   "Update helper": "Mettre à jour l’assistant",
   "Update installed": "Mise à jour installée",
   "Updates": "Mises à jour",

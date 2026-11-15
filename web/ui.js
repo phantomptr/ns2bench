@@ -7,6 +7,9 @@ const $ = (s) => document.querySelector(s);
 // ---------------------------------------------------------------- toasts
 // Bottom right, at most three, newest last. Errors stay until closed; the rest fade.
 const TONES = { info: 5000, ok: 4000, warn: 8000, error: 0 };
+// The container leaves the top layer when its last toast goes.
+const boxEl = document.querySelector('#toasts');
+if (boxEl) new MutationObserver(() => { if (!boxEl.children.length) try { boxEl.hidePopover(); } catch { /* fine */ } }).observe(boxEl, { childList: true });
 export function toast(text, tone = 'info', action = null) {
   const box = $('#toasts');
   if (!box || !text) return;
@@ -26,6 +29,8 @@ export function toast(text, tone = 'info', action = null) {
   el.append(close);
   box.append(el);
   while (box.children.length > 3) box.firstElementChild.remove();
+  // Above whatever dialog is open (dialogs sit in the top layer, and make the rest inert).
+  try { if (box.matches(':popover-open')) box.hidePopover(); box.showPopover(); } catch { /* no popover support */ }
   const ms = TONES[tone] ?? 5000;
   if (ms) setTimeout(() => el.remove(), ms);
 }

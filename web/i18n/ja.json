@@ -1,4 +1,5 @@
 {
+  "(set; only visible in the NS2Bench app window)": "（設定済み。NS2Bench アプリのウィンドウでのみ表示）",
   "` (backquote)": "`（バッククォート）",
   "~/.ns2bench/hidd.token": "~/.ns2bench/hidd.token",
   "A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.": "暗くなった画面は何かを押せば復帰します。スリープモード、クラッシュ、電源オフからは、本体にこれらのいずれかが必要です。設定するとエージェントやテストからも起こせます。",
@@ -480,6 +481,7 @@
   "This board is not supported.": "このボードには対応していません。",
   "This browser can’t show notifications.": "このブラウザは通知を表示できません。",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "この NS2Bench にはコマンドラインツールが含まれていません。GitHub のリリースからダウンロードしてください。",
+  "This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).": "このエンジンは API トークンを必要としますが、ワンクリック設定ではトークンを追加できません。エージェントに Authorization: Bearer ヘッダー付きでアドレスを追加してください（API タブを参照）。",
   "This engine asks for an API token. Agents need the same token as an Authorization: Bearer header: set it in your agent’s MCP settings after adding the address.": "このエンジンは API トークンを要求します。エージェントは同じトークンを Authorization: Bearer ヘッダーとして送る必要があります。アドレスを追加した後、エージェントの MCP 設定で指定してください。",
   "This list": "この一覧",
   "This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.": "このページは表示のみで操作できません。NS2Bench アプリのウィンドウを使うか、ns2bench serve が表示したリンクを開いてください。",
@@ -495,6 +497,7 @@
   "Up": "上",
   "Update": "更新",
   "Update available": "アップデートあり",
+  "Update downloaded and verified. Install it from Settings → Updates.": "アップデートをダウンロードして検証しました。設定 → アップデートからインストールしてください。",
   "Update helper": "ヘルパーを更新",
   "Update installed": "アップデートをインストールしました",
   "Updates": "アップデート",

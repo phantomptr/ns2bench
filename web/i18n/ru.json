@@ -1,4 +1,5 @@
 {
+  "(set; only visible in the NS2Bench app window)": "(задано; видно только в окне приложения NS2Bench)",
   "` (backquote)": "` (обратный апостроф)",
   "~/.ns2bench/hidd.token": "~/.ns2bench/hidd.token",
   "A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.": "Затемнённый экран просыпается от любого нажатия. Из спящего режима, после сбоя или выключения консоли нужен один из этих способов. Тогда агенты и тесты тоже смогут её будить.",
@@ -480,6 +481,7 @@
   "This board is not supported.": "Эта плата не поддерживается.",
   "This browser can’t show notifications.": "Этот браузер не может показывать уведомления.",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "В этой копии NS2Bench нет инструмента командной строки. Скачайте его из релиза на GitHub.",
+  "This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).": "Этот движок требует API-токен, а настройка в один клик не может его добавить. Добавьте адрес в агент с заголовком Authorization: Bearer (см. вкладку API).",
   "This engine asks for an API token. Agents need the same token as an Authorization: Bearer header: set it in your agent’s MCP settings after adding the address.": "Этот движок требует API-токен. Агентам нужен тот же токен в заголовке Authorization: Bearer: укажите его в настройках MCP вашего агента после добавления адреса.",
   "This list": "Этот список",
   "This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.": "Эта страница может только показывать, но не управлять. Используйте окно приложения NS2Bench или откройте ссылку, которую вывел ns2bench serve.",
@@ -495,6 +497,7 @@
   "Up": "Вверх",
   "Update": "Обновить",
   "Update available": "Доступно обновление",
+  "Update downloaded and verified. Install it from Settings → Updates.": "Обновление загружено и проверено. Установите его в Настройки → Обновления.",
   "Update helper": "Обновить помощник",
   "Update installed": "Обновление установлено",
   "Updates": "Обновления",

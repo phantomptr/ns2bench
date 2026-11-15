@@ -1,4 +1,5 @@
 {
+  "(set; only visible in the NS2Bench app window)": "（已设置；仅在 NS2Bench 应用窗口中可见）",
   "` (backquote)": "`（反引号）",
   "~/.ns2bench/hidd.token": "~/.ns2bench/hidd.token",
   "A dimmed screen wakes with any press. From Sleep Mode, a crash or power-off, the console needs one of these. Agents and tests can then wake it too.": "变暗的屏幕按任意键即可唤醒。从睡眠模式、崩溃或关机状态恢复时，主机需要以下方式之一。这样代理和测试也能唤醒它。",
@@ -480,6 +481,7 @@
   "This board is not supported.": "不支持此开发板。",
   "This browser can’t show notifications.": "此浏览器无法显示通知。",
   "This copy of NS2Bench has no command line tool. Download it from the GitHub release.": "此 NS2Bench 未包含命令行工具。请从 GitHub 发布页下载。",
+  "This engine asks for an API token, which one-click setup can’t add. Add the address in your agent with an Authorization: Bearer header (see the API tab).": "此引擎需要 API 令牌，一键设置无法添加。请在代理中添加该地址并带上 Authorization: Bearer 请求头（见 API 标签页）。",
   "This engine asks for an API token. Agents need the same token as an Authorization: Bearer header: set it in your agent’s MCP settings after adding the address.": "此引擎需要 API 令牌。代理需要以 Authorization: Bearer 标头发送同一令牌：添加地址后，请在代理的 MCP 设置中填写。",
   "This list": "此列表",
   "This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.": "此页面只能观看，不能操作。请使用 NS2Bench 应用窗口，或打开 ns2bench serve 输出的链接。",
@@ -495,6 +497,7 @@
   "Up": "上",
   "Update": "更新",
   "Update available": "有可用更新",
+  "Update downloaded and verified. Install it from Settings → Updates.": "更新已下载并验证。请在“设置 → 更新”中安装。",
   "Update helper": "更新助手",
   "Update installed": "更新已安装",
   "Updates": "更新",

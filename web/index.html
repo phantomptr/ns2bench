@@ -35,7 +35,7 @@
   <span><b>Lost the connection to the NS2Bench engine.</b> <span>Reconnecting by itself. If this stays, the app may have stopped: close and reopen it.</span></span>
   <button type="button" id="engine-retry">Reconnect now</button>
 </div>
-<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="toasts" id="toasts" popover="manual" aria-live="polite"></div>
 <dialog id="confirm" class="confirm" aria-labelledby="confirm-title">
   <h3 id="confirm-title"></h3>
   <p id="confirm-body"></p>
@@ -459,6 +459,7 @@ ns2bench --help</pre>
   </section>
   <section data-pane="updates" hidden>
     <h3>App updates</h3><p id="update-status">Checking desktop updater…</p>
+    <div class="update-progress" id="update-progress" hidden><progress id="update-bar" max="1" value="0"></progress><span id="update-bytes" data-no-i18n></span></div>
     <label class="row"><input id="update-auto-check" type="checkbox"> Check for updates daily</label>
     <label class="row"><input id="update-auto-download" type="checkbox"> Automatically download verified updates</label>
     <label class="row"><input id="update-auto-install" type="checkbox"> Automatically install when controls are idle (restarts app)</label>

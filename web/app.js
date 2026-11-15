@@ -466,7 +466,9 @@ async function soundOn() {
 function soundOff() {
   const ctx = audioCtx;
   audioCtx = null;
-  audioWs?.close(); audioWs = null;
+  // Detach first: a socket closed on purpose must not schedule a reconnect of the new one.
+  if (audioWs) { audioWs.onclose = null; audioWs.close(); }
+  audioWs = null;
   ctx?.close();
 }
 function setSoundButton(on) {
@@ -838,7 +840,7 @@ $('#palette-q').addEventListener('keydown', (e) => {
 });
 $('#palette').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 document.addEventListener('keydown', (e) => {
-  if (e.target.closest?.('#screen, input, select, textarea, dialog')) return;
+  if (e.repeat || document.querySelector('dialog[open]') || e.target.closest?.('#screen, input, select, textarea, dialog')) return;
   if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
   if ((e.metaKey || e.ctrlKey) && e.key === ',') { e.preventDefault(); $('#btn-settings').click(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
