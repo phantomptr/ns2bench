@@ -196,6 +196,7 @@
   "Thanks & support": "감사 및 후원",
   "The console gets your real keyboard and mouse, for text boxes and apps that use them.": "본체가 실제 키보드와 마우스를 받습니다. 텍스트 입력란과 이를 지원하는 앱용입니다.",
   "The console sees": "본체 인식",
+  "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).": "오프라인 본체 네트워크는 선택 사항이며 이 컴퓨터에서 실행 중이 아닙니다. 캡처와 USB 입력은 없어도 작동합니다. 인터넷 없는 LAN을 본체에 제공하려면 ns2bench-netd를 설정하세요(설정 가이드 참고).",
   "Theme": "테마",
   "to press buttons, or stay view only.": "하면 버튼을 누를 수 있고, 보기 전용으로 둘 수도 있습니다.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "번역은 인터페이스에만 적용됩니다. 로그, 본체 텍스트, API 메시지는 그대로 유지됩니다.",

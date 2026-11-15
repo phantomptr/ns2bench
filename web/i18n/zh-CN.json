@@ -196,6 +196,7 @@
   "Thanks & support": "致谢与支持",
   "The console gets your real keyboard and mouse, for text boxes and apps that use them.": "主机获得你真实的键盘和鼠标，用于文本框和支持它们的应用。",
   "The console sees": "主机识别为",
+  "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).": "离线主机网络是可选的，本机未运行。没有它也能采集画面和 USB 输入。若要给主机一个不联网的局域网，请设置 ns2bench-netd（见设置指南）。",
   "Theme": "主题",
   "to press buttons, or stay view only.": "即可按键操作，也可以仅观看。",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "翻译仅覆盖界面。日志、主机文字和 API 消息保持原样。",

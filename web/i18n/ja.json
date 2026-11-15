@@ -196,6 +196,7 @@
   "Thanks & support": "謝辞とサポート",
   "The console gets your real keyboard and mouse, for text boxes and apps that use them.": "本体が実際のキーボードとマウスを受け取ります。テキスト入力や対応アプリ用です。",
   "The console sees": "本体での認識",
+  "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).": "オフラインの本体ネットワークは任意で、このコンピューターでは動作していません。キャプチャと USB 入力はこれがなくても使えます。インターネットなしの LAN を本体に用意するには ns2bench-netd を設定してください（セットアップガイドを参照）。",
   "Theme": "テーマ",
   "to press buttons, or stay view only.": "するとボタンを押せます。表示のみでも使えます。",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "翻訳の対象はインターフェースです。ログ、本体のテキスト、API メッセージはそのまま表示されます。",

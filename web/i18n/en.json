@@ -196,6 +196,7 @@
   "Thanks & support": "Thanks & support",
   "The console gets your real keyboard and mouse, for text boxes and apps that use them.": "The console gets your real keyboard and mouse, for text boxes and apps that use them.",
   "The console sees": "The console sees",
+  "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).": "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).",
   "Theme": "Theme",
   "to press buttons, or stay view only.": "to press buttons, or stay view only.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Translations cover the interface. Logs, console text and API messages stay as they are.",

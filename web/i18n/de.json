@@ -196,6 +196,7 @@
   "Thanks & support": "Dank & Unterstützung",
   "The console gets your real keyboard and mouse, for text boxes and apps that use them.": "Die Konsole erhält deine echte Tastatur und Maus, für Textfelder und Apps, die sie nutzen.",
   "The console sees": "Die Konsole sieht",
+  "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).": "Das Offline-Konsolennetzwerk ist optional und läuft auf diesem Computer nicht. Aufnahme und USB-Eingabe funktionieren auch ohne. Um der Konsole ein LAN ohne Internet zu geben, richte ns2bench-netd ein (siehe Einrichtungsanleitung).",
   "Theme": "Design",
   "to press buttons, or stay view only.": "um Tasten zu drücken, oder bleib im Nur-Ansehen-Modus.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Übersetzt wird die Oberfläche. Logs, Konsolentext und API-Meldungen bleiben unverändert.",

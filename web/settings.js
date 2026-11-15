@@ -1,4 +1,5 @@
 import { apiFetch, authURL, setToken } from './client.js';
+import { t } from './i18n.js';
 const $ = (s) => document.querySelector(s);
 const dialog = $('#settings');
 let networkRevision = 0, inputRevision = 0;
@@ -82,7 +83,11 @@ async function network(loadForm = true) {
   const where = n.helper ? `Network helper ${n.helper}` : 'Local service';
   $('#network-status').textContent = n.error ? `${n.error}. Check the helper is running and network.helper.token_file matches its control token.` : n.online
     ? `${where}: ${actual.interface} · ${actual.address} · ${actual.interface_ready && actual.forwarding_off ? 'interface ready, forwarding off' : 'waiting / isolation guard not ready'}. DHCP ${actual.dhcp ? 'on' : 'off'}, DNS ${actual.dns ? 'on' : 'off'}, connectivity page ${actual.connectivity ? 'on' : 'off'}.`
-    : n.helper ? `${where} answered but its service is not running yet.` : `Local service is unavailable or needs updating. Configured interface: ${n.settings?.interface || 'not configured'}. Install/start ns2bench-netd to apply local controls; On Windows, set network.helper to a Linux helper or use an isolated router.`;
+    : n.helper ? `${where} answered but its service is not running yet.` : t('The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).');
+  // Plain status colours, and controls only when a service can apply them.
+  const running = !n.error && n.online;
+  $('#network-status').className = `status ${n.error ? 'bad' : running ? 'ok' : 'info'}`;
+  for (const el of $('#network-settings').elements) el.disabled = !running && !n.helper;
   $('#network-leases').textContent = Object.entries(n.leases).map(([mac, lease]) => `${mac}  ${lease.ip}  ${lease.hostname || ''}`).join('\n') || 'No DHCP leases recorded';
 }
 $('#network-settings').onsubmit = run(async () => {

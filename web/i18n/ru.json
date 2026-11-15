@@ -196,6 +196,7 @@
   "Thanks & support": "Благодарности и поддержка",
   "The console gets your real keyboard and mouse, for text boxes and apps that use them.": "Консоль получает вашу настоящую клавиатуру и мышь — для текстовых полей и приложений, которые их поддерживают.",
   "The console sees": "Консоль видит",
+  "The offline console network is optional and not running on this computer. Capture and USB input work without it. To give the console a LAN without internet, set up ns2bench-netd (see the setup guide).": "Офлайн-сеть консоли необязательна и на этом компьютере не запущена. Захват и USB-ввод работают без неё. Чтобы дать консоли локальную сеть без интернета, настройте ns2bench-netd (см. руководство по настройке).",
   "Theme": "Тема",
   "to press buttons, or stay view only.": "чтобы нажимать кнопки, или оставайтесь в режиме просмотра.",
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Переведён только интерфейс. Журналы, текст консоли и сообщения API остаются без изменений.",
