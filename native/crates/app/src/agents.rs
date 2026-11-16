@@ -1,5 +1,5 @@
-//! One-click MCP setup for the coding agents on this computer (Settings → MCP & API), the same
-//! way ps5upload does it.
+//! One-click MCP setup for the coding agents on this computer (Settings → MCP & API), done
+//! the same way for every agent.
 //!
 //! Each agent's own CLI writes its own config, so comments and other servers in that config are
 //! the CLI's to keep. The renderer only names an agent from a fixed list: the programs, the

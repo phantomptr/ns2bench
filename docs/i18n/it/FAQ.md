@@ -175,7 +175,7 @@ In [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Come funzionano gli aggiornamenti?
 
-Come ps5upload: NS2Bench controlla le release su GitHub all’avvio, ogni 6 ore e quando apri Impostazioni → Aggiornamenti. Scarica la nuova versione in background e la installa quando chiudi NS2Bench (o subito con **Riavvia ora**). Ogni download viene verificato con lo SHA-256 della release, e su macOS con la firma di NS2Bench, prima dell’installazione. Ogni parte si può disattivare in Impostazioni → Aggiornamenti. Un .deb per Linux si aggiorna scaricando il nuovo .deb.
+NS2Bench controlla le release su GitHub all’avvio, ogni 6 ore e quando apri Impostazioni → Aggiornamenti. Scarica la nuova versione in background e la installa quando chiudi NS2Bench (o subito con **Riavvia ora**). Ogni download viene verificato con lo SHA-256 della release, e su macOS con la firma di NS2Bench, prima dell’installazione. Ogni parte si può disattivare in Impostazioni → Aggiornamenti. Un .deb per Linux si aggiorna scaricando il nuovo .deb.
 
 ## macOS dice che l’app è danneggiata o non può essere verificata.
 

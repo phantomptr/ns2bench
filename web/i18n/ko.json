@@ -250,7 +250,7 @@
   "Left stick: drag to tilt, tap to press": "왼쪽 스틱: 끌어서 기울이고, 탭해서 누르기",
   "License": "라이선스",
   "Light": "라이트",
-  "Like ps5upload: NS2Bench finds a new version by itself, downloads it in the background, and installs it when you quit NS2Bench (Quit in its menu or tray icon), or right away with Restart now. Every update comes from NS2Bench’s GitHub releases and is checked (SHA-256, and on macOS NS2Bench’s signature) before it installs. macOS apps, the Windows setup and Linux AppImages update themselves; a Linux .deb shows where to download the new one.": "ps5upload처럼 NS2Bench는 새 버전을 스스로 찾아 백그라운드에서 다운로드하고, NS2Bench를 종료할 때(메뉴 또는 트레이 아이콘의 종료) 또는 지금 다시 시작으로 바로 설치합니다. 모든 업데이트는 NS2Bench의 GitHub 릴리스에서 받으며 설치 전에 검증합니다(SHA-256, macOS에서는 NS2Bench 서명도). macOS 앱, Windows 설치 프로그램, Linux AppImage는 스스로 업데이트되며, Linux .deb는 새 파일을 받을 위치를 알려 줍니다.",
+  "NS2Bench finds a new version by itself, downloads it in the background, and installs it when you quit NS2Bench (Quit in its menu or tray icon), or right away with Restart now. Every update comes from NS2Bench’s GitHub releases and is checked (SHA-256, and on macOS NS2Bench’s signature) before it installs. macOS apps, the Windows setup and Linux AppImages update themselves; a Linux .deb shows where to download the new one.": "NS2Bench는 새 버전을 스스로 찾아 백그라운드에서 다운로드하고, NS2Bench를 종료할 때(메뉴 또는 트레이 아이콘의 종료) 또는 지금 다시 시작으로 바로 설치합니다. 모든 업데이트는 NS2Bench의 GitHub 릴리스에서 받으며 설치 전에 검증합니다(SHA-256, macOS에서는 NS2Bench 서명도). macOS 앱, Windows 설치 프로그램, Linux AppImage는 스스로 업데이트되며, Linux .deb는 새 파일을 받을 위치를 알려 줍니다.",
   "Loading devices…": "장치를 불러오는 중…",
   "Local connectivity-test page": "로컬 연결 테스트 페이지",
   "Local DHCP address assignment": "로컬 DHCP 주소 할당",

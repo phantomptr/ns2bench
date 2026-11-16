@@ -1,6 +1,5 @@
 // Remember the person's choices (theme, text size, language, notifications, layout…) in the
-// engine's folder (~/.ns2bench/ui.json), like ps5upload keeps its settings in a file: the same
-// in the desktop app and in a browser, and still there if the browser's storage is cleared.
+// engine's folder (~/.ns2bench/ui.json), so they are the same in the desktop app and in a browser, and still there if the browser's storage is cleared.
 // localStorage stays the fast copy every module reads; this keeps the two in step.
 //
 // Only the page that is the person at the bench (it has the app's key, or the link

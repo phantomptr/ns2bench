@@ -10,11 +10,11 @@ What's new in NS2Bench, written for humans.
 
 ## 0.0.14
 
-- **Updates now work like ps5upload.**
+- **Updates now find, download and install themselves.**
   - NS2Bench checks at start, every 6 hours, and whenever you open Settings → Updates (before, it checked once a day and the Updates page showed an old answer).
   - New versions download in the background and install when you quit NS2Bench, or right away with **Restart now**.
   - Each part can be turned off in Settings → Updates.
-- **Close to the menu bar / system tray, like ps5upload.** Closing the window keeps NS2Bench running in the menu bar (macOS) or system tray (Windows, Linux), so agents, tests and the engine keep working. The icon brings the window back and has Quit. Minimizing to the tray is a separate option (Windows, Linux). Settings → Appearance → Window. Opening NS2Bench again brings back the running window instead of starting a second copy.
+- **Close to the menu bar / system tray.** Closing the window keeps NS2Bench running in the menu bar (macOS) or system tray (Windows, Linux), so agents, tests and the engine keep working. The icon brings the window back and has Quit. Minimizing to the tray is a separate option (Windows, Linux). Settings → Appearance → Window. Opening NS2Bench again brings back the running window instead of starting a second copy.
 - macOS install help: the README, FAQ, setup guide, website download cards and each release page explain the "Apple could not verify… is free of malware" message and how to allow NS2Bench once.
 - Fixes from an audit:
   - "Restart now" no longer runs the installer twice, and checking again no longer throws away a finished download.
@@ -45,7 +45,7 @@ What's new in NS2Bench, written for humans.
 
 ## 0.0.12
 
-- The Discord link in the app (Help and About), README and website now says **UndefinedLab Discord**, the PhantomPtr server shared with ps5upload, and uses a permanent invite.
+- The Discord link in the app (Help and About), README and website now says **UndefinedLab Discord**, the PhantomPtr server, and uses a permanent invite.
 
 ## 0.0.11
 
@@ -81,7 +81,7 @@ What's new in NS2Bench, written for humans.
 
 ## 0.0.7
 
-- Easier to find your way, like ps5upload:
+- Easier to find your way:
   - a red bar says at once when the app loses its engine, with **Reconnect now**
   - with no picture, the screen itself says why and what to check, with buttons to the Video settings and the check
   - results show as short messages in the corner (screenshot saved, clip saved, errors)
@@ -93,7 +93,7 @@ What's new in NS2Bench, written for humans.
 - Appearance: **Reset appearance and layout**. About: copy buttons on the support addresses.
 - Fixed: the page saved its preferences again every second, and a browser tab without the app's key kept retrying and filled the log with refused requests.
 
-- **Connect an agent in one click**, like ps5upload. Settings → API & MCP shows the MCP address and a card each for Claude Code, Codex and OpenCode: whether it has NS2Bench, an Add or Remove button, and the command to run yourself. Agents now connect to the running app by address (`http://127.0.0.1:7630/mcp`), with nothing to install or point at.
+- **Connect an agent in one click.** Settings → API & MCP shows the MCP address and a card each for Claude Code, Codex and OpenCode: whether it has NS2Bench, an Add or Remove button, and the command to run yourself. Agents now connect to the running app by address (`http://127.0.0.1:7630/mcp`), with nothing to install or point at.
 - Settings → API & MCP is split into Connect an agent, Agent tools and API, with copy buttons on every command.
 
 ## 0.0.6
@@ -106,8 +106,8 @@ What's new in NS2Bench, written for humans.
 
 ## 0.0.5
 
-- New round buttons in the top bar, like ps5upload: reconnect the picture, sound and status; open Updates (a dot shows when one is ready); a bell that lists recent notifications with an unread count; and the light/dark switch.
-- Your choices are remembered like in ps5upload: theme, text size, language, layout and notification settings are saved in `~/.ns2bench/ui.json`, so they are the same in the app and in a browser and survive a cleared browser.
+- New round buttons in the top bar: reconnect the picture, sound and status; open Updates (a dot shows when one is ready); a bell that lists recent notifications with an unread count; and the light/dark switch.
+- Your choices are remembered: theme, text size, language, layout and notification settings are saved in `~/.ns2bench/ui.json`, so they are the same in the app and in a browser and survive a cleared browser.
 - The version is shown under the NS2Bench name in the top bar.
 - A **Thank you** button in the top bar and in Help, for anyone who wants to support NS2Bench.
 - The on-screen ZL and ZR now wrap around the Joy-Con's corner with no gap, and L and R are longer.
@@ -142,9 +142,9 @@ What's new in NS2Bench, written for humans.
   - Install or update the Bridge on a Linux board over SSH.
   - Install the offline network helper as a service on macOS or Linux.
 - The on-screen Switch 2 looks like the real console: one device with a bezelled screen, Joy-Con attached with coloured rails, and shoulder buttons on the top edge.
-- Settings has a sidebar, and Appearance works like ps5upload. It has theme cards, a Text size setting (70–140%) and Accessibility options: Motion, Reduce transparency, High contrast and a dyslexia-friendly font.
+- Settings has a sidebar, and a new Appearance section. It has theme cards, a Text size setting (70–140%) and Accessibility options: Motion, Reduce transparency, High contrast and a dyslexia-friendly font.
 - Logs have levels: Everything, Info, Problems and Errors. Each level has an icon, and known problems now explain what happened and what to do. Logs are also saved to `~/.ns2bench/logs` (7 days). More things are logged: API calls, refused requests, the picture stopping or running slow, sound problems, and settings changes.
-- Desktop notifications, like ps5upload: when the Bridge or the picture drops, when tests and clips finish, when an agent starts driving, and when an update is ready (Settings → Notifications).
+- Desktop notifications: when the Bridge or the picture drops, when tests and clips finish, when an agent starts driving, and when an update is ready (Settings → Notifications).
 - Agents and scripts can do more, in the API, MCP and the command line alike:
   - wait for the screen to change or settle
   - find text and where it is

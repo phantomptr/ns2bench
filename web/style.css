@@ -1,4 +1,4 @@
-/* NS2Bench design tokens: the "Sense" look shared with ps5upload. A calm neutral
+/* NS2Bench design tokens: the "Sense" look. A calm neutral
    window, cards a step lighter, one system-blue accent, capsule buttons, the system
    face. Dark is the default; Light, Peach (warm light) and OLED (pure black) override
    it; "Match system" (no data-theme) follows the OS. */
@@ -76,7 +76,7 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 .ibtn.done { border-color: var(--ok); color: var(--ok); }
 @media (width < 1500px) { .bar .ibtn span { display: none; } }
 .bar button { padding: 5px 12px; flex: none; }
-/* Round quick actions, like ps5upload: reconnect, updates, notifications, theme. */
+/* Round quick actions: reconnect, updates, notifications, theme. */
 .quick { display: flex; gap: 6px; flex: none; }
 .bar .round { position: relative; width: 32px; height: 32px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
 .round .i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -113,7 +113,7 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 @media (width < 1200px) { .bar .thanks span { display: none; } .bar .thanks { padding: 0 9px; } }
 
 .bar .brand { flex: none; }
-/* the version under the name, like ps5upload */
+/* the version under the name */
 .brand .name { display: grid; gap: 2px; }
 .brand .ver { font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); letter-spacing: .02em; }
 .brand .ver:empty { display: none; }
@@ -288,7 +288,7 @@ button:disabled { opacity: .5; cursor: default; }
 /* Phones: the toolbar may use two rows (its content no longer changes width, so it doesn't jump). */
 @media (max-width: 760px) { .bar { flex-wrap: wrap; } .bar .spacer { display: none; } }
 
-/* ps5upload-style settings: grouped cards, theme cards, choice chips, switches. */
+/* Settings: grouped cards, theme cards, choice chips, switches. */
 #settings .group { background: color-mix(in srgb, var(--text) 3%, var(--surface)); border: 1px solid var(--line); border-radius: var(--r-panel);
   padding: 18px 20px; margin-bottom: 14px; }
 #settings .group .field { margin: 0; }
@@ -340,7 +340,7 @@ input[type=checkbox]:disabled { opacity: .5; cursor: default; }
   font-family: "Atkinson Hyperlegible", "OpenDyslexic", system-ui, -apple-system, sans-serif; letter-spacing: .01em; }
 :root[data-dyslexia="true"] body { line-height: 1.6; }
 
-/* Settings window: a sidebar of sections on wide windows, like ps5upload; pills on phones. */
+/* Settings window: a sidebar of sections on wide windows; pills on phones. */
 .settings-tabs .ti { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .settings-tabs button { display: inline-flex; align-items: center; gap: 8px; }
 @media (min-width: 760px) {
@@ -393,7 +393,7 @@ details.faq:first-of-type { border-top: 0; padding-top: 0; }
 details.faq summary { cursor: pointer; font-weight: 500; }
 details.faq p { margin: 8px 0 0; color: var(--muted); }
 
-/* Settings → MCP & API: sub-tabs, copyable commands, one card per agent (like ps5upload). */
+/* Settings → MCP & API: sub-tabs, copyable commands, one card per agent. */
 .subtabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .subtabs button { border-radius: 999px; padding: 6px 14px; }
 .subtabs button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 600; }
@@ -419,7 +419,7 @@ details.faq p { margin: 8px 0 0; color: var(--muted); }
 .agent-note:empty { display: none; }
 #mcp-tools p { margin: 6px 0; }
 
-/* ---------------------------------------------------------------- feedback and guidance (like ps5upload) */
+/* ---------------------------------------------------------------- feedback and guidance */
 .toasts { position: fixed; z-index: 60; right: 16px; bottom: 16px; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
 .toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; font-size: 13px;
   background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); box-shadow: 0 14px 40px -12px rgb(0 0 0 / .5);

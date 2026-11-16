@@ -23,7 +23,7 @@ const currentTheme = () => store.get('theme') || 'system';
 const isDark = (t) => t === 'dark' || t === 'oled' || (t === 'system' && dark());
 
 // The toolbar button flips light <-> dark and remembers which light (Light/Peach)
-// and which dark (Dark/OLED) you picked last, like ps5upload.
+// and which dark (Dark/OLED) you picked last.
 $('#btn-theme')?.addEventListener('click', () => {
   const t = currentTheme();
   if (isDark(t)) { if (t !== 'system') store.set('theme.dark', t); applyTheme(store.get('theme.light') || 'light'); }
@@ -40,7 +40,7 @@ if (langs) {
 }
 initI18n().then(() => { if (langs) langs.value = language(); });
 
-// Text size: one zoom factor for the whole page (text, spacing and controls), like ps5upload.
+// Text size: one zoom factor for the whole page (text, spacing and controls).
 export const SCALES = [0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.4];
 export function applyScale(scale) {
   scale = SCALES.includes(Number(scale)) ? Number(scale) : 1;

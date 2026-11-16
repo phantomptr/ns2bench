@@ -1,4 +1,4 @@
-// Desktop notifications, like ps5upload: the engine flags log lines worth one
+// Desktop notifications: the engine flags log lines worth one
 // (Bridge connects/disconnects, picture lost/back, tests, clips, agents driving,
 // app updates); this decides whether to show them. In the desktop app they use the
 // system notification centre (Tauri plugin); in a browser, the Notification API.

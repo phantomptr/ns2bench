@@ -1,4 +1,4 @@
-//! Close / minimize to the system tray, like ps5upload. NS2Bench keeps running (agents, tests and
+//! Close / minimize to the system tray. NS2Bench keeps running (agents, tests and
 //! the engine carry on) and its icon brings the window back.
 //!
 //! * macOS: the menu bar. Closing hides the window and its Dock icon; the menu bar icon,

@@ -250,7 +250,7 @@
   "Left stick: drag to tilt, tap to press": "左スティック: ドラッグで傾け、タップで押し込み",
   "License": "ライセンス",
   "Light": "ライト",
-  "Like ps5upload: NS2Bench finds a new version by itself, downloads it in the background, and installs it when you quit NS2Bench (Quit in its menu or tray icon), or right away with Restart now. Every update comes from NS2Bench’s GitHub releases and is checked (SHA-256, and on macOS NS2Bench’s signature) before it installs. macOS apps, the Windows setup and Linux AppImages update themselves; a Linux .deb shows where to download the new one.": "ps5upload と同じく、NS2Bench は新しいバージョンを自動で見つけ、バックグラウンドでダウンロードし、NS2Bench を終了したとき（メニューまたはトレイアイコンの「終了」）、または「今すぐ再起動」ですぐにインストールします。アップデートはすべて NS2Bench の GitHub リリースから取得し、インストール前に検証します（SHA-256、macOS では NS2Bench の署名も）。macOS アプリ、Windows のセットアップ、Linux の AppImage は自動で更新されます。Linux の .deb では新しいファイルのダウンロード先を表示します。",
+  "NS2Bench finds a new version by itself, downloads it in the background, and installs it when you quit NS2Bench (Quit in its menu or tray icon), or right away with Restart now. Every update comes from NS2Bench’s GitHub releases and is checked (SHA-256, and on macOS NS2Bench’s signature) before it installs. macOS apps, the Windows setup and Linux AppImages update themselves; a Linux .deb shows where to download the new one.": "NS2Bench は新しいバージョンを自動で見つけ、バックグラウンドでダウンロードし、NS2Bench を終了したとき（メニューまたはトレイアイコンの「終了」）、または「今すぐ再起動」ですぐにインストールします。アップデートはすべて NS2Bench の GitHub リリースから取得し、インストール前に検証します（SHA-256、macOS では NS2Bench の署名も）。macOS アプリ、Windows のセットアップ、Linux の AppImage は自動で更新されます。Linux の .deb では新しいファイルのダウンロード先を表示します。",
   "Loading devices…": "デバイスを読み込み中…",
   "Local connectivity-test page": "ローカル接続テストページ",
   "Local DHCP address assignment": "ローカル DHCP アドレス割り当て",

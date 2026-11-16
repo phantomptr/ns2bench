@@ -1,4 +1,4 @@
-// Small shared interface pieces, like ps5upload's: toasts for the result of an action, and a
+// Small shared interface pieces: toasts for the result of an action, and a
 // confirm dialog before anything that interrupts the console or removes something.
 import { t } from './i18n.js';
 

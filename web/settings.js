@@ -131,7 +131,7 @@ async function integrations() {
   $('#mcp-tools').replaceChildren(...i.tools.map((t) => { const p = document.createElement('p'); const b = document.createElement('b'); b.textContent = t.name; p.append(b, document.createTextNode(` — ${t.description || ''}`)); return p; }));
 }
 $('#api-token-apply').onclick = () => setToken($('#api-token').value);
-// ---------------------------------------------------------------- agents (MCP), like ps5upload
+// ---------------------------------------------------------------- agents (MCP)
 // The desktop app asks each agent's own CLI whether it has NS2Bench and can add or remove it;
 // in a browser the cards show the commands to run.
 function showAgent(st) {
@@ -204,7 +204,7 @@ const pref = (key) => ls.get(`ns2bench.update.${key}`) === 'true';
 let update = null, busy = false, lastActivity = Date.now(), failedAutoInstall = false, lastAttempt = 0, failedDownload = false;
 for (const event of ['keydown', 'pointerdown', 'pointermove']) addEventListener(event, () => { lastActivity = Date.now(); }, { passive: true });
 const invoke = window.__TAURI__?.core?.invoke;
-// Defaults like ps5upload: find, download in the background, install when NS2Bench closes.
+// Defaults: find, download in the background, install when NS2Bench closes.
 // (A choice saved before these existed keeps its value; "download" was off by default then.)
 const quitInstall = () => invoke?.('update_action', { action: $('#update-auto-quit').checked ? 'quit_install_on' : 'quit_install_off' }).catch(() => {});
 for (const [id, key, fallback] of [['#update-auto-check', 'check', true], ['#update-auto-download', 'download2', true], ['#update-auto-quit', 'quit', true], ['#update-auto-install', 'install', false]]) {

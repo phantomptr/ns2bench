@@ -1,4 +1,4 @@
-//! ps5upload-style release manifest, verified downloads and platform installers.
+//! Release manifest, verified downloads and platform installers.
 //! Only the fixed project release endpoint is accepted; never accepts a renderer URL/path.
 use anyhow::{bail, ensure, Context, Result};
 use futures::StreamExt;
@@ -345,7 +345,7 @@ exit 1
 }
 #[cfg(target_os = "windows")]
 async fn install(path: &Path, relaunch: bool) -> Result<()> {
-    // Tauri NSIS update mode, as used by ps5upload: a progress bar, no questions; /R starts the
+    // Tauri NSIS update mode: a progress bar, no questions; /R starts the
     // app again afterwards (not when installing as NS2Bench quits).
     let args: &[&str] = if relaunch { &["/P", "/R", "/UPDATE"] } else { &["/P", "/UPDATE"] };
     std::process::Command::new(path)
@@ -472,7 +472,7 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// Install a downloaded update when NS2Bench quits (on by default, like ps5upload).
+/// Install a downloaded update when NS2Bench quits (on by default).
 static INSTALL_ON_QUIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 /// An installer already started (Restart now, or the idle install).
 static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

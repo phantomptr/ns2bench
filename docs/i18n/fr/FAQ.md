@@ -175,7 +175,7 @@ Dans [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Comment fonctionnent les mises à jour ?
 
-Comme ps5upload : NS2Bench vérifie les versions GitHub au démarrage, toutes les 6 heures et quand vous ouvrez Réglages → Mises à jour. Il télécharge la nouvelle version en arrière-plan et l’installe quand vous fermez NS2Bench (ou tout de suite avec **Redémarrer maintenant**). Chaque téléchargement est vérifié avec le SHA-256 de la version, et sur macOS avec la signature de NS2Bench, avant l’installation. Chaque partie peut être désactivée dans Réglages → Mises à jour. Un .deb Linux se met à jour en téléchargeant le nouveau .deb.
+NS2Bench vérifie les versions GitHub au démarrage, toutes les 6 heures et quand vous ouvrez Réglages → Mises à jour. Il télécharge la nouvelle version en arrière-plan et l’installe quand vous fermez NS2Bench (ou tout de suite avec **Redémarrer maintenant**). Chaque téléchargement est vérifié avec le SHA-256 de la version, et sur macOS avec la signature de NS2Bench, avant l’installation. Chaque partie peut être désactivée dans Réglages → Mises à jour. Un .deb Linux se met à jour en téléchargeant le nouveau .deb.
 
 ## macOS dit que l’app est endommagée ou ne peut pas être vérifiée.
 

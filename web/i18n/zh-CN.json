@@ -250,7 +250,7 @@
   "Left stick: drag to tilt, tap to press": "左摇杆：拖动倾斜，点按按下",
   "License": "许可证",
   "Light": "浅色",
-  "Like ps5upload: NS2Bench finds a new version by itself, downloads it in the background, and installs it when you quit NS2Bench (Quit in its menu or tray icon), or right away with Restart now. Every update comes from NS2Bench’s GitHub releases and is checked (SHA-256, and on macOS NS2Bench’s signature) before it installs. macOS apps, the Windows setup and Linux AppImages update themselves; a Linux .deb shows where to download the new one.": "与 ps5upload 一样：NS2Bench 会自行发现新版本，在后台下载，并在你退出 NS2Bench 时安装（菜单或托盘图标中的“退出”），或点“立即重启”马上安装。每个更新都来自 NS2Bench 的 GitHub 发布，安装前都会校验（SHA-256，macOS 上还校验 NS2Bench 的签名）。macOS 应用、Windows 安装程序和 Linux AppImage 会自行更新；Linux .deb 会显示新版本的下载位置。",
+  "NS2Bench finds a new version by itself, downloads it in the background, and installs it when you quit NS2Bench (Quit in its menu or tray icon), or right away with Restart now. Every update comes from NS2Bench’s GitHub releases and is checked (SHA-256, and on macOS NS2Bench’s signature) before it installs. macOS apps, the Windows setup and Linux AppImages update themselves; a Linux .deb shows where to download the new one.": "NS2Bench 会自行发现新版本，在后台下载，并在你退出 NS2Bench 时安装（菜单或托盘图标中的“退出”），或点“立即重启”马上安装。每个更新都来自 NS2Bench 的 GitHub 发布，安装前都会校验（SHA-256，macOS 上还校验 NS2Bench 的签名）。macOS 应用、Windows 安装程序和 Linux AppImage 会自行更新；Linux .deb 会显示新版本的下载位置。",
   "Loading devices…": "正在加载设备…",
   "Local connectivity-test page": "本地连接测试页面",
   "Local DHCP address assignment": "本地 DHCP 地址分配",

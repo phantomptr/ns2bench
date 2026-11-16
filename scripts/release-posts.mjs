@@ -1,4 +1,4 @@
-// Draft release announcements from CHANGELOG.md, like ps5upload's `make release-post`.
+// Draft release announcements from CHANGELOG.md (`make release-post`).
 //   node scripts/release-posts.mjs [X.Y.Z]   -> .release_posts/vX.Y.Z/ (git-ignored)
 // Writes x-1-main.txt + x-2-reply.txt (280 chars; links count as 23), discord.md (2000
 // chars), reddit-title.txt, reddit-body.md, and README.md saying what goes where.

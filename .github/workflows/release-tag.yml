@@ -1,4 +1,4 @@
-# Cut a release from GitHub, the ps5upload way:
+# Cut a release from GitHub:
 #
 #   gh workflow run release-tag.yml --ref main -f version=0.1.0
 #

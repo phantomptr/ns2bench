@@ -3,7 +3,6 @@
 #   restore-default-gadget.sh [--from-job]
 # On Luckfox: restores RNDIS+ADB via S50usbdevice, so the board is reachable over USB/ADB again.
 # On other boards: unbinds the gadget so the board returns to its default state on next boot.
-# Derived from the CivSwitch recovery script that was verified on the Luckfox.
 set -euo pipefail
 
 # Run from an `adb shell`, stopping adbd below would end this script halfway (adbd is its parent).
@@ -58,7 +57,7 @@ fi
 
 # The gadget quirks may have lowered the console log level while the console
 # repeatedly reconfigured the gadget. Restore the saved value.
-for saved in /run/ns2bench.printk /run/civswitch.printk; do
+for saved in /run/ns2bench.printk; do
     [ -f "$saved" ] || continue
     saved_printk=$(cat "$saved" 2>/dev/null || true)
     if [ -n "$saved_printk" ]; then
@@ -105,10 +104,6 @@ if [ -x /etc/init.d/S50usbdevice ]; then
     USB_CONFIG_FILE=/tmp/.usb_config /etc/init.d/S50usbdevice start
     sleep 1
     sed -i '/^USB_FORCE_CHANGED$/d' /tmp/.usb_config 2>/dev/null || true
-    # Re-apply both static addresses after the vendor script recreates usb0.
-    if [ -x /etc/init.d/S99zz-ipstatic ]; then
-        /etc/init.d/S99zz-ipstatic start || true
-    fi
     echo "Default gadget restored (Luckfox RNDIS+ADB)."
 else
     unbind_configfs_gadgets
