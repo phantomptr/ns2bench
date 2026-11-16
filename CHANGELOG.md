@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.10
+
 - **Network helper (macOS):** it now takes requests only from the console's adapter. Before, it also heard other adapters' broadcasts, for example your home router's address requests, and answered them on the console network. Its answers never left the console adapter, but it shouldn't listen anywhere else. After updating, click **Settings → Install → Network helper → Update helper**.
 
 ## 0.0.9
