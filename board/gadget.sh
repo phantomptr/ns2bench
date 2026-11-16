@@ -145,8 +145,10 @@ build_pro() {
     ln -s "$G/functions/ffs.pro2" "$G/configs/b.1/f1"
     bind
     for _ in $(seq 1 60); do grep -q 'console initialised USB' /tmp/ns2bench-pro2.log && return 0; sleep 0.1; done
-    echo "pro: the console did not start the controller handshake" >&2
-    return 1
+    # The controller is up; the console just hasn't talked to it yet (asleep, off, slow to wake).
+    # Stay a Pro Controller: it starts the handshake when it wakes.
+    echo "pro: ready, waiting for the console (asleep or off?) to start the controller handshake" >&2
+    return 0
 }
 
 if [ "$mode" = status ]; then
@@ -170,8 +172,10 @@ teardown
 case "$mode" in
     standard) build_hori 1 || { echo "standard failed; trying controller + keyboard" >&2; teardown; build_hori 0; } ;;
     hori)     build_hori 0 ;;
-    pro)      build_pro || { echo "pro failed; falling back to standard" >&2; teardown; build_hori 1; mode=standard; } ;;
+    pro)      build_pro || { echo "pro failed; falling back to standard for now (pro stays the saved choice)" >&2; teardown; build_hori 1; mode=standard; } ;;
 esac
 quirk_after
-if [ -n "${1:-}" ]; then echo "$mode" > "$MODE_FILE"; fi
+# An explicit mode becomes the boot default, but only once it was actually reached: a fallback
+# must not quietly replace the person's choice.
+if [ -n "${1:-}" ] && [ "$mode" = "$1" ]; then echo "$mode" > "$MODE_FILE"; fi
 echo "NS2Bench: $mode ready ($(cat /sys/class/udc/*/state 2>/dev/null), $(cat /sys/class/udc/*/current_speed 2>/dev/null))"

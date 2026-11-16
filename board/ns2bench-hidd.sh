@@ -33,7 +33,15 @@ case "${1:-}" in
         if running; then echo "started (pid $(cat "$PIDFILE"))"; else echo "failed:"; tail -5 "$LOG"; exit 1; fi
         ;;
     stop)
-        if running; then kill "$(cat "$PIDFILE")"; sleep 1; fi
+        if running; then
+            pid=$(cat "$PIDFILE")
+            kill "$pid"
+            # Wait until it is really gone (closing three HID devices can take a moment); a start
+            # meanwhile would fail to bind. Only this verified pid is ever force-stopped.
+            i=0
+            while running && [ "$i" -lt 30 ]; do sleep 0.1; i=$((i + 1)); done
+            if running; then kill -9 "$pid" 2>/dev/null || true; sleep 0.2; fi
+        fi
         rm -f "$PIDFILE"
         echo stopped
         ;;

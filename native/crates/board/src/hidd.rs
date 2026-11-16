@@ -310,16 +310,33 @@ struct Session<'a> {
     mode: String,
     last_rx: Instant,
     accepted: Instant,
+    /// Replies not yet taken by the client (written as the socket allows, never blocking the loop
+    /// that keeps the controller alive).
+    out: Vec<u8>,
 }
+
+/// A client that leaves this much unread has stopped reading: it is dropped.
+const MAX_UNREAD: usize = 1 << 20;
 
 impl<'a> Session<'a> {
     fn send(&mut self, v: Value) {
-        let mut s = v.to_string();
-        s.push('\n');
-        let _ = self.conn.set_nonblocking(false);
-        let _ = self.conn.set_write_timeout(Some(Duration::from_millis(500)));
-        let _ = self.conn.write_all(s.as_bytes());
-        let _ = self.conn.set_nonblocking(true);
+        self.out.extend_from_slice(v.to_string().as_bytes());
+        self.out.push(b'\n');
+        let _ = self.flush_out();
+    }
+
+    /// Write what the socket takes now. False when the client is gone or stopped reading.
+    fn flush_out(&mut self) -> bool {
+        while !self.out.is_empty() {
+            match self.conn.write(&self.out) {
+                Ok(0) => return false,
+                Ok(n) => { self.out.drain(..n); }
+                Err(e) if e.kind() == ErrorKind::WouldBlock => break,
+                Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+                Err(_) => return false,
+            }
+        }
+        self.out.len() <= MAX_UNREAD
     }
 
     fn open_devices(&mut self) -> std::io::Result<()> {
@@ -516,7 +533,8 @@ pub fn main(argv: &[String]) -> Result<(), String> {
             fds.push(libc::pollfd { fd, events: libc::POLLIN, revents: 0 });
         }
         if let Some(s) = &session {
-            fds.push(libc::pollfd { fd: s.conn.as_raw_fd(), events: libc::POLLIN, revents: 0 });
+            let ev = libc::POLLIN | if s.out.is_empty() { 0 } else { libc::POLLOUT };
+            fds.push(libc::pollfd { fd: s.conn.as_raw_fd(), events: ev, revents: 0 });
             for d in s.devices.values() {
                 let ev = libc::POLLIN | if d.due(now) { libc::POLLOUT } else { 0 };
                 fds.push(libc::pollfd { fd: d.fd(), events: ev, revents: 0 });
@@ -539,7 +557,7 @@ pub fn main(argv: &[String]) -> Result<(), String> {
                     let _ = conn.set_nonblocking(true);
                     session = Some(Session {
                         conn, peer: peer.ip().to_string(), args: &args, buf: vec![], authed: false,
-                        devices: BTreeMap::new(), mode: String::new(), last_rx: now, accepted: now,
+                        devices: BTreeMap::new(), mode: String::new(), last_rx: now, accepted: now, out: vec![],
                     });
                 }
             }
@@ -554,6 +572,10 @@ pub fn main(argv: &[String]) -> Result<(), String> {
                 Err(e) if e.kind() == ErrorKind::WouldBlock => true,
                 Err(_) => false,
             };
+        }
+        if ok && !s.out.is_empty() && !s.flush_out() {
+            log(format!("client {} stopped reading replies, releasing", s.peer));
+            ok = false;
         }
         if ok {
             let fds_ready: Vec<(RawFd, bool, bool)> = s.devices.values()

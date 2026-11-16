@@ -6,6 +6,22 @@
 # Derived from the CivSwitch recovery script that was verified on the Luckfox.
 set -euo pipefail
 
+# Run from an `adb shell`, stopping adbd below would end this script halfway (adbd is its parent).
+# Then carry on detached, and say where the log is.
+under_adbd() {
+    p=$$
+    while [ "${p:-1}" -gt 1 ]; do
+        [ "$(cat "/proc/$p/comm" 2>/dev/null)" = adbd ] && return 0
+        p=$(awk '{print $4}' "/proc/$p/stat" 2>/dev/null)
+    done
+    return 1
+}
+if [ -z "${NS2BENCH_DETACHED:-}" ] && command -v setsid >/dev/null 2>&1 && under_adbd; then
+    NS2BENCH_DETACHED=1 setsid "$0" "$@" < /dev/null > /tmp/ns2bench-restore.log 2>&1 &
+    echo "Restoring in the background (this ADB session will drop). Log: /tmp/ns2bench-restore.log"
+    exit 0
+fi
+
 echo "Restoring default USB gadget..."
 
 FROM_JOB=0
@@ -34,9 +50,8 @@ unbind_configfs_gadgets() {
 # here: that script triggers every subsystem, queues a full device settlement,
 # and can block for its 30-second timeout. A single fresh udevd receives the
 # gadget events produced below without replaying the entire boot hotplug set.
-if command -v killall >/dev/null 2>&1; then
-    killall udevd 2>/dev/null || true
-fi
+# (By exact process name, never a pattern: only udevd itself matches.)
+for pid in $(pidof udevd 2>/dev/null || true); do kill "$pid" 2>/dev/null || true; done
 if [ -x /sbin/udevd ]; then
     /sbin/udevd -d || true
 fi
