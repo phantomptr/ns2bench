@@ -33,9 +33,24 @@ pub async fn next_frame(hub: &FrameHub, after: u64, timeout: Duration) -> Result
 
 pub async fn small(f: &Frame) -> Result<GrayImage> {
     let j = f.jpeg.clone();
-    tokio::task::spawn_blocking(move || -> Result<GrayImage> {
-        Ok(shrink(&image::load_from_memory(&j)?.to_luma8(), 160, 90))
-    }).await?
+    tokio::task::spawn_blocking(move || -> Result<GrayImage> { Ok(shrink(&luma(&j)?, 160, 90)) }).await?
+}
+
+/// Only the brightness of a JPEG: no colour conversion or chroma upsampling, which is most of a
+/// full decode. Comparing frames needs nothing more.
+pub fn luma(jpeg: &[u8]) -> Result<GrayImage> {
+    use zune_jpeg::zune_core::{bytestream::ZCursor, colorspace::ColorSpace, options::DecoderOptions};
+    let opts = DecoderOptions::default().jpeg_set_out_colorspace(ColorSpace::Luma)
+        .set_max_width(16384).set_max_height(16384);
+    let mut d = zune_jpeg::JpegDecoder::new_with_options(ZCursor::new(jpeg), opts);
+    match d.decode() {
+        Ok(px) => {
+            let (w, h) = d.dimensions().ok_or_else(|| anyhow!("JPEG without a size"))?;
+            GrayImage::from_raw(w as u32, h as u32, px).ok_or_else(|| anyhow!("JPEG size and data disagree"))
+        }
+        // anything zune can't take (rare encoders): the general decoder
+        Err(_) => Ok(image::load_from_memory(jpeg)?.to_luma8()),
+    }
 }
 
 /// Area-average downscale (exact box filter for 1080p/1440p/4K -> 160x90). Written out here because
@@ -285,4 +300,45 @@ mod frame_tests {
 /// long that a bad calibration run (or an edited file) makes every button feel stuck.
 pub fn clamp_min_press(ms: u64) -> u64 {
     ms.clamp(40, 300)
+}
+
+#[cfg(test)]
+mod luma_tests {
+    use image::{codecs::jpeg::JpegEncoder, RgbImage};
+
+    fn jpeg(w: u32, h: u32) -> Vec<u8> {
+        let im = RgbImage::from_fn(w, h, |x, y| image::Rgb([(x * 7 % 256) as u8, (y * 3 % 256) as u8, ((x ^ y) % 256) as u8]));
+        let mut out = vec![];
+        JpegEncoder::new_with_quality(&mut out, 85).encode_image(&im).unwrap();
+        out
+    }
+
+    #[test]
+    fn same_picture_as_the_full_decode() {
+        // grey picture: both decoders weigh colours the same then (JPEG brightness uses BT.601,
+        // `image` Rec.709; frames are only ever compared with frames from the same decoder)
+        let im = RgbImage::from_fn(320, 180, |x, y| { let v = ((x * 5 + y * 3) % 256) as u8; image::Rgb([v, v, v]) });
+        let mut j = vec![];
+        JpegEncoder::new_with_quality(&mut j, 85).encode_image(&im).unwrap();
+        let a = super::luma(&j).unwrap();
+        let b = image::load_from_memory(&j).unwrap().to_luma8();
+        assert_eq!(a.dimensions(), b.dimensions());
+        // the frame diff between the two decoders is noise, far under any change threshold
+        let d = super::diff(&super::shrink(&a, 160, 90), &super::shrink(&b, 160, 90));
+        assert!(d < 2.0, "diff {d}");
+    }
+
+    /// cargo test --release -p ns2bench-core luma_speed -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn luma_speed() {
+        let j = jpeg(3840, 2160);
+        let t = std::time::Instant::now();
+        for _ in 0..10 { let _ = image::load_from_memory(&j).unwrap().to_luma8(); }
+        let full = t.elapsed() / 10;
+        let t = std::time::Instant::now();
+        for _ in 0..10 { let _ = super::luma(&j).unwrap(); }
+        let fast = t.elapsed() / 10;
+        println!("4K frame: full decode {full:?}, brightness only {fast:?}");
+    }
 }
