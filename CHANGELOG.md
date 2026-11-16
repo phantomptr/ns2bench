@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.13
+
 - **Reports that help fix problems:**
   - **Help → Save bug report** now holds everything needed in one zip:
     - the system (OS version, WebView2 on Windows, ffmpeg and the other parts NS2Bench uses);
