@@ -196,3 +196,22 @@ fn service_bind_address_preserves_macos_unprivileged_operation() {
         }
     );
 }
+
+/// Datagrams are taken only from the console interface: the loopback interface plays it here.
+/// (On macOS a socket bound to INADDR_ANY otherwise also gets other interfaces' broadcasts.)
+#[cfg(target_os = "macos")]
+#[test]
+fn datagrams_from_other_interfaces_are_dropped() {
+    let lo = if runtime::interface_index("lo0").is_ok() { "lo0" } else { return };
+    let sock = std::net::UdpSocket::from(runtime::bound_socket(libc::SOCK_DGRAM, lo, Ipv4Addr::LOCALHOST, 0).unwrap());
+    let port = sock.local_addr().unwrap().port();
+    sock.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+    let lo_index = runtime::interface_index(lo).unwrap();
+    let send = || std::net::UdpSocket::bind("127.0.0.1:0").unwrap().send_to(b"hi", ("127.0.0.1", port)).unwrap();
+    let mut buf = [0u8; 16];
+    send();
+    let got = runtime::recv_on(&sock, &mut buf, lo_index).unwrap();
+    assert_eq!(got.map(|(n, _)| &buf[..n]), Some(&b"hi"[..]), "from the console interface: kept");
+    send();
+    assert!(runtime::recv_on(&sock, &mut buf, lo_index + 1000).unwrap().is_none(), "from another interface: dropped");
+}

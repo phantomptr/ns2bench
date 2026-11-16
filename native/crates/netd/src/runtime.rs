@@ -178,7 +178,7 @@ pub fn interface_ready(cfg: &Config) -> bool {
     }
 }
 
-fn interface_index(interface: &str) -> io::Result<u32> {
+pub(crate) fn interface_index(interface: &str) -> io::Result<u32> {
     let name = CString::new(interface)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid interface"))?;
     let index = unsafe { libc::if_nametoindex(name.as_ptr()) };
@@ -234,6 +234,13 @@ pub fn bound_socket(
         25, /* IP_BOUND_IF */
         &index.to_ne_bytes(),
     )?;
+    // macOS still hands a socket bound to INADDR_ANY the broadcasts of every interface (seen:
+    // the home router's DHCP requests reached the console service). Ask which interface each
+    // datagram came in on, so recv_on() can drop the others.
+    #[cfg(target_os = "macos")]
+    if kind == libc::SOCK_DGRAM {
+        sockopt(raw, libc::IPPROTO_IP, 20 /* IP_RECVIF */, &1i32.to_ne_bytes())?;
+    }
     #[cfg(target_os = "linux")]
     {
         let _ = index;
@@ -339,6 +346,48 @@ fn http(mut stream: TcpStream, log: &Log) -> io::Result<()> {
     stream.write_all(response)
 }
 
+/// Receive one datagram that came in on `index` (the console interface). `Ok(None)`: it came in
+/// on another interface (macOS only; Linux's SO_BINDTODEVICE never delivers those).
+#[cfg(target_os = "macos")]
+pub fn recv_on(sock: &UdpSocket, buf: &mut [u8], index: u32) -> io::Result<Option<(usize, SocketAddr)>> {
+    let mut name: libc::sockaddr_in = unsafe { std::mem::zeroed() };
+    let mut iov = libc::iovec { iov_base: buf.as_mut_ptr().cast(), iov_len: buf.len() };
+    let mut control = [0u64; 32];
+    let mut msg: libc::msghdr = unsafe { std::mem::zeroed() };
+    msg.msg_name = (&mut name as *mut libc::sockaddr_in).cast();
+    msg.msg_namelen = std::mem::size_of_val(&name) as _;
+    msg.msg_iov = &mut iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = control.as_mut_ptr().cast();
+    msg.msg_controllen = std::mem::size_of_val(&control) as _;
+    let n = unsafe { libc::recvmsg(sock.as_raw_fd(), &mut msg, 0) };
+    if n < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let mut from = None;
+    // SAFETY: walks the control messages the kernel just wrote into `control`.
+    unsafe {
+        let mut c = libc::CMSG_FIRSTHDR(&msg);
+        while !c.is_null() {
+            if (*c).cmsg_level == libc::IPPROTO_IP && (*c).cmsg_type == 20 {
+                let dl = libc::CMSG_DATA(c) as *const libc::sockaddr_dl;
+                from = Some(std::ptr::read_unaligned(dl).sdl_index as u32);
+            }
+            c = libc::CMSG_NXTHDR(&msg, c);
+        }
+    }
+    // Unknown interface: dropped (fail closed).
+    if from != Some(index) {
+        return Ok(None);
+    }
+    let peer = SocketAddr::V4(std::net::SocketAddrV4::new(Ipv4Addr::from(u32::from_be(name.sin_addr.s_addr)), u16::from_be(name.sin_port)));
+    Ok(Some((n as usize, peer)))
+}
+#[cfg(not(target_os = "macos"))]
+pub fn recv_on(sock: &UdpSocket, buf: &mut [u8], _index: u32) -> io::Result<Option<(usize, SocketAddr)>> {
+    sock.recv_from(buf).map(Some)
+}
+
 // macOS permits unprivileged low-port binds only on INADDR_ANY. IP_BOUND_IF
 // still restricts ingress/egress to the one verified console interface.
 pub fn service_address(address: Ipv4Addr) -> Ipv4Addr {
@@ -411,6 +460,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
         bound_socket(kind, &cfg.interface, address, port)
             .map_err(|e| format!("{} port {port}: {e}", cfg.interface))
     };
+    let ifindex = interface_index(&cfg.interface).map_err(|e| e.to_string())?;
     let dhcp = UdpSocket::from(bind(libc::SOCK_DGRAM, Ipv4Addr::UNSPECIFIED, 67)?);
     dhcp.set_broadcast(true).map_err(|e| e.to_string())?;
     let dns = UdpSocket::from(bind(libc::SOCK_DGRAM, service_address(cfg.address), 53)?);
@@ -464,7 +514,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                 let mut packet = [0u8; 4096];
                 match i {
                     0 => {
-                        let (n, _) = dhcp.recv_from(&mut packet)?;
+                        let Some((n, _)) = recv_on(&dhcp, &mut packet, ifindex)? else { return Ok(()) };
                         if !controls[0] { return Ok(()); }
                         if let Some(req) = Dhcp::parse(&packet[..n]) {
                             log.event(
@@ -492,7 +542,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                         }
                     }
                     1 => {
-                        let (n, peer) = dns.recv_from(&mut packet)?;
+                        let Some((n, peer)) = recv_on(&dns, &mut packet, ifindex)? else { return Ok(()) };
                         if !controls[1] { return Ok(()); }
                         if let SocketAddr::V4(peer) = peer {
                             if cfg.contains(*peer.ip()) {
