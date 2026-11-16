@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.12
+
 - The Discord link in the app (Help and About), README and website now says **UndefinedLab Discord**, the PhantomPtr server shared with ps5upload, and uses a permanent invite.
 
 ## 0.0.11
