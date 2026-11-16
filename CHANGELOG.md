@@ -6,9 +6,6 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
-<<<<<<< Updated upstream
-## 0.0.12
-=======
 - **Reports that help fix problems:**
   - **Help → Save bug report** now holds everything needed in one zip:
     - the system (OS version, WebView2 on Windows, ffmpeg and the other parts NS2Bench uses);
@@ -25,7 +22,8 @@ What's new in NS2Bench, written for humans.
   - when no capture card is chosen, NS2Bench uses the first one it finds instead of failing;
   - cards that don't report their sizes still appear in the Video panel;
   - ffmpeg no longer opens console windows.
->>>>>>> Stashed changes
+
+## 0.0.12
 
 - The Discord link in the app (Help and About), README and website now says **UndefinedLab Discord**, the PhantomPtr server shared with ps5upload, and uses a permanent invite.
 
