@@ -90,6 +90,8 @@ impl FrameHub {
 pub fn quiet(program: impl AsRef<std::ffi::OsStr>) -> Command {
     #[allow(unused_mut)]
     let mut c = Command::new(program);
+    // never the parent's stdin (a GUI app on Windows has none); callers that feed one set it again
+    c.stdin(std::process::Stdio::null());
     #[cfg(windows)]
     c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     c
@@ -202,17 +204,59 @@ pub fn backend_name(cfg: &Value) -> &'static str {
     }
 }
 
-fn split_jpegs(buf: &mut Vec<u8>) -> Vec<Bytes> {
-    let mut out = vec![];
+/// Most a splitter keeps while it waits for the end of a frame (a broken stream, not a frame).
+const SPLIT_LIMIT: usize = 32 << 20;
+
+/// Cuts a byte stream into JPEG frames (FFD8 .. FFD9). Each byte is scanned once however the
+/// pipe chunks the stream, and a frame leaves the buffer without being copied again.
+#[derive(Default)]
+pub(crate) struct JpegSplitter {
+    buf: bytes::BytesMut,
+    /// Where the current frame starts (buf[0]), once its FFD8 has been seen.
+    in_frame: bool,
+    /// Bytes already searched for the marker being looked for.
+    scanned: usize,
+}
+
+fn find2(b: &[u8], from: usize, m: [u8; 2]) -> Option<usize> {
+    // jump between second-byte hits (memchr-style), then check the byte before
+    let mut i = from;
     loop {
-        let Some(start) = buf.windows(2).position(|w| w == [0xFF, 0xD8]) else { buf.clear(); return out };
-        let Some(end) = buf[start + 2..].windows(2).position(|w| w == [0xFF, 0xD9]) else {
-            buf.drain(..start);
-            return out;
-        };
-        let end = start + 2 + end + 2;
-        out.push(Bytes::copy_from_slice(&buf[start..end]));
-        buf.drain(..end);
+        let j = i + 1 + b.get(i + 1..)?.iter().position(|&x| x == m[1])?;
+        if b[j - 1] == m[0] { return Some(j - 1); }
+        i = j;
+    }
+}
+
+impl JpegSplitter {
+    pub(crate) fn push(&mut self, data: &[u8], mut out: impl FnMut(Bytes)) {
+        self.buf.extend_from_slice(data);
+        loop {
+            if !self.in_frame {
+                match find2(&self.buf, self.scanned, [0xFF, 0xD8]) {
+                    Some(p) => { let _ = self.buf.split_to(p); self.in_frame = true; self.scanned = 2; }
+                    None => {
+                        // keep a trailing 0xFF: it may be half of the next marker
+                        let keep = usize::from(self.buf.last() == Some(&0xFF));
+                        let _ = self.buf.split_to(self.buf.len() - keep);
+                        self.scanned = 0;
+                        return;
+                    }
+                }
+            }
+            match find2(&self.buf, self.scanned.max(2), [0xFF, 0xD9]) {
+                Some(p) => {
+                    out(self.buf.split_to(p + 2).freeze());
+                    self.in_frame = false;
+                    self.scanned = 0;
+                }
+                None => {
+                    self.scanned = self.buf.len().saturating_sub(1).max(2);
+                    if self.buf.len() > SPLIT_LIMIT { *self = Self::default(); }
+                    return;
+                }
+            }
+        }
     }
 }
 
@@ -273,18 +317,52 @@ async fn run_avf(cfg: &Value, hub: &FrameHub, logs: &LogHub) -> Result<()> {
     }
 }
 
-/// Split an Annex B stream (with AUD NALs from h264_metadata=aud=insert) into access units.
-fn split_aus(buf: &mut Vec<u8>) -> Vec<Bytes> {
-    let aud = |b: &[u8], i: usize| b.len() > i + 4 && b[i] == 0 && b[i + 1] == 0 && b[i + 2] == 0 && b[i + 3] == 1 && b[i + 4] & 0x1F == 9;
-    let starts: Vec<usize> = (0..buf.len().saturating_sub(4)).filter(|&i| aud(buf, i)).collect();
-    let mut out = vec![];
-    for w in starts.windows(2) {
-        out.push(Bytes::copy_from_slice(&buf[w[0]..w[1]]));
+/// Cuts an Annex B stream (with AUD NALs from h264_metadata=aud=insert) into access units, each
+/// byte scanned once. Without AUDs (an encoder that ignores the filter) the buffer is capped.
+#[derive(Default)]
+pub(crate) struct AuSplitter {
+    buf: bytes::BytesMut,
+    /// buf starts at an AUD
+    aligned: bool,
+    scanned: usize,
+}
+
+impl AuSplitter {
+    fn next_aud(&self, from: usize) -> Option<usize> {
+        let b = &self.buf;
+        let mut i = from;
+        while i + 4 < b.len() {
+            if b[i + 3] > 1 { i += 4; continue; }
+            if b[i] == 0 && b[i + 1] == 0 && b[i + 2] == 0 && b[i + 3] == 1 && b[i + 4] & 0x1F == 9 { return Some(i); }
+            i += 1;
+        }
+        None
     }
-    if let Some(&last) = starts.last() {
-        buf.drain(..last);
+
+    pub(crate) fn push(&mut self, data: &[u8], mut out: impl FnMut(Bytes)) {
+        self.buf.extend_from_slice(data);
+        loop {
+            if !self.aligned {
+                match self.next_aud(self.scanned) {
+                    Some(p) => { let _ = self.buf.split_to(p); self.aligned = true; self.scanned = 5; }
+                    None => {
+                        let keep = self.buf.len().min(4);
+                        let _ = self.buf.split_to(self.buf.len() - keep);
+                        self.scanned = 0;
+                        return;
+                    }
+                }
+            }
+            match self.next_aud(self.scanned.max(5)) {
+                Some(p) => { out(self.buf.split_to(p).freeze()); self.scanned = 5; }
+                None => {
+                    self.scanned = self.buf.len().saturating_sub(4).max(5);
+                    if self.buf.len() > SPLIT_LIMIT { *self = Self::default(); }
+                    return;
+                }
+            }
+        }
     }
-    out
 }
 
 /// One ffmpeg reads the device once (V4L2/DirectShow devices usually allow a single reader) and
@@ -329,12 +407,11 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
             let hub2 = hub.clone();
             Some(tokio::spawn(async move {
                 let Ok((mut sock, _)) = listener.accept().await else { return };
-                let mut buf = Vec::with_capacity(1 << 20);
+                let mut split = AuSplitter::default();
                 let mut chunk = vec![0u8; 1 << 16];
                 while let Ok(n) = sock.read(&mut chunk).await {
                     if n == 0 { break; }
-                    buf.extend_from_slice(&chunk[..n]);
-                    for au in split_aus(&mut buf) { crate::h264::push(&hub2, au); }
+                    split.push(&chunk[..n], |au| crate::h264::push(&hub2, au));
                 }
             }))
         }
@@ -362,7 +439,7 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
         })
     });
     let _stderr = Abort(reader);
-    let mut buf = Vec::with_capacity(1 << 20);
+    let mut split = JpegSplitter::default();
     let mut chunk = vec![0u8; 1 << 16];
     loop {
         let n = capture_read(&mut out, &mut chunk, Duration::from_secs(10)).await?;
@@ -377,8 +454,7 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
             }
             bail!("ffmpeg exited: {}", e.trim());
         }
-        buf.extend_from_slice(&chunk[..n]);
-        for f in split_jpegs(&mut buf) { hub.push(f); }
+        split.push(&chunk[..n], |f| hub.push(f));
     }
 }
 
@@ -691,11 +767,17 @@ mod tests {
 
     #[test]
     fn split() {
-        let mut b = b"junk\xff\xd8one\xff\xd9\xff\xd8tw".to_vec();
-        let f = super::split_jpegs(&mut b);
-        assert_eq!(f.len(), 1);
-        assert_eq!(&f[0][..], b"\xff\xd8one\xff\xd9");
-        assert_eq!(b, b"\xff\xd8tw");
+        let stream = b"junk\xff\xd8one\xff\xd9\xff\xd8two\xff\xd9\xff\xd8th";
+        // whole, and one byte at a time (markers cut in half across reads)
+        for step in [stream.len(), 1, 3] {
+            let mut s = super::JpegSplitter::default();
+            let mut f = vec![];
+            for c in stream.chunks(step) { s.push(c, |x| f.push(x)); }
+            assert_eq!(f.len(), 2, "step {step}");
+            assert_eq!(&f[0][..], b"\xff\xd8one\xff\xd9");
+            assert_eq!(&f[1][..], b"\xff\xd8two\xff\xd9");
+            assert_eq!(&s.buf[..], b"\xff\xd8th");
+        }
     }
 }
 
@@ -711,9 +793,20 @@ mod aud_tests {
         buf.extend([0, 0, 0, 1, 0x41, 3]); // slice
         buf.extend(aud); // start of a third, unfinished AU
         buf.extend([0, 0, 0, 1, 0x41]);
-        let aus = super::split_aus(&mut buf);
-        assert_eq!(aus.len(), 2);
-        assert_eq!(&aus[0][6..11], &[0, 0, 0, 1, 0x67]);
-        assert_eq!(&buf[..5], &[0, 0, 0, 1, 0x09]); // the unfinished AU stays buffered
+        let mut lead = vec![7u8, 0, 0]; // junk before the first AUD
+        lead.extend(&buf);
+        for step in [lead.len(), 1, 2, 5] {
+            let mut s = super::AuSplitter::default();
+            let mut aus = vec![];
+            for c in lead.chunks(step) { s.push(c, |x| aus.push(x)); }
+            assert_eq!(aus.len(), 2, "step {step}");
+            assert_eq!(&aus[0][6..11], &[0, 0, 0, 1, 0x67]);
+            assert_eq!(&aus[1][..5], &[0, 0, 0, 1, 0x09]);
+            assert_eq!(&s.buf[..5], &[0, 0, 0, 1, 0x09]); // the unfinished AU stays buffered
+        }
+        // no AUDs at all: the buffer stays bounded
+        let mut s = super::AuSplitter::default();
+        for _ in 0..1000 { s.push(&[0x41u8; 65536], |_| {}); }
+        assert!(s.buf.len() < 8);
     }
 }

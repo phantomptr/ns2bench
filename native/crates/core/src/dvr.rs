@@ -123,6 +123,8 @@ impl Dvr {
             if matches!(&out, Ok(Ok(o)) if o.status.success()) {
                 return Ok((path, span_r));
             }
+            // a half-written video would show up in the clip list: keep only the zip below
+            let _ = std::fs::remove_file(&path);
         }
         let zpath = path.with_extension("zip");
         let zp = zpath.clone();

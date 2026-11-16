@@ -8,7 +8,7 @@ use anyhow::{bail, Result};
 use serde_json::{json, Value};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::task::JoinHandle;
 
 pub struct Bench {
@@ -65,8 +65,14 @@ impl Bench {
         {
             // One lock across stop and start: two restarts at once must not leave two captures.
             let mut task = self.video_task.lock().unwrap();
-            if let Some(t) = task.take() { t.abort(); }
-            *task = Some(tokio::spawn(crate::video::supervise(self.video_cfg.clone(), self.frames.clone(), self.logs.clone())));
+            let restarting = task.take().map(|t| t.abort()).is_some();
+            let (cfg, frames, logs) = (self.video_cfg.clone(), self.frames.clone(), self.logs.clone());
+            *task = Some(tokio::spawn(async move {
+                // the old ffmpeg is being killed, not yet gone: give it a moment to let go of the
+                // card (Windows refuses a second open with "I/O error" meanwhile)
+                if restarting { tokio::time::sleep(Duration::from_millis(500)).await; }
+                crate::video::supervise(cfg, frames, logs).await
+            }));
         }
         self.ext.audio.restart();
     }

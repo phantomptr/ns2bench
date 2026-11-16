@@ -38,13 +38,33 @@ pub fn which(cmd: &str) -> bool {
     std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(&exe).is_file()))
 }
 
+/// tesseract on PATH, or where the Windows installer puts it (it doesn't add itself to PATH).
+fn tesseract() -> Option<String> {
+    if which("tesseract") {
+        return Some("tesseract".into());
+    }
+    if cfg!(windows) {
+        for var in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"] {
+            if let Some(base) = std::env::var_os(var) {
+                let base = std::path::PathBuf::from(base);
+                for p in [base.join("Tesseract-OCR").join("tesseract.exe"), base.join("Programs").join("Tesseract-OCR").join("tesseract.exe")] {
+                    if p.is_file() {
+                        return Some(p.display().to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 pub fn make_engine(cfg: Option<&Value>) -> Option<Engine> {
     let want = cfg.and_then(|c| c["engine"].as_str()).unwrap_or("auto");
     if matches!(want, "vision" | "auto") && cfg!(target_os = "macos")
         && (crate::video::bundled_helper().is_some() || which("swiftc")) {
         return Some(Engine::Vision);
     }
-    if matches!(want, "tesseract" | "auto") && which("tesseract") {
+    if matches!(want, "tesseract" | "auto") && tesseract().is_some() {
         return Some(Engine::Tesseract);
     }
     None
@@ -58,7 +78,9 @@ async fn pipe(cmd: &str, args: &[&str], input: &[u8]) -> Result<Vec<u8>> {
     let w = tokio::spawn(async move {
         let _ = stdin.write_all(&data).await;
     });
-    let out = child.wait_with_output().await?;
+    // a stuck OCR process must not hold up navigation or the power button for good
+    let out = tokio::time::timeout(std::time::Duration::from_secs(30), child.wait_with_output()).await
+        .map_err(|_| anyhow!("{cmd} gave no answer within 30 s"))??;
     let _ = w.await;
     if !out.status.success() {
         let msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
@@ -77,8 +99,11 @@ async fn engine_read(engine: Engine, jpeg: &[u8], fast: bool) -> Result<Vec<Line
             Ok(serde_json::from_value(v["lines"].clone())?)
         }
         Engine::Tesseract => {
-            let (w, h) = image::load_from_memory(jpeg).map(|i| (i.width() as f64, i.height() as f64))?;
-            let out = pipe("tesseract", &["stdin", "stdout", "--psm", "11", "tsv"], jpeg).await?;
+            // the size from the header (decoding the whole frame here would stall the runtime)
+            let (w, h) = image::ImageReader::new(std::io::Cursor::new(jpeg)).with_guessed_format()?.into_dimensions()
+                .map(|(w, h)| (w as f64, h as f64))?;
+            let exe = tesseract().ok_or_else(|| anyhow!("tesseract is not installed"))?;
+            let out = pipe(&exe, &["stdin", "stdout", "--psm", "11", "tsv"], jpeg).await?;
             // (block, paragraph, line) -> words as (left, top, width, height, conf, text)
             type Word = (f64, f64, f64, f64, f64, String);
             let mut words: BTreeMap<(String, String, String), Vec<Word>> = BTreeMap::new();
@@ -113,10 +138,11 @@ async fn engine_read(engine: Engine, jpeg: &[u8], fast: bool) -> Result<Vec<Line
 pub fn crop(jpeg: &[u8], r: [f64; 4]) -> Result<Vec<u8>> {
     let im = image::load_from_memory(jpeg)?;
     let (w, h) = (im.width() as f64, im.height() as f64);
-    let x = (r[0] * w).round() as u32;
-    let y = (r[1] * h).round() as u32;
-    let cw = ((r[0] + r[2]) * w).round() as u32 - x;
-    let ch = ((r[1] + r[3]) * h).round() as u32 - y;
+    // a region from a request: clamp to the frame (no underflow on a negative or oversized box)
+    let px = |v: f64, size: f64| (v.clamp(0.0, 1.0) * size).round() as u32;
+    let (x, y) = (px(r[0], w), px(r[1], h));
+    let cw = px(r[0] + r[2], w).saturating_sub(x);
+    let ch = px(r[1] + r[3], h).saturating_sub(y);
     let c = im.crop_imm(x, y, cw.max(1), ch.max(1)).to_rgb8();
     let mut out = vec![];
     image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 95).encode_image(&c)?;
