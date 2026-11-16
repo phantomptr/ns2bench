@@ -221,4 +221,4 @@ Linhas azuis são atividade normal, linhas âmbar são avisos que podem se resol
 
 ## Onde posso pedir ajuda?
 
-No [Discord](https://discord.gg/BqjZE6vZE).
+No [UndefinedLab Discord](https://discord.gg/fzK3xddtrM).

@@ -227,4 +227,4 @@ Blue lines are normal activity, amber lines are warnings that may fix themselves
 
 ## Where can I ask for help?
 
-On [Discord](https://discord.gg/BqjZE6vZE).
+On [UndefinedLab Discord](https://discord.gg/fzK3xddtrM).

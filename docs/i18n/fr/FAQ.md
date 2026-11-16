@@ -221,4 +221,4 @@ Les lignes bleues sont l’activité normale, les lignes ambre des avertissement
 
 ## Où demander de l’aide ?
 
-Sur [Discord](https://discord.gg/BqjZE6vZE).
+Sur [UndefinedLab Discord](https://discord.gg/fzK3xddtrM).

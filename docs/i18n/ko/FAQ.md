@@ -221,4 +221,4 @@ GL과 GR은 Nintendo Switch 2 Pro 컨트롤러 뒷면의 두 버튼이며, Joy-C
 
 ## 어디서 도움을 받을 수 있나요?
 
-[Discord](https://discord.gg/BqjZE6vZE)에서 물어보세요.
+[UndefinedLab Discord](https://discord.gg/fzK3xddtrM)에서 물어보세요.

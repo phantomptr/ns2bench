@@ -15,7 +15,7 @@ const decode = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>')
 // Worth translating: has letters, is not code, an identifier or a pure key name.
 const wanted = (s) => /\p{L}{2}/u.test(s) && !/^[A-Za-z0-9]{25,}$/.test(s) && !/^[A-Z0-9_]+$/.test(s) && !/[{}=]|;$|^\/|https?:|^[\w-]+\.(js|css|svg|json)$/.test(s)
   && !['NS2Bench', 'MCP', 'HTTP API', 'FPS', 'WASD', 'TFGH', 'Bksp', 'Enter', 'Escape', 'POST', 'GameChat', 'VideoDecoder',
-    'Content-Type', 'Content-Type: application/json', 'Discord', 'GitHub', 'Ko-fi', 'X (@phantomptr)'].includes(s);
+    'Content-Type', 'Content-Type: application/json', 'Discord', 'UndefinedLab Discord', 'GitHub', 'Ko-fi', 'X (@phantomptr)'].includes(s);
 
 export function extract() {
   const keys = new Set();

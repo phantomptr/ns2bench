@@ -8,7 +8,7 @@ Only the latest release gets security fixes.
 
 Please report privately through
 [GitHub security advisories](https://github.com/phantomptr/ns2bench/security/advisories/new).
-If that isn't possible, contact PhantomPtr on [Discord](https://discord.gg/BqjZE6vZE)
+If that isn't possible, contact PhantomPtr on [UndefinedLab Discord](https://discord.gg/fzK3xddtrM)
 without posting details publicly. You'll get an answer within a few days.
 
 ## Scope and trust model

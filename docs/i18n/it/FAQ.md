@@ -221,4 +221,4 @@ Le righe blu sono attività normale, quelle ambra sono avvisi che possono risolv
 
 ## Dove posso chiedere aiuto?
 
-Su [Discord](https://discord.gg/BqjZE6vZE).
+Su [UndefinedLab Discord](https://discord.gg/fzK3xddtrM).

@@ -51,4 +51,4 @@ NS2Bench is GPL-3.0-or-later. By sending a pull request you agree that your cont
 
 ## Questions
 
-Ask on [Discord](https://discord.gg/BqjZE6vZE) or open a discussion issue.
+Ask on [UndefinedLab Discord](https://discord.gg/fzK3xddtrM) or open a discussion issue.

@@ -2,7 +2,7 @@
 
 Ideas for making NS2Bench more useful, roughly by value. Suggestions and hardware reports
 are welcome on [GitHub](https://github.com/phantomptr/ns2bench/issues/new/choose) or
-[Discord](https://discord.gg/BqjZE6vZE).
+[UndefinedLab Discord](https://discord.gg/fzK3xddtrM).
 
 ## Next
 
