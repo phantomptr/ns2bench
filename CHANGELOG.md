@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- Windows: if NS2Bench closes on its own without an error message, it now leaves a crash file saying why (for example a stack overflow), and saves its last words to `logs/stderr-app.txt`. Both, plus background-task errors, are included in the diagnostics report.
+
 ## 0.0.14
 
 - **Updates now work like ps5upload.**

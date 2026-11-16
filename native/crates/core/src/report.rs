@@ -251,7 +251,8 @@ pub async fn offline_files() -> Vec<(String, Vec<u8>)> {
             files.push((format!("logs/{}", name_of(p)), d));
         }
     }
-    for p in entries.iter().filter(|p| name_of(p).starts_with("startup-")) {
+    // startup traces, what Rust printed before an abort (Windows), panics in background tasks
+    for p in entries.iter().filter(|p| { let n = name_of(p); n.starts_with("startup-") || n.starts_with("stderr-") || n.starts_with("panics") }) {
         if let Some(d) = tail(p, 256 << 10) {
             files.push((format!("logs/{}", name_of(p)), d));
         }
