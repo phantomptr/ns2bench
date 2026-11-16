@@ -221,4 +221,4 @@ Blaue Zeilen sind normale Aktivität, orange Zeilen sind Warnungen, die sich von
 
 ## Wo bekomme ich Hilfe?
 
-Auf [Discord](https://discord.gg/fzK3xddtrM).
+Auf [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042).

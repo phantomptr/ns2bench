@@ -221,4 +221,4 @@ GL и GR — две задние кнопки Nintendo Switch 2 Pro Controller; 
 
 ## Где попросить помощи?
 
-В [Discord](https://discord.gg/fzK3xddtrM).
+В [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042).

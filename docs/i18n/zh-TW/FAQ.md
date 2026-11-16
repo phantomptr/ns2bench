@@ -221,4 +221,4 @@ App 還沒有經過公證。執行一次 `xattr -dr com.apple.quarantine /Applic
 
 ## 在哪裡求助？
 
-在 [Discord](https://discord.gg/fzK3xddtrM) 上。
+在 [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042) 上。

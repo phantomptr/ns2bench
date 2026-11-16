@@ -12,7 +12,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3-green" alt="GPL-3.0 license" /></a>
   <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="macOS, Windows, Linux" />
   <img src="https://img.shields.io/badge/console-Nintendo%20Switch%202-brightgreen" alt="Nintendo Switch 2" />
-  <a href="https://discord.gg/fzK3xddtrM"><img src="https://img.shields.io/badge/discord-join-5865F2" alt="Discord" /></a>
+  <a href="https://discord.com/channels/1464735724434624524/1571706050539815042"><img src="https://img.shields.io/badge/discord-join-5865F2" alt="Discord" /></a>
 </p>
 
 <p align="center"><b>See, hear and drive a Nintendo Switch 2 from your computer, by hand or by AI agents. The console stays offline.</b></p>
@@ -257,7 +257,7 @@ Created and maintained by **PhantomPtr**.
 
 If NS2Bench is useful to you, you can support its development:
 
-* Join the [Discord](https://discord.gg/fzK3xddtrM) for help and news.
+* Join the [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042) for help and news.
 * [![Support me on Ko-fi](https://storage.ko-fi.com/cdn/kofi3.png?v=3)](https://ko-fi.com/B0B81S0WUA)
 * Crypto: see the addresses below.
 

@@ -221,4 +221,4 @@ MCP クライアントならどれでも使えます。Claude Code、Codex、ope
 
 ## どこで質問できますか？
 
-[Discord](https://discord.gg/fzK3xddtrM) でどうぞ。
+[Discord](https://discord.com/channels/1464735724434624524/1571706050539815042) でどうぞ。
