@@ -227,17 +227,21 @@ impl LogHub {
         let min = min_level.map(rank).unwrap_or(0);
         let g = self.inner.lock().unwrap();
         let contains = contains.map(|c| c.to_lowercase());
-        let v: Vec<Entry> = g
+        // newest first, stopping at `limit`: only the entries returned are copied
+        let n = limit.clamp(1, 2000);
+        let mut v: Vec<Entry> = g
             .entries
             .iter()
-            .filter(|e| e.seq > after)
+            .rev()
+            .take_while(|e| e.seq > after)
             .filter(|e| source.is_none_or(|s| e.source == s))
             .filter(|e| rank(&e.level) >= min)
             .filter(|e| contains.as_ref().is_none_or(|c| e.text.to_lowercase().contains(c)))
+            .take(n)
             .cloned()
             .collect();
-        let n = limit.clamp(1, 2000);
-        v[v.len().saturating_sub(n)..].to_vec()
+        v.reverse();
+        v
     }
 
     pub fn all(&self) -> Vec<Entry> {

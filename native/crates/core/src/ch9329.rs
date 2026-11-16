@@ -11,6 +11,14 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
+/// One write to the chip, at most 2 s: a wedged adapter must not freeze the loop (no heartbeat,
+/// reconnect or Stop would get through).
+async fn put<W: tokio::io::AsyncWrite + Unpin>(w: &mut W, data: &[u8]) -> Result<()> {
+    tokio::time::timeout(Duration::from_secs(2), w.write_all(data)).await
+        .map_err(|_| anyhow::anyhow!("the CH9329 took no data for 2 s"))??;
+    Ok(())
+}
+
 pub const CMD_GET_INFO: u8 = 0x01;
 pub const CMD_KEYBOARD: u8 = 0x02;
 pub const CMD_MOUSE_REL: u8 = 0x05;
@@ -84,7 +92,7 @@ pub async fn run(
             let mut buf = vec![];
             let mut chunk = [0u8; 256];
             // the chip answers GET_INFO with: version, USB enumerated (1), lock LEDs
-            w.write_all(&frame(CMD_GET_INFO, &[])).await?;
+            put(&mut w, &frame(CMD_GET_INFO, &[])).await?;
             let t0 = Instant::now();
             let info = loop {
                 // One deadline for the whole answer: another device chattering on this port
@@ -111,9 +119,9 @@ pub async fn run(
             }
             delay = Duration::from_secs(1);
             // The chip keeps its last report across a host crash: always start neutral.
-            w.write_all(&keyboard(&NEUTRAL_KBD)).await?;
+            put(&mut w, &keyboard(&NEUTRAL_KBD)).await?;
             for f in mouse(0, 0, 0, 0) {
-                w.write_all(&f).await?;
+                put(&mut w, &f).await?;
             }
             let _ = on_connect.send(());
             let mut last_kbd = NEUTRAL_KBD;
@@ -132,20 +140,20 @@ pub async fn run(
                                     pad_warned = true;
                                 }
                                 if k != last_kbd {
-                                    w.write_all(&keyboard(&k)).await?;
+                                    put(&mut w, &keyboard(&k)).await?;
                                     last_kbd = k;
                                     writes += 1;
                                 }
                             }
                             Msg::Mouse(v) => {
                                 for f in mouse(v[0] as u8, v[1], v[2], v[3]) {
-                                    w.write_all(&f).await?;
+                                    put(&mut w, &f).await?;
                                     writes += 1;
                                 }
                             }
                             Msg::Stop(done) => {
-                                w.write_all(&keyboard(&NEUTRAL_KBD)).await?;
-                                for f in mouse(0, 0, 0, 0) { w.write_all(&f).await?; }
+                                put(&mut w, &keyboard(&NEUTRAL_KBD)).await?;
+                                for f in mouse(0, 0, 0, 0) { put(&mut w, &f).await?; }
                                 let _ = done.send(());
                                 return Ok(());
                             }
@@ -158,7 +166,7 @@ pub async fn run(
                         }
                         if ping_at.is_none() {
                             ping_at = Some(Instant::now());
-                            w.write_all(&frame(CMD_GET_INFO, &[])).await?;
+                            put(&mut w, &frame(CMD_GET_INFO, &[])).await?;
                         }
                         status.lock().unwrap().writes = [("kbd".to_string(), writes)].into_iter().collect();
                     }
