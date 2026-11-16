@@ -227,4 +227,4 @@ Blue lines are normal activity, amber lines are warnings that may fix themselves
 
 ## Where can I ask for help?
 
-On [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042).
+On [Discord](https://discord.gg/BqjZE6vZE).

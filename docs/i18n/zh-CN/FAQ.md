@@ -221,4 +221,4 @@ GL 和 GR 是 Nintendo Switch 2 Pro手柄背面的两个按键；Joy-Con 2 没�
 
 ## 在哪里求助？
 
-在 [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042) 上。
+在 [Discord](https://discord.gg/BqjZE6vZE) 上。

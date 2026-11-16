@@ -221,4 +221,4 @@ Las líneas azules son actividad normal, las ámbar son avisos que pueden resolv
 
 ## ¿Dónde puedo pedir ayuda?
 
-En [Discord](https://discord.com/channels/1464735724434624524/1571706050539815042).
+En [Discord](https://discord.gg/BqjZE6vZE).
