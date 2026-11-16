@@ -148,6 +148,7 @@ function engineBack() {
   lost = false; clearTimeout(lostTimer); $('#engine-lost').hidden = true;
 }
 $('#engine-retry').addEventListener('click', () => $('#btn-refresh').click());
+let wsFails = 0;
 function connect() {
   ws = new WebSocket(authURL('/ws').replace(/^http/, 'ws'));
   ws.onmessage = (e) => {
@@ -158,8 +159,9 @@ function connect() {
     else if (m.t === 'log') { addLog(m.entry); fromLog(m.entry); }
     else if (m.t === 'error') addEvent({ source: 'error', action: m.error, t: Date.now() / 1000 });
   };
-  ws.onclose = () => { bridgeStatus = null; releaseAll(); engineLost(); setTimeout(connect, 1000); };
-  ws.onopen = () => { lastSent = ''; if (logsLoaded) loadLogs(); };
+  // slower each time (at most every 15 s) while the engine is away or refuses the page
+  ws.onclose = () => { bridgeStatus = null; releaseAll(); engineLost(); setTimeout(connect, Math.min(15000, 1000 * ++wsFails)); };
+  ws.onopen = () => { wsFails = 0; lastSent = ''; if (logsLoaded) loadLogs(); };
 }
 const send = (obj) => {
   const reason = inputUnavailable();
@@ -454,28 +456,43 @@ $('#btn-shot').addEventListener('click', async () => {
 });
 
 // ------------------------------------------------------------ console sound
-let audioCtx = null, audioWs = null, audioNode = null, audioFails = 0;
+let audioCtx = null, audioWs = null, audioNode = null, audioFails = 0, audioGen = 0, audioRetry = 0;
+// The context is made once per "Sound on" (inside the click: WebKit keeps a context made later
+// suspended); a dropped socket only reopens the socket.
 async function soundOn() {
-  audioCtx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
-  await audioCtx.audioWorklet.addModule('/static/audio-worklet.js');
-  audioNode = new AudioWorkletNode(audioCtx, 'pcm-player', { outputChannelCount: [2] });
-  audioNode.connect(audioCtx.destination);
-  audioWs = new WebSocket(authURL('/audio').replace(/^http/, 'ws'));
-  audioWs.binaryType = 'arraybuffer';
-  audioWs.onmessage = (e) => { audioFails = 0; if (typeof e.data !== 'string') audioNode.port.postMessage(e.data, [e.data]); };
+  const gen = ++audioGen;
+  const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+  audioCtx = ctx;
+  await ctx.resume().catch(() => {});
+  await ctx.audioWorklet.addModule('/static/audio-worklet.js');
+  if (gen !== audioGen) { ctx.close(); return; }          // turned off (or on again) meanwhile
+  audioNode = new AudioWorkletNode(ctx, 'pcm-player', { outputChannelCount: [2] });
+  audioNode.connect(ctx.destination);
+  openAudio(gen);
+}
+function openAudio(gen) {
+  if (gen !== audioGen || !audioCtx) return;
+  const sock = new WebSocket(authURL('/audio').replace(/^http/, 'ws'));
+  audioWs = sock;
+  sock.binaryType = 'arraybuffer';
+  sock.onmessage = (e) => { audioFails = 0; if (typeof e.data !== 'string') audioNode?.port.postMessage(e.data, [e.data]); };
   // Reconnect with backoff; after repeated failures give up and say so.
-  audioWs.onclose = () => {
-    if (!audioCtx) return;
+  sock.onclose = () => {
+    if (gen !== audioGen || !audioCtx) return;
     if (++audioFails > 5) { soundOff(); setSoundButton(false); addEvent({ source: 'error', action: t('No sound from the capture card. Turn sound on again to retry.'), t: Date.now() / 1000 }); return; }
-    setTimeout(() => { if (audioCtx) { soundOff(); soundOn().catch(() => { soundOff(); setSoundButton(false); }); } }, 1000 * audioFails);
+    clearTimeout(audioRetry);
+    audioRetry = setTimeout(() => openAudio(gen), 1000 * audioFails);
   };
 }
 function soundOff() {
+  audioGen++;
+  clearTimeout(audioRetry);
   const ctx = audioCtx;
   audioCtx = null;
-  // Detach first: a socket closed on purpose must not schedule a reconnect of the new one.
+  // Detach first: a socket closed on purpose must not schedule a reconnect.
   if (audioWs) { audioWs.onclose = null; audioWs.close(); }
   audioWs = null;
+  audioNode = null;
   ctx?.close();
 }
 function setSoundButton(on) {
@@ -489,7 +506,9 @@ $('#btn-sound').addEventListener('click', async (e) => {
   setSoundButton(on);
   audioFails = 0;
   if (!on) return soundOff();
+  const gen = audioGen + 1;
   try { await soundOn(); } catch (err) {
+    if (gen !== audioGen) return;                        // an older attempt: the newer one stands
     soundOff(); setSoundButton(false);
     addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 });
   }
@@ -525,8 +544,10 @@ $('#btn-full').addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) $('#screen').focus({ preventScroll: true }); });
 document.addEventListener('fullscreenchange', fit);
+let mjpegFails = 0;
+$('#video').addEventListener('load', () => { mjpegFails = 0; });
 $('#video').addEventListener('error', () => setTimeout(() => {
-  if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); }, 1000));
+  if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); }, Math.min(15000, 1000 * ++mjpegFails)));
 $('#video').src = authURL('/stream.mjpg');
 const live = startLive($('#video'), (m) => { $('#screen').dataset.live = m; });
 

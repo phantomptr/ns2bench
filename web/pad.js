@@ -124,17 +124,21 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
     el.addEventListener('pointerleave', () => tip.classList.remove('show'));
   }
 
+  const keyPointers = [];
   for (const b of all('.key:not(.unavailable)')) {
     const name = b.dataset.b;
+    const ptrs = new Set();
+    keyPointers.push(ptrs);
     // No context menu on a button: it would swallow the release and leave the button held.
     b.addEventListener('contextmenu', (e) => e.preventDefault());
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault(); e.stopPropagation();
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (b.classList.contains('macro') && !leftRoot.closest('.pro')) { macroListener(name); return; }
-      b.setPointerCapture(e.pointerId); held.add(name);
+      b.setPointerCapture(e.pointerId); ptrs.add(e.pointerId); held.add(name);
     });
-    const up = () => held.delete(name);
+    // two fingers on one key: it stays down until the last one lifts
+    const up = (e) => { ptrs.delete(e.pointerId); if (!ptrs.size) held.delete(name); };
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
     b.addEventListener('lostpointercapture', up);
@@ -215,6 +219,6 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
     },
     onPress(fn) { pressListener = fn; },
     onMacro(fn) { macroListener = fn; },
-    release() { held.clear(); taps.clear(); vstick.left = [0, 0]; vstick.right = [0, 0]; },
+    release() { held.clear(); for (const p of keyPointers) p.clear(); taps.clear(); vstick.left = [0, 0]; vstick.right = [0, 0]; },
   };
 }
