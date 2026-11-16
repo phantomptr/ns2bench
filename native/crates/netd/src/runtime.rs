@@ -121,7 +121,13 @@ pub fn forwarding_off() -> bool {
     #[cfg(target_os = "linux")]
     {
         let v4 = fs::read_to_string("/proc/sys/net/ipv4/ip_forward").ok();
-        let v6 = fs::read_to_string("/proc/sys/net/ipv6/conf/all/forwarding").ok();
+        // IPv6 turned off in the kernel (ipv6.disable=1): no /proc/sys/net/ipv6 at all, and
+        // nothing can be forwarded over it. Any other missing value still counts as "not off".
+        let v6 = if std::path::Path::new("/proc/sys/net/ipv6").exists() {
+            fs::read_to_string("/proc/sys/net/ipv6/conf/all/forwarding").ok()
+        } else {
+            Some("0".to_string())
+        };
         // The kernel decides per incoming interface, so one interface with forwarding on is
         // enough to route for the console even while the global switches read 0.
         let per_interface_off = |family: &str| {
@@ -129,7 +135,8 @@ pub fn forwarding_off() -> bool {
                 dir.flatten().all(|e| fs::read_to_string(e.path().join("forwarding")).map_or(true, |v| v.trim() == "0"))
             })
         };
-        forwarding_values(v4.as_deref(), v6.as_deref()) && per_interface_off("ipv4") && per_interface_off("ipv6")
+        let no_ipv6 = !std::path::Path::new("/proc/sys/net/ipv6").exists();
+        forwarding_values(v4.as_deref(), v6.as_deref()) && per_interface_off("ipv4") && (no_ipv6 || per_interface_off("ipv6"))
     }
     #[cfg(target_os = "macos")]
     {
