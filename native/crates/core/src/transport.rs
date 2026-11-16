@@ -63,7 +63,7 @@ impl Link {
                 #[cfg(windows)]
                 let path = &win_serial::device_path(path);
                 #[cfg(windows)]
-                if let Ok((r, w)) = win_serial::open(path) {
+                if let Ok((r, w)) = win_serial::open(path, *baud) {
                     return Ok((Box::new(r), Box::new(w)));
                 }
                 // Separate handles for reading and writing: a tokio File runs one operation at a time,
@@ -88,13 +88,10 @@ async fn configure_serial(path: &str, baud: u32) {
     {
         let _ = tokio::process::Command::new("stty").args(&args).status().await;
     }
+    // Windows: set on the open handle (win_serial::line), any rate the driver takes (mode.com
+    // only knew a fixed list and turned down 460800 and 921600).
     #[cfg(windows)]
-    {
-        let port = path.trim_start_matches(r"\\.\");
-        // `mode` is mode.com: Command::new("mode") would look for mode.exe and fail.
-        let mode = std::path::Path::new(&std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into())).join(r"System32\mode.com");
-        let _ = crate::video::quiet(mode).args([port, &format!("BAUD={b}"), "PARITY=N", "DATA=8", "STOP=1"]).status().await;
-    }
+    let _ = (path, b);
 }
 
 #[cfg(windows)]
@@ -105,7 +102,27 @@ pub(crate) mod win_serial {
     use std::task::{Context, Poll};
     use tokio::io::{AsyncRead, ReadBuf};
     use tokio::sync::mpsc;
-    use windows_sys::Win32::Devices::Communication::{SetCommTimeouts, COMMTIMEOUTS};
+    use windows_sys::Win32::Devices::Communication::{GetCommState, SetCommState, SetCommTimeouts, COMMTIMEOUTS, DCB};
+
+    /// baud, 8 data bits, no parity, 1 stop bit; flow control as the driver has it.
+    pub fn line(f: &std::fs::File, baud: u32) -> io::Result<()> {
+        let mut d = DCB { DCBlength: std::mem::size_of::<DCB>() as u32, ..Default::default() };
+        // SAFETY: the handle belongs to `f`; `d` is a valid DCB with its length set.
+        unsafe {
+            if GetCommState(f.as_raw_handle() as _, &mut d) == 0 {
+                return Err(io::Error::last_os_error());
+            }
+            d.BaudRate = baud;
+            d.ByteSize = 8;
+            d.Parity = 0; // NOPARITY
+            d.StopBits = 0; // ONESTOPBIT
+            d._bitfield |= 1; // fBinary: always on for Windows serial ports
+            if SetCommState(f.as_raw_handle() as _, &d) == 0 {
+                return Err(io::Error::last_os_error());
+            }
+        }
+        Ok(())
+    }
 
     /// Reads that return within 200 ms even when nothing arrives (0 bytes), and writes that give
     /// up after 2 s: so the reader thread can notice the connection is gone and end.
@@ -129,8 +146,10 @@ pub(crate) mod win_serial {
         if path.starts_with(r"\\.\") { path.to_string() } else { format!(r"\\.\{path}") }
     }
 
-    pub fn open(path: &str) -> io::Result<(ChanReader, tokio::fs::File)> {
+    pub fn open(path: &str, baud: u32) -> io::Result<(ChanReader, tokio::fs::File)> {
         let f = std::fs::OpenOptions::new().read(true).write(true).open(path)?;
+        // USB CDC ports (Pico) ignore the rate and may refuse to set it: not fatal
+        let _ = line(&f, baud);
         timeouts(&f)?;
         let w = f.try_clone()?;
         let (tx, rx) = mpsc::channel::<io::Result<Vec<u8>>>(64);

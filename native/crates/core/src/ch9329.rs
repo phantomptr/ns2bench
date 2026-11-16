@@ -129,61 +129,74 @@ pub async fn run(
             let mut beat = tokio::time::interval(Duration::from_secs(1));
             let mut ping_at: Option<Instant> = None;
             let mut writes = 0u64;
+            // Mouse moves that queue up while one is being sent (9600 baud is ~85 frames a second)
+            // are merged into one: the pointer keeps up instead of lagging further behind.
+            let mut pending: Option<Msg> = None;
             loop {
-                tokio::select! {
-                    m = rx.recv() => {
-                        let Some(m) = m else { return Ok(()) };
-                        match m {
-                            Msg::State(p, k) => {
-                                if p != crate::inputs::NEUTRAL_PAD && !pad_warned {
-                                    logs.error("bench", "CH9329 has no controller: buttons/sticks are ignored (keyboard and mouse work)");
-                                    pad_warned = true;
-                                }
-                                if k != last_kbd {
-                                    put(&mut w, &keyboard(&k)).await?;
-                                    last_kbd = k;
-                                    writes += 1;
+                let m = if let Some(p) = pending.take() { p } else {
+                    tokio::select! {
+                        m = rx.recv() => { let Some(m) = m else { return Ok(()) }; m }
+                        _ = beat.tick() => {
+                            if ping_at.is_some_and(|t| t.elapsed() > Duration::from_secs(3)) {
+                                bail!("CH9329 stopped answering");
+                            }
+                            if ping_at.is_none() {
+                                ping_at = Some(Instant::now());
+                                put(&mut w, &frame(CMD_GET_INFO, &[])).await?;
+                            }
+                            status.lock().unwrap().writes = [("kbd".to_string(), writes)].into_iter().collect();
+                            continue;
+                        }
+                        n = r.read(&mut chunk) => {
+                            let n = n?;
+                            if n == 0 { bail!("serial port closed"); }
+                            buf.extend_from_slice(&chunk[..n]);
+                            while let Some((cmd, d)) = take_reply(&mut buf) {
+                                if cmd == CMD_GET_INFO | 0x80 {
+                                    let mut s = status.lock().unwrap();
+                                    if let Some(t) = ping_at.take() { s.rtt_ms = Some((t.elapsed().as_secs_f64() * 10000.0).round() / 10.0); }
+                                    s.usb = Some(if d.get(1) == Some(&1) { "configured" } else { "not attached" }.into());
+                                } else if cmd & 0xC0 == 0xC0 {
+                                    logs.error("board", format!("CH9329 error reply to {:#04x}: {:?}", cmd & 0x3F, d));
                                 }
                             }
-                            Msg::Mouse(v) => {
-                                for f in mouse(v[0] as u8, v[1], v[2], v[3]) {
-                                    put(&mut w, &f).await?;
-                                    writes += 1;
-                                }
-                            }
-                            Msg::Stop(done) => {
-                                put(&mut w, &keyboard(&NEUTRAL_KBD)).await?;
-                                for f in mouse(0, 0, 0, 0) { put(&mut w, &f).await?; }
-                                let _ = done.send(());
-                                return Ok(());
-                            }
-                            Msg::UsbMode(_) => logs.error("bench", "CH9329 has a single USB mode (keyboard + mouse)"),
+                            continue;
                         }
                     }
-                    _ = beat.tick() => {
-                        if ping_at.is_some_and(|t| t.elapsed() > Duration::from_secs(3)) {
-                            bail!("CH9329 stopped answering");
+                };
+                match m {
+                    Msg::State(p, k) => {
+                        if p != crate::inputs::NEUTRAL_PAD && !pad_warned {
+                            logs.error("bench", "CH9329 has no controller: buttons/sticks are ignored (keyboard and mouse work)");
+                            pad_warned = true;
                         }
-                        if ping_at.is_none() {
-                            ping_at = Some(Instant::now());
-                            put(&mut w, &frame(CMD_GET_INFO, &[])).await?;
+                        if k != last_kbd {
+                            put(&mut w, &keyboard(&k)).await?;
+                            last_kbd = k;
+                            writes += 1;
                         }
-                        status.lock().unwrap().writes = [("kbd".to_string(), writes)].into_iter().collect();
                     }
-                    n = r.read(&mut chunk) => {
-                        let n = n?;
-                        if n == 0 { bail!("serial port closed"); }
-                        buf.extend_from_slice(&chunk[..n]);
-                        while let Some((cmd, d)) = take_reply(&mut buf) {
-                            if cmd == CMD_GET_INFO | 0x80 {
-                                let mut s = status.lock().unwrap();
-                                if let Some(t) = ping_at.take() { s.rtt_ms = Some((t.elapsed().as_secs_f64() * 10000.0).round() / 10.0); }
-                                s.usb = Some(if d.get(1) == Some(&1) { "configured" } else { "not attached" }.into());
-                            } else if cmd & 0xC0 == 0xC0 {
-                                logs.error("board", format!("CH9329 error reply to {:#04x}: {:?}", cmd & 0x3F, d));
+                    Msg::Mouse(v) => {
+                        let (mut dx, mut dy, mut wh) = (v[1], v[2], v[3]);
+                        loop {
+                            match rx.try_recv() {
+                                Ok(Msg::Mouse(n)) if n[0] == v[0] => { dx += n[1]; dy += n[2]; wh += n[3]; }
+                                Ok(other) => { pending = Some(other); break; }
+                                Err(_) => break,
                             }
                         }
+                        for f in mouse(v[0] as u8, dx, dy, wh) {
+                            put(&mut w, &f).await?;
+                            writes += 1;
+                        }
                     }
+                    Msg::Stop(done) => {
+                        put(&mut w, &keyboard(&NEUTRAL_KBD)).await?;
+                        for f in mouse(0, 0, 0, 0) { put(&mut w, &f).await?; }
+                        let _ = done.send(());
+                        return Ok(());
+                    }
+                    Msg::UsbMode(_) => logs.error("bench", "CH9329 has a single USB mode (keyboard + mouse)"),
                 }
             }
         }.await;
