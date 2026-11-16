@@ -249,6 +249,8 @@ jobs:
       - name: Assets, notes, manifest and checksums
         env:
           V: ${{ needs.check.outputs.version }}
+          # Ed25519 release key: latest.json is signed with it (the app refuses unsigned updates)
+          NS2BENCH_UPDATE_KEY: ${{ secrets.NS2BENCH_UPDATE_KEY }}
         run: |
           set -euo pipefail
           mkdir -p release

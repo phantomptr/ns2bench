@@ -19,6 +19,10 @@ const MAX_DOWNLOAD: u64 = 1024 * 1024 * 1024;
 /// the NS2Bench certificate (SHA-1 of the certificate in ~/.ns2bench/signing, CI secret).
 #[cfg(target_os = "macos")]
 const RELEASE_REQUIREMENT: &str = "-R=identifier \"io.github.phantomptr.ns2bench\" and certificate leaf = H\"6b2b62e6d97e5a307b41534ba2c5d1baf5e35455\"";
+/// Ed25519 key that signs every release (private half: CI secret NS2BENCH_UPDATE_KEY, backup in
+/// ~/.ns2bench/signing/update-ed25519.pem). A manifest is only trusted with its signature: the
+/// checksum next to an installer can't prove who put it there.
+const UPDATE_KEY: &str = "5lU1976+dXXch6e5zkyqqM+R8fTCQpfcWAsP+Pxst8g=";
 #[derive(Deserialize)]
 struct Manifest {
     version: String,
@@ -26,6 +30,18 @@ struct Manifest {
     notes: String,
     assets: HashMap<String, String>,
     sha256: HashMap<String, String>,
+    #[serde(default)]
+    signatures: HashMap<String, String>,
+}
+/// What is signed for one platform (scripts/release-manifest.mjs builds the same text).
+fn signed_text(version: &str, platform: &str, url: &str, hash: &str) -> String {
+    format!("ns2bench update\n{version}\n{platform}\n{url}\n{hash}\n")
+}
+fn signature_ok(public_b64: &str, text: &str, sig_b64: &str) -> bool {
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let (Ok(pk), Ok(sig)) = (b64.decode(public_b64), b64.decode(sig_b64)) else { return false };
+    ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, pk).verify(text.as_bytes(), &sig).is_ok()
 }
 #[derive(Default, Clone, Serialize)]
 pub struct Update {
@@ -73,6 +89,9 @@ fn asset_url(s: &str) -> bool {
     })
 }
 fn select(m: Manifest, key: &str, current: &str) -> Result<Update> {
+    select_with(m, key, current, UPDATE_KEY)
+}
+fn select_with(m: Manifest, key: &str, current: &str, public_key: &str) -> Result<Update> {
     let latest = semver::Version::parse(m.version.trim_start_matches('v'))?;
     let available = latest > semver::Version::parse(current)? && latest.pre.is_empty();
     let mut u = Update {
@@ -94,6 +113,11 @@ fn select(m: Manifest, key: &str, current: &str) -> Result<Update> {
         ensure!(
             hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()),
             "invalid SHA-256"
+        );
+        let sig = m.signatures.get(key).context("This release is not signed")?;
+        ensure!(
+            signature_ok(public_key, &signed_text(&latest.to_string(), key, url, hash), sig),
+            "The release signature does not match: not installing it"
         );
         u.url = Some(url.clone());
         u.hash = Some(hash.to_lowercase());
@@ -513,11 +537,30 @@ mod tests {
         assert!(verify(&path, hash).await.is_err());
         tokio::fs::remove_file(path).await.unwrap();
     }
+    // A throwaway key pair; the signature was made by Node's crypto.sign, as the release
+    // workflow does, so this also checks both sides build the same signed text.
+    const TEST_KEY: &str = "7PXDr6RIAyZig6k4QKsoEu4vN9qyxRHOILjZqT9j+jU=";
+    const TEST_SIG: &str = "+ga34N7aIJyA926gphX7nzK8ei4NGly8eRJHnM182BfIaZHSjHSqnZzHdBno09Ky+umGWiEkmIziHdslk8HXCA==";
+    fn select(m: Manifest, key: &str, current: &str) -> Result<Update> {
+        super::select_with(m, key, current, TEST_KEY)
+    }
+    #[test]
+    fn needs_a_valid_signature() {
+        let url = "https://github.com/phantomptr/ns2bench/releases/download/v0.3.0/NS2Bench.dmg";
+        let m = |sig: Option<&str>, hash: String| serde_json::from_value::<Manifest>(json!({"version":"0.3.0","assets":{"test":url},
+            "sha256":{"test":hash}, "signatures": sig.map(|s| json!({"test": s})).unwrap_or(json!({}))})).unwrap();
+        assert!(select(m(Some(TEST_SIG), "a".repeat(64)), "test", "0.2.0").unwrap().available);
+        assert!(select(m(None, "a".repeat(64)), "test", "0.2.0").is_err());
+        // a different installer (hash) under the same signature
+        assert!(select(m(Some(TEST_SIG), "b".repeat(64)), "test", "0.2.0").is_err());
+        // the real key doesn't accept the test signature
+        assert!(super::select(m(Some(TEST_SIG), "a".repeat(64)), "test", "0.2.0").is_err());
+    }
     #[test]
     fn rejects_missing_hash_external_asset_and_prerelease() {
         let manifest = |url: &str, hash: &str, version: &str| {
             serde_json::from_value::<Manifest>(
-                json!({"version":version,"assets":{"test":url},"sha256":{"test":hash}}),
+                json!({"version":version,"assets":{"test":url},"sha256":{"test":hash},"signatures":{"test":TEST_SIG}}),
             )
             .unwrap()
         };

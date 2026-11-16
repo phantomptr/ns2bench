@@ -1,5 +1,5 @@
 // Publish only installers the desktop updater knows how to install.
-import { createHash } from 'node:crypto';
+import { createHash, createPrivateKey, sign } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -9,8 +9,14 @@ export function platformFor(name) {
   const os = name.endsWith('.dmg') ? 'darwin' : name.endsWith('-setup.exe') ? 'windows' : name.endsWith('.AppImage') ? 'linux' : null;
   return os ? `${os}-${arch}` : null;
 }
-export async function manifest(dir, tag) {
+// What the app verifies for each platform (native/crates/app/src/updates.rs signed_text).
+export const signedText = (version, platform, url, hash) => `ns2bench update\n${version}\n${platform}\n${url}\n${hash}\n`;
+// keyPem: the Ed25519 release key (CI secret NS2BENCH_UPDATE_KEY). No key, no manifest: an
+// unsigned release would be refused by every app that checks signatures.
+export async function manifest(dir, tag, keyPem = process.env.NS2BENCH_UPDATE_KEY) {
   if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Stable vMAJOR.MINOR.PATCH tag required');
+  if (!keyPem) throw new Error('NS2BENCH_UPDATE_KEY (the release signing key) is not set');
+  const key = createPrivateKey(keyPem);
   const assets = {}, sha256 = {};
   for (const name of await readdir(dir)) {
     const platform = platformFor(name); if (!platform) continue;
@@ -21,7 +27,9 @@ export async function manifest(dir, tag) {
   for (const platform of ['darwin-aarch64', 'darwin-x86_64', 'windows-x86_64', 'windows-aarch64', 'linux-x86_64']) {
     if (!assets[platform]) throw new Error(`Missing installer for ${platform}`);
   }
-  return { version: tag.slice(1), pub_date: new Date().toISOString(), notes: process.env.RELEASE_NOTES_TEXT || `NS2Bench ${tag}. See the GitHub release for full release notes.`, assets, sha256 };
+  const version = tag.slice(1), signatures = {};
+  for (const p of Object.keys(assets)) signatures[p] = sign(null, Buffer.from(signedText(version, p, assets[p], sha256[p])), key).toString('base64');
+  return { version, pub_date: new Date().toISOString(), notes: process.env.RELEASE_NOTES_TEXT || `NS2Bench ${tag}. See the GitHub release for full release notes.`, assets, sha256, signatures };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [dir, tag] = process.argv.slice(2);

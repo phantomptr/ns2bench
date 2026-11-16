@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { manifest, platformFor } from './release-manifest.mjs';
+import { generateKeyPairSync, verify } from 'node:crypto';
+import { manifest, platformFor, signedText } from './release-manifest.mjs';
+const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
 test('Tauri installer names map to updater platform names', () => {
   assert.equal(platformFor('NS2Bench_0.2.0_aarch64.dmg'), 'darwin-aarch64');
   assert.equal(platformFor('NS2Bench_0.2.0_x64.dmg'), 'darwin-x86_64');
@@ -23,11 +26,15 @@ test('Tauri installer names map to updater platform names', () => {
 test('release requires every supported installer and hashes the actual bytes', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'ns2bench-manifest-'));
   try {
-    await assert.rejects(manifest(dir, 'v0.3.0'), /Missing installer/);
+    await assert.rejects(manifest(dir, 'v0.3.0', pem), /Missing installer/);
     for (const name of ['NS2Bench_aarch64.dmg', 'NS2Bench_x64.dmg', 'NS2Bench_x64-setup.exe', 'NS2Bench_arm64-setup.exe', 'NS2Bench_amd64.AppImage']) await writeFile(join(dir, name), 'abc');
-    const m = await manifest(dir, 'v0.3.0');
+    await assert.rejects(manifest(dir, 'v0.3.0', ''), /NS2BENCH_UPDATE_KEY/);
+    const m = await manifest(dir, 'v0.3.0', pem);
     assert.equal(Object.keys(m.assets).length, 5);
     assert.equal(m.sha256['darwin-aarch64'], 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
-    await assert.rejects(manifest(dir, 'v0.3.0-beta.1'), /Stable/);
+    for (const p of Object.keys(m.assets)) {
+      assert.ok(verify(null, Buffer.from(signedText('0.3.0', p, m.assets[p], m.sha256[p])), publicKey, Buffer.from(m.signatures[p], 'base64')), p);
+    }
+    await assert.rejects(manifest(dir, 'v0.3.0-beta.1', pem), /Stable/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
