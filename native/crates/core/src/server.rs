@@ -514,7 +514,22 @@ async fn ui_socket(b: S, sock: WebSocket, drive: bool) {
             }
         }
     });
-    while let Some(Ok(m)) = rx.next().await {
+    // While something is held, the page says so every second. A page that falls silent then (a
+    // laptop asleep, Wi-Fi gone: the connection can stay half-open for minutes) has let go.
+    let mut last = std::time::Instant::now();
+    loop {
+        let m = match tokio::time::timeout(Duration::from_secs(1), rx.next()).await {
+            Err(_) => {
+                if drive && last.elapsed() > Duration::from_secs(4) && b.hub.ui_active() {
+                    b.logs.warn("bench", "the NS2Bench page went silent while holding input: released");
+                    b.hub.release_ui();
+                }
+                continue;
+            }
+            Ok(Some(Ok(m))) => m,
+            Ok(_) => break,
+        };
+        last = std::time::Instant::now();
         let Message::Text(t) = m else { continue };
         let Ok(v) = serde_json::from_str::<Value>(&t) else { continue };
         if !drive { continue; }

@@ -717,6 +717,14 @@ impl InputHub {
         }
     }
 
+    /// Is the person at the page holding anything (a button, key, stick or mouse button)?
+    pub fn ui_active(&self) -> bool {
+        let st = self.st.lock().unwrap();
+        let l = &st.ui;
+        l.buttons != 0 || l.dpad != 0 || l.kbd_mods != 0 || !l.kbd_keys.is_empty() || st.ui_mouse != 0
+            || l.sticks.is_some_and(|s| s.iter().any(|v| v.abs_diff(CENTER) > 8))
+    }
+
     /// The page went away: release what the person was holding.
     pub fn release_ui(self: &Arc<Self>) {
         let _ = self.set_ui_state(0, 0, None, 0, vec![]);

@@ -149,6 +149,14 @@ function engineBack() {
 }
 $('#engine-retry').addEventListener('click', () => $('#btn-refresh').click());
 let wsFails = 0;
+// While anything is held, repeat the state every second: the engine lets go of input if the page
+// falls silent (a sleeping laptop, lost Wi-Fi), instead of holding a button for minutes.
+const idleState = JSON.stringify({ t: 'state', buttons: 0, dpad: 0, sticks: [128, 128, 128, 128], mods: 0, keynames: [] });
+setInterval(() => {
+  if (ws?.readyState !== WebSocket.OPEN) return;
+  if (lastSent && lastSent !== idleState) ws.send(lastSent);
+  if (mouse.buttons) ws.send(JSON.stringify({ t: 'mouse', dx: 0, dy: 0, wheel: 0, buttons: mouse.buttons }));
+}, 1000);
 function connect() {
   ws = new WebSocket(authURL('/ws').replace(/^http/, 'ws'));
   ws.onmessage = (e) => {
