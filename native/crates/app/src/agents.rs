@@ -460,12 +460,25 @@ async fn agent_mcp_add(agent: String) -> Result<AgentMcpStatus, String> {
         if !before.found {
             return Err("cli_not_found".to_string());
         }
+        let url = expected_url();
+        // already pointing here: nothing to change (and nothing to lose)
+        if before.configured && before.saved_url.as_deref() == Some(url.as_str()) {
+            return Ok(before);
+        }
+        let mut removed = false;
         if agent.add_refuses_existing() && before.configured {
             if let Some(args) = agent.remove_args() {
                 change(agent, &args, &path)?;
+                removed = true;
             }
         }
-        change(agent, &agent.add_args(&expected_url()), &path)?;
+        if let Err(e) = change(agent, &agent.add_args(&url), &path) {
+            // the add failed after the old entry was taken out: put the old one back
+            if let (true, Some(old)) = (removed, before.saved_url.as_deref()) {
+                let _ = change(agent, &agent.add_args(old), &path);
+            }
+            return Err(e);
+        }
         Ok(status_of(agent, &path))
     })
     .await

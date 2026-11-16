@@ -88,6 +88,8 @@ fn select(m: Manifest, key: &str, current: &str) -> Result<Update> {
             .get(key)
             .context("This release has no installer for your platform")?;
         ensure!(asset_url(url), "release asset URL is not trusted");
+        // the installer must come from the release it claims to be (no older one under a new number)
+        ensure!(url.contains(&format!("/releases/download/v{latest}/")), "release asset is from another version");
         let hash = m.sha256.get(key).context("Release checksum is missing")?;
         ensure!(
             hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()),
@@ -254,6 +256,9 @@ async fn install(path: &Path, relaunch: bool) -> Result<()> {
         .context("App folder is not writable; move NS2Bench to Applications in your home folder")?;
     let mount = ns2bench_core::config::state_dir().join("updates/mount");
     std::fs::create_dir_all(&mount)?;
+    // an image left mounted by an earlier attempt (a crash, a forced quit) would block this one
+    let _ = tokio::process::Command::new("/usr/bin/hdiutil").args(["detach", "-force"]).arg(&mount)
+        .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().await;
     let attach = tokio::process::Command::new("/usr/bin/hdiutil")
         .args(["attach", "-nobrowse", "-readonly", "-mountpoint"])
         .arg(&mount)
@@ -304,6 +309,8 @@ async fn install(path: &Path, relaunch: bool) -> Result<()> {
         anyhow::bail!("App signature verification failed");
     }
     let script = ns2bench_core::config::state_dir().join("updates/install.sh");
+    // the staged copy is ~100 MB in the Applications folder: never leave it behind on an error
+    let cleanup = |e: std::io::Error| { let _ = std::fs::remove_dir_all(&stage); e };
     // All paths are positional parameters; no path or release text is evaluated as shell code.
     std::fs::write(
         &script,
@@ -323,17 +330,17 @@ rm -rf "$stage"
 [ "$relaunch" = 1 ] && /usr/bin/open "$app"
 exit 1
 "#,
-    )?;
+    ).map_err(cleanup)?;
     std::process::Command::new("/bin/sh")
         .arg(script)
         .arg(std::process::id().to_string())
         .arg(bundle)
-        .arg(stage)
+        .arg(&stage)
         .arg(if relaunch { "1" } else { "0" })
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()?;
+        .spawn().map_err(cleanup)?;
     Ok(())
 }
 #[cfg(target_os = "windows")]

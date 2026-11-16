@@ -171,7 +171,7 @@ fn main() {
     } else {
         ns2bench_core::server::set_ui_key(ui_key.clone());
         let c = cfg.clone();
-        tauri::async_runtime::spawn(async move {
+        let engine = tauri::async_runtime::spawn(async move {
             if let Err(e) = ns2bench_core::serve(c).await {
                 eprintln!("NS2Bench: engine stopped: {e}");
                 // The window then has nothing to show: keep the reason for the bug report.
@@ -180,7 +180,8 @@ fn main() {
         });
         // wait for the engine to answer before showing the UI
         let t0 = Instant::now();
-        while t0.elapsed() < Duration::from_secs(15) && !tauri::async_runtime::block_on(running(&cfg)) {
+        // (not when the engine already stopped, e.g. the port is taken: say so right away)
+        while t0.elapsed() < Duration::from_secs(15) && !engine.inner().is_finished() && !tauri::async_runtime::block_on(running(&cfg)) {
             std::thread::sleep(Duration::from_millis(100));
         }
     }
