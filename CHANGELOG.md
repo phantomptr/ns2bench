@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- The Discord link in the app (Help and About), README and website now says **UndefinedLab Discord**, the PhantomPtr server shared with ps5upload, and uses a permanent invite.
+
 ## 0.0.11
 
 - **Windows: capture cards show up by name.** The Video panel lists every DirectShow capture card (internal PCIe cards such as the **Elgato 4K Pro** included) with the sizes and frame rates it offers. Before, Windows showed only a raw list you couldn't pick from. Linux lists its /dev/video cards the same way.
