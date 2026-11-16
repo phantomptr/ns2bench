@@ -6,7 +6,41 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
-- Windows: if NS2Bench closes on its own without an error message, it now leaves a crash file saying why (for example a stack overflow), and saves its last words to `logs/stderr-app.txt`. Both, plus background-task errors, are included in the diagnostics report.
+- **Windows: NS2Bench closing by itself.** Some people saw NS2Bench find the capture card and then close with no message.
+  - It now has more room to run on Windows.
+  - If it still closes, it leaves a crash file saying why, and the diagnostics report includes it. Please send us that report.
+- **Updates are signed.** Every update is now signed by NS2Bench's release key, and the app installs nothing whose signature doesn't match. It also refuses an older version offered under a newer number.
+- **No more stuck buttons:**
+  - If the page goes quiet while you hold a button (a laptop going to sleep, Wi-Fi dropping), NS2Bench lets go within a few seconds.
+  - "Release everything" also lets go of mouse buttons.
+  - A test or sequence that stops partway releases what it was holding.
+  - Two fingers on the same on-screen button no longer release it early.
+- **Live view:**
+  - Smoother and lighter: no extra work after reconnecting, and no decoding while the tab is hidden.
+  - The first frame after connecting is no longer dropped.
+  - Reconnecting slows down while the engine is away instead of retrying every second.
+- **Sound** comes back after a dropped connection on macOS and Safari instead of staying silent.
+- **Faster and steadier capture:**
+  - Frames are handled with less copying and less scanning.
+  - Changing video settings waits for the card to be released, so Windows no longer reports it as busy.
+  - Screen-change checks are about 40% faster on 4K.
+- **Reading the screen (OCR)** gives up after 30 s instead of waiting forever, and finds Tesseract on Windows even when it isn't on PATH.
+- **Board (NS2Bench Bridge):**
+  - Pro Controller mode stays on while the console is asleep. It no longer switches back to the standard controller, or saves that switch, without asking.
+  - Restarting the Bridge no longer leaves two copies running.
+  - Slow replies no longer hold up the controller.
+  - The recovery script keeps going when you run it over ADB.
+- **Serial and CH9329:**
+  - Windows sets fast serial speeds such as 921600 properly.
+  - The CH9329 pointer no longer lags behind fast mouse moves.
+  - A stuck CH9329 adapter no longer freezes input.
+- **Privacy:** text typed by an agent is no longer written to logs or test reports, only its length.
+- **Other fixes:**
+  - Adding NS2Bench to an agent no longer removes your existing setup if the add fails.
+  - A failed clip no longer leaves a broken video in the list.
+  - The offline network helper works on Linux with IPv6 turned off.
+  - On macOS, an interrupted update no longer blocks the next one.
+  - The diagnostics report no longer stalls on long program output.
 
 ## 0.0.14
 
