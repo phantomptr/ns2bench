@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.14
+
 - **Updates now work like ps5upload.**
   - NS2Bench checks at start, every 6 hours, and whenever you open Settings → Updates (before, it checked once a day and the Updates page showed an old answer).
   - New versions download in the background and install when you quit NS2Bench, or right away with **Restart now**.
