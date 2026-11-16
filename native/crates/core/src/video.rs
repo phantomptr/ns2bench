@@ -221,7 +221,7 @@ pub fn ffmpeg_input_args(cfg: &Value) -> Vec<String> {
         return a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
     }
     let size = format!("{}x{}", cfg["width"].as_u64().unwrap_or(1920), cfg["height"].as_u64().unwrap_or(1080));
-    let fps = cfg["fps"].as_u64().unwrap_or(30).to_string();
+    let fps = cfg["fps_exact"].as_str().map(str::to_string).unwrap_or_else(|| cfg["fps"].as_u64().unwrap_or(30).to_string());
     let dev = cfg["device"].as_str().map(str::to_string);
     if cfg!(target_os = "macos") {
         vec!["-f".into(), "avfoundation".into(), "-framerate".into(), fps, "-video_size".into(), size, "-i".into(), format!("{}:none", dev.unwrap_or("0".into()))]
@@ -295,21 +295,11 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
     // Windows: ask the card only for a size and frame rate it offers (internal cards such as an
     // Elgato 4K Pro often don't offer exactly what was asked for, and DirectShow then refuses).
     let mut cfg = cfg.clone();
-    // No card chosen yet (a first start, or settings from another computer): use the first one
-    // found, rather than asking ffmpeg for a device with no name.
-    if !cfg!(target_os = "macos") && cfg["ffmpeg_input"].is_null() && cfg["device"].as_str().unwrap_or("").is_empty() {
-        let found = list_devices().await;
-        let first = found.as_array().into_iter().flatten().find(|d| d["kind"] == "video").and_then(|d| d["id"].as_str().map(str::to_string));
-        match first {
-            Some(d) => cfg["device"] = d.into(),
-            None => bail!("no capture card found. Connect one (and close OBS or other apps using it), then pick it in the Video panel"),
-        }
-    }
     if cfg!(windows) && cfg["ffmpeg_input"].is_null() {
         if let Some(dev) = cfg["device"].as_str().filter(|d| !d.is_empty()) {
             let formats = dshow_formats(dev).await;
             let (w, h, f) = pick_format(&formats, cfg["width"].as_u64().unwrap_or(1920), cfg["height"].as_u64().unwrap_or(1080), cfg["fps"].as_u64().unwrap_or(60));
-            cfg["width"] = w.into(); cfg["height"] = h.into(); cfg["fps"] = f.into();
+            cfg["width"] = w.into(); cfg["height"] = h.into(); cfg["fps_exact"] = f.into();
         }
     }
     let cfg = &cfg;
@@ -379,9 +369,11 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
         if n == 0 {
             tokio::time::sleep(Duration::from_millis(100)).await;
             let e = tail.lock().unwrap().clone();
-            if cfg!(windows) && (e.contains("Could not set video options") || e.contains("Could not find output pin") || e.contains("I/O error")) {
+            // Only a refused format switches to the card's default; "in use" (OBS) or an unplugged
+            // card is not the format's fault.
+            if cfg!(windows) && (e.contains("Could not set video options") || e.contains("Could not find output pin")) {
                 USE_DEVICE_DEFAULT.store(true, std::sync::atomic::Ordering::Relaxed);
-                bail!("the capture card refused {}x{} at {} fps; trying its own default next: {}", cfg["width"], cfg["height"], cfg["fps"], e.trim());
+                bail!("the capture card refused {}x{} at {} fps; trying its own default next: {}", cfg["width"], cfg["height"], cfg["fps_exact"].as_str().unwrap_or(""), e.trim());
             }
             bail!("ffmpeg exited: {}", e.trim());
         }
@@ -400,6 +392,33 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub)
         if name == "none" {
             *hub.error.lock().unwrap() = Some("video disabled".into());
             return;
+        }
+        // No card chosen yet (a first start, or settings from another computer): pick the most
+        // likely capture card, and keep it (the sound pairs with it, the Video panel shows it).
+        if name == "ffmpeg" && !cfg!(target_os = "macos") && c["ffmpeg_input"].is_null() && c["device"].as_str().unwrap_or("").is_empty() {
+            if !ffmpeg().is_file() && !crate::ocr::which("ffmpeg") {
+                *hub.error.lock().unwrap() = Some(format!("video capture needs ffmpeg: {}", ffmpeg_hint()));
+                logs.error("bench", format!("video: ffmpeg is missing: {}", ffmpeg_hint()));
+                tokio::time::sleep(Duration::from_secs(15)).await;
+                continue;
+            }
+            match pick_capture_card(&list_devices().await) {
+                Some(d) => {
+                    logs.add("bench", format!("video: no capture card was chosen; using {d}"));
+                    cfg.lock().unwrap()["device"] = d.clone().into();
+                    let saved = cfg.lock().unwrap().clone();
+                    let keep: serde_json::Map<String, Value> = ["device", "width", "height", "fps", "quality", "backend", "codec", "audio_device"]
+                        .iter().filter_map(|k| saved.get(*k).map(|x| (k.to_string(), x.clone()))).collect();
+                    let _ = crate::config::write_json(&crate::config::state_dir().join("video.json"), &Value::Object(keep));
+                    continue;
+                }
+                None => {
+                    *hub.error.lock().unwrap() = Some("no capture card found".into());
+                    logs.error("bench", "video: no capture card found. Connect one (and close OBS or other apps using it), then pick it in the Video panel");
+                    tokio::time::sleep(Duration::from_secs(15)).await;
+                    continue;
+                }
+            }
         }
         logs.add("bench", format!("video ({name}): {} {}x{}@{} q{}", c["device"].as_str().unwrap_or("default"),
             c["width"], c["height"], c["fps"], c["quality"]));
@@ -429,51 +448,82 @@ pub fn parse_dshow_devices(text: &str) -> (Vec<String>, Vec<String>) {
         if l.starts_with("Alternative name") || !l.starts_with('"') { continue; }
         let Some(end) = l[1..].find('"') else { continue };
         let name = l[1..1 + end].to_string();
-        let kind = if l.ends_with("(video)") { "video" } else if l.ends_with("(audio)") { "audio" }
-            else if l.ends_with("(none)") { continue } else { section };
-        match kind {
-            "video" if !video.contains(&name) => video.push(name),
-            "audio" if !audio.contains(&name) => audio.push(name),
-            _ => {}
-        }
+        // "(video)", "(audio)", "(video, audio)" (one device with both pins), "(none)"; older
+        // ffmpeg: no parentheses, the section says which.
+        let rest = l[1 + end + 1..].trim();
+        let kinds: Vec<&str> = match rest.strip_prefix('(').and_then(|r| r.strip_suffix(')')) {
+            Some(list) => list.split(',').map(str::trim).collect(),
+            None => vec![section],
+        };
+        if kinds.contains(&"video") && !video.contains(&name) { video.push(name.clone()); }
+        if kinds.contains(&"audio") && !audio.contains(&name) { audio.push(name); }
     }
     (video, audio)
 }
 
 /// `ffmpeg -f dshow -list_options true -i video=NAME`: one entry per size with its best frame rate.
 pub fn parse_dshow_options(text: &str) -> Vec<Value> {
-    let mut best: Vec<(u64, u64, f64, String)> = vec![];
+    // per size: (width, height, min fps, max fps, pixel format)
+    let mut best: Vec<(u64, u64, f64, f64, String)> = vec![];
     for line in text.lines() {
         let l = line.split_once(']').map_or(line, |(_, r)| r).trim();
         let pixel = l.split_whitespace().next().unwrap_or("").replace("pixel_format=", "").replace("vcodec=", "");
         // "... min s=1280x720 fps=5 max s=1920x1080 fps=60"
+        let mut found: Vec<(u64, u64, f64)> = vec![];
         let mut it = l.split_whitespace().peekable();
         while let Some(tok) = it.next() {
             let Some(size) = tok.strip_prefix("s=") else { continue };
             let Some(fps) = it.peek().and_then(|f| f.strip_prefix("fps=")).and_then(|f| f.parse::<f64>().ok()) else { continue };
             let Some((w, h)) = size.split_once('x').and_then(|(w, h)| Some((w.parse::<u64>().ok()?, h.parse::<u64>().ok()?))) else { continue };
+            found.push((w, h, fps));
+        }
+        // the line's min and max: one size (most cards) with a range of rates, or two sizes
+        let lo = found.iter().map(|f| f.2).fold(f64::INFINITY, f64::min);
+        for &(w, h, fps) in &found {
+            let min = if found.iter().all(|f| f.0 == w && f.1 == h) { lo } else { fps };
             match best.iter_mut().find(|b| b.0 == w && b.1 == h) {
-                Some(b) if fps > b.2 => { b.2 = fps; b.3 = pixel.clone(); }
-                Some(_) => {}
-                None => best.push((w, h, fps, pixel.clone())),
+                Some(b) => {
+                    if fps > b.3 { b.3 = fps; b.4 = pixel.clone(); }
+                    if min < b.2 { b.2 = min; }
+                }
+                None => best.push((w, h, min, fps, pixel.clone())),
             }
         }
     }
     best.sort_by_key(|b| std::cmp::Reverse(b.0 * b.1));
-    best.into_iter().map(|(w, h, f, p)| json!({"width": w, "height": h, "max_fps": f, "pixel": p})).collect()
+    best.into_iter().map(|(w, h, lo, hi, p)| json!({"width": w, "height": h, "min_fps": lo, "max_fps": hi, "pixel": p})).collect()
 }
 
 /// The size and frame rate to ask a card for: what was asked if the card offers it, otherwise
-/// 1920×1080 if offered, otherwise the largest size; the frame rate capped at what that size can do.
-pub fn pick_format(formats: &[Value], width: u64, height: u64, fps: u64) -> (u64, u64, u64) {
+/// 1920×1080 if offered, otherwise the largest size. The rate is the asked one when the card's
+/// range allows it, else the card's own nearest rate exactly ("59.9402"): DirectShow refuses a
+/// rate outside a format's range.
+/// The device most likely to be the console's capture card: never a virtual camera; a name that
+/// sounds like a capture card first; otherwise the first one.
+pub fn pick_capture_card(devices: &Value) -> Option<String> {
+    let virt = ["virtual", "obs ", "snap camera", "nvidia broadcast", "camo", "droidcam", "iriun", "xsplit", "manycam"];
+    let capture = ["capture", "hdmi", "elgato", "cam link", "avermedia", "live gamer", "macrosilicon", "ugreen", "usb video", "magewell", "game"];
+    let list: Vec<(String, String)> = devices.as_array().into_iter().flatten()
+        .filter(|d| d["kind"] == "video")
+        .filter_map(|d| Some((d["id"].as_str()?.to_string(), d["name"].as_str().unwrap_or("").to_lowercase())))
+        .filter(|(_, n)| !virt.iter().any(|w| n.contains(w)))
+        .collect();
+    list.iter().find(|(_, n)| capture.iter().any(|w| n.contains(w))).or(list.first()).map(|(id, _)| id.clone())
+}
+
+pub fn pick_format(formats: &[Value], width: u64, height: u64, fps: u64) -> (u64, u64, String) {
     let has = |w: u64, h: u64| formats.iter().find(|f| f["width"] == w && f["height"] == h);
     let f = has(width, height).or_else(|| has(1920, 1080)).or_else(|| formats.first());
     match f {
         Some(f) => {
-            let max = f["max_fps"].as_f64().unwrap_or(fps as f64).floor().max(1.0) as u64;
-            (f["width"].as_u64().unwrap_or(width), f["height"].as_u64().unwrap_or(height), fps.min(max))
+            let hi = f["max_fps"].as_f64().unwrap_or(fps as f64);
+            let lo = f["min_fps"].as_f64().unwrap_or(hi);
+            let want = fps as f64;
+            let rate = if want > hi + 0.01 { hi } else if want < lo - 0.01 { lo } else { want };
+            let rate = if (rate - rate.round()).abs() < 0.001 { format!("{}", rate.round() as u64) } else { format!("{rate}") };
+            (f["width"].as_u64().unwrap_or(width), f["height"].as_u64().unwrap_or(height), rate)
         }
-        None => (width, height, fps),
+        None => (width, height, fps.to_string()),
     }
 }
 
@@ -488,6 +538,11 @@ async fn ffmpeg_text(args: &[&str], limit: Duration) -> String {
     }
 }
 
+/// DirectShow device names only (video, audio): quick, bounded.
+pub async fn dshow_devices_names() -> (Vec<String>, Vec<String>) {
+    parse_dshow_devices(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await)
+}
+
 /// DirectShow capture and sound devices, each video device with the sizes it offers.
 pub async fn dshow_devices() -> (Vec<Value>, Vec<String>) {
     let (video, audio) = parse_dshow_devices(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await);
@@ -500,7 +555,7 @@ pub async fn dshow_devices() -> (Vec<Value>, Vec<String>) {
 }
 
 pub async fn dshow_formats(name: &str) -> Vec<Value> {
-    parse_dshow_options(&ffmpeg_text(&["-hide_banner", "-f", "dshow", "-list_options", "true", "-i", &format!("video={name}")], Duration::from_secs(5)).await)
+    parse_dshow_options(&ffmpeg_text(&["-hide_banner", "-f", "dshow", "-list_options", "true", "-i", &format!("video={name}")], Duration::from_secs(3)).await)
 }
 
 /// `ffmpeg -f v4l2 -list_formats all`: sizes listed after the format names.
@@ -561,15 +616,15 @@ pub async fn list_devices() -> Value {
     let mut out = vec![];
     let mut nodes: Vec<String> = std::fs::read_dir("/dev").into_iter().flatten().flatten()
         .filter_map(|e| e.file_name().into_string().ok()).filter(|n| n.starts_with("video")).map(|n| format!("/dev/{n}")).collect();
-    nodes.sort();
-    for dev in nodes {
-        let base = dev.trim_start_matches("/dev/");
+    // by number: /dev/video2 before /dev/video10
+    nodes.sort_by_key(|n| n.trim_start_matches("/dev/video").parse::<u32>().unwrap_or(u32::MAX));
+    let found = futures::future::join_all(nodes.into_iter().map(|dev| async move {
+        let base = dev.trim_start_matches("/dev/").to_string();
         let name = std::fs::read_to_string(format!("/sys/class/video4linux/{base}/name")).map(|s| s.trim().to_string()).unwrap_or_else(|_| dev.clone());
-        let formats = parse_v4l2_formats(&ffmpeg_text(&["-hide_banner", "-f", "v4l2", "-list_formats", "all", "-i", &dev], Duration::from_secs(4)).await);
-        if !formats.is_empty() {
-            out.push(json!({"id": dev, "name": name, "kind": "video", "formats": formats}));
-        }
-    }
+        let formats = parse_v4l2_formats(&ffmpeg_text(&["-hide_banner", "-f", "v4l2", "-list_formats", "all", "-i", &dev], Duration::from_secs(3)).await);
+        (!formats.is_empty()).then(|| json!({"id": dev, "name": name, "kind": "video", "formats": formats}))
+    })).await;
+    out.extend(found.into_iter().flatten());
     Value::Array(out)
 }
 
@@ -611,11 +666,19 @@ mod tests {
         assert_eq!(f[0]["width"], 3840);
         assert_eq!(f.iter().find(|x| x["width"] == 1920).unwrap()["max_fps"], 59.9402);
         // asked 1080p60: the card offers 1080p up to 59.94 -> 1920x1080 at 59
-        assert_eq!(super::pick_format(&f, 1920, 1080, 60), (1920, 1080, 59));
+        assert_eq!(super::pick_format(&f, 1920, 1080, 60), (1920, 1080, "59.9402".to_string()));
         // asked a size it doesn't offer -> 1080p
-        assert_eq!(super::pick_format(&f, 2560, 1440, 60), (1920, 1080, 59));
+        assert_eq!(super::pick_format(&f, 2560, 1440, 60), (1920, 1080, "59.9402".to_string()));
+        assert_eq!(super::pick_format(&f, 1920, 1080, 30), (1920, 1080, "30".to_string()));
         // nothing known -> as asked
-        assert_eq!(super::pick_format(&[], 1920, 1080, 60), (1920, 1080, 60));
+        assert_eq!(super::pick_format(&[], 1920, 1080, 60), (1920, 1080, "60".to_string()));
+        // a device with both pins, and picking the capture card over a webcam and a virtual camera
+        let (v, a) = super::parse_dshow_devices("[dshow @ 1] \"Game Capture 4K Pro\" (video, audio)\n");
+        assert_eq!((v.len(), a.len()), (1, 1));
+        let devs = serde_json::json!([{"id": "OBS Virtual Camera", "name": "OBS Virtual Camera", "kind": "video"},
+            {"id": "Integrated Webcam", "name": "Integrated Webcam", "kind": "video"},
+            {"id": "Game Capture 4K Pro", "name": "Game Capture 4K Pro", "kind": "video"}]);
+        assert_eq!(super::pick_capture_card(&devs).as_deref(), Some("Game Capture 4K Pro"));
     }
 
     #[test]

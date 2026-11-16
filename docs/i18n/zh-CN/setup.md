@@ -35,7 +35,7 @@ NS2Bench 让你（或 AI 代理）可以在电脑上看到、听到并操作 Nin
 ### macOS（14 或更新版本）
 
 - **无需额外安装。** 采集、声音和屏幕文字识别都已内置在应用中。
-- 首次启动：如果 macOS 提示应用已损坏或无法验证，运行一次 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`。
+- 首次启动：如果 macOS 提示 Apple 无法验证 .dmg，或提示应用已损坏或无法验证，请在打开 .dmg 之前运行 `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`（安装后则运行 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`），或在 系统设置 → 隐私与安全性 中点按 **仍要打开**。只在首次安装时需要：应用内更新不需要。
 - 系统询问时，请允许**相机**（画面）、**麦克风**（主机声音）和**本地网络**（输入设备）。之后可在“系统设置 → 隐私与安全性”中修改。
 - **片段**（保存片段）需要 ffmpeg：`brew install ffmpeg`。
 - 串口适配器（Pico、CH9329）无需驱动，会显示为 `/dev/cu.usbserial-…` 或 `/dev/cu.usbmodem…`。

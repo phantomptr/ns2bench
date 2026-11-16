@@ -175,11 +175,17 @@ GL 和 GR 是 Nintendo Switch 2 Pro控制器背面的兩個按鍵；Joy-Con 2 �
 
 ## 更新是怎麼進行的？
 
-App 每天檢查 GitHub 發行版本，有更新時會提示。每次下載在安裝前都會與發行版本的 SHA-256 核對。自動下載和安裝預設關閉；可在 設定 → 更新 中開啟。
+和 ps5upload 一樣：NS2Bench 會在啟動時、每 6 小時以及開啟 設定 → 更新 時檢查 GitHub 發行版本。新版本在背景下載，並在你關閉 NS2Bench 時安裝（或用 **立即重新啟動** 馬上安裝）。每次下載在安裝前都會與發行版本的 SHA-256 核對，在 macOS 上還會核對 NS2Bench 的簽章。每一項都可以在 設定 → 更新 中關閉。Linux 的 .deb 透過下載新的 .deb 來更新。
 
 ## macOS 提示 App 已損毀或無法檢查。
 
-App 還沒有經過公證。執行一次 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`，然後開啟它。
+例如「Apple 無法驗證「NS2Bench-….dmg」是否包含惡意軟體」、「NS2Bench 已損毀」或「無法打開，因為 Apple 無法檢查」。NS2Bench 已簽署，但沒有經過 Apple 公證（公證需要付費的 Apple Developer ID），所以用瀏覽器下載後 macOS 會阻擋它。允許一次即可：
+
+- 開啟 .dmg 之前，在終端機中執行 `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`，然後開啟它並把 NS2Bench 拖到「應用程式」。
+- 如果已經在「應用程式」裡：`xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- 不用終端機：按一下 **完成**，打開 **系統設定 → 隱私權與安全性**，向下捲動，按一下 NS2Bench 旁的 **強制打開**，再開啟一次（.dmg 一次；如有提示，App 再一次）。
+
+在 App 內更新（**設定 → 更新**）不會觸發這個提示，所以只有第一次安裝時需要這樣做。
 
 ## Windows 提示已保護你的電腦。
 

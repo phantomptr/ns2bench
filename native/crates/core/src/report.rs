@@ -38,19 +38,69 @@ pub fn start_trace(program: &str) -> Option<String> {
     let _ = std::fs::create_dir_all(&dir);
     let latest = dir.join(format!("startup-{program}.txt"));
     let marker = dir.join(format!(".running-{program}"));
-    let unclean = marker.exists().then(|| std::fs::read_to_string(&latest).unwrap_or_default());
+    let other = std::fs::read_to_string(&marker).ok().and_then(|p| p.trim().parse::<u32>().ok());
+    // Another copy is running (a second launch about to hand over to it): leave its files alone.
+    if other.is_some_and(|p| p != std::process::id() && alive(p)) {
+        return None;
+    }
+    let unclean = other.is_some().then(|| std::fs::read_to_string(&latest).unwrap_or_default());
     let _ = std::fs::rename(&latest, dir.join(format!("startup-{program}-previous.txt")));
     let _ = std::fs::write(&marker, std::process::id().to_string());
     if let Ok(mut file) = std::fs::File::create(&latest) {
         let _ = writeln!(file, "NS2Bench {} ({program}) {} {} · started {}", env!("CARGO_PKG_VERSION"), std::env::consts::OS,
             std::env::consts::ARCH, chrono::Local::now().to_rfc3339());
         let _ = writeln!(file, "exe: {}", std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default());
-        let _ = writeln!(file, "args: {:?}", std::env::args().skip(1).collect::<Vec<_>>());
+        let _ = writeln!(file, "args: {:?}", masked_args());
         let _ = writeln!(file, "state: {}", state_dir().display());
         *TRACE.lock().unwrap() = Some(Trace { file, t0: Instant::now(), marker });
     }
     *UNCLEAN.lock().unwrap() = unclean.clone();
     unclean
+}
+
+/// The program's arguments, with the value after --token hidden.
+fn masked_args() -> Vec<String> {
+    let mut out = vec![];
+    let mut hide = false;
+    for a in std::env::args().skip(1) {
+        if hide {
+            out.push("***".into());
+            hide = false;
+        } else if a == "--token" {
+            hide = true;
+            out.push(a);
+        } else if a.starts_with("--token=") {
+            out.push("--token=***".into());
+        } else {
+            out.push(a);
+        }
+    }
+    out
+}
+
+/// Is that process still running?
+fn alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        // SAFETY: signal 0 only checks that the process exists.
+        unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::{CloseHandle, STILL_ACTIVE};
+        use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+        // SAFETY: the handle is checked and closed; the exit code is written to a local.
+        unsafe {
+            let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if h.is_null() {
+                return false;
+            }
+            let mut code = 0u32;
+            let ok = GetExitCodeProcess(h, &mut code) != 0 && code == STILL_ACTIVE as u32;
+            CloseHandle(h);
+            ok
+        }
+    }
 }
 
 /// One startup step ("config loaded", "engine listening", "window created" …).
@@ -83,7 +133,18 @@ fn run(prog: &str, args: &[&str]) -> String {
         use std::os::windows::process::CommandExt;
         c.creation_flags(0x0800_0000);
     }
-    c.output().map(|o| format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).trim().to_string())
+    // at most 5 s: a stuck driver or program must not hold up the report
+    c.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    let Ok(mut child) = c.spawn() else { return String::new() };
+    let t0 = std::time::Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if t0.elapsed() < Duration::from_secs(5) => std::thread::sleep(Duration::from_millis(50)),
+            _ => { let _ = child.kill(); let _ = child.wait(); return "(no answer within 5 s)".into(); }
+        }
+    }
+    child.wait_with_output().map(|o| format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).trim().to_string())
         .unwrap_or_default()
 }
 
@@ -263,7 +324,11 @@ pub fn reveal(path: &Path) {
     let _ = if cfg!(target_os = "macos") {
         std::process::Command::new("open").arg("-R").arg(path).spawn()
     } else if cfg!(windows) {
-        std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).spawn()
+        let mut c = std::process::Command::new("explorer");
+        // explorer reads its own command line: Rust's quoting of "/select,C:\a b" would break it
+        #[cfg(windows)]
+        std::os::windows::process::CommandExt::raw_arg(&mut c, format!("/select,\"{}\"", path.display()));
+        c.spawn()
     } else {
         std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(path)).spawn()
     };

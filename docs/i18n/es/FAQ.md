@@ -175,11 +175,17 @@ En [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## ¿Cómo funcionan las actualizaciones?
 
-La app consulta las versiones de GitHub a diario y avisa cuando hay una actualización. Cada descarga se comprueba con el SHA-256 de la versión antes de instalarse. La descarga e instalación automáticas están desactivadas por defecto; actívalas en Ajustes → Actualizaciones.
+Como ps5upload: NS2Bench consulta las versiones de GitHub al iniciarse, cada 6 horas y cuando abres Ajustes → Actualizaciones. Descarga la nueva versión en segundo plano y la instala cuando cierras NS2Bench (o al momento con **Reiniciar ahora**). Cada descarga se comprueba con el SHA-256 de la versión, y en macOS con la firma de NS2Bench, antes de instalarse. Cada parte se puede desactivar en Ajustes → Actualizaciones. Un .deb de Linux se actualiza descargando el nuevo .deb.
 
 ## macOS dice que la app está dañada o no se puede comprobar.
 
-La app aún no está notarizada. Ejecuta `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` una vez y luego ábrela.
+Mensajes como «Apple no ha podido verificar que “NS2Bench-….dmg” no contenga software malicioso», «NS2Bench está dañado» o «no se puede abrir porque Apple no puede comprobarlo». NS2Bench está firmado, pero no notarizado por Apple (eso requiere un Apple Developer ID de pago), así que macOS lo bloquea cuando se descarga con un navegador. Permítelo una vez:
+
+- Antes de abrir el .dmg, en Terminal: `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`; luego ábrelo y arrastra NS2Bench a Aplicaciones.
+- Si ya está en Aplicaciones: `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- Sin Terminal: haz clic en **OK**, abre **Ajustes del Sistema → Privacidad y seguridad**, desplázate hacia abajo, haz clic en **Abrir igualmente** junto a NS2Bench y vuelve a abrirlo (para el .dmg y, si te lo pide, otra vez para la app).
+
+Las actualizaciones desde la propia app (**Ajustes → Actualizaciones**) no provocan esto, así que solo lo haces en la primera instalación.
 
 ## Windows dice que ha protegido mi PC.
 

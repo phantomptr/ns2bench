@@ -35,7 +35,7 @@ Instala la app desde la [última versión](https://github.com/phantomptr/ns2benc
 ### macOS (14 o posterior)
 
 - **No hay que instalar nada más.** La captura, el sonido y la lectura de texto en pantalla vienen integrados en la app.
-- Primer inicio: si macOS dice que la app está dañada o que no se puede comprobar, ejecuta `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` una vez.
+- Primer inicio: si macOS dice que Apple no ha podido verificar el .dmg, o que la app está dañada o no se puede comprobar, ejecuta `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg` antes de abrir el .dmg (o `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` una vez instalada), o haz clic en **Abrir igualmente** en Ajustes del Sistema → Privacidad y seguridad. Solo en la primera instalación: las actualizaciones desde la app no lo necesitan.
 - Permite **Cámara** (la imagen), **Micrófono** (el sonido de la consola) y **Red local** (el dispositivo de entrada) cuando se te pida. Puedes cambiarlos más tarde en Ajustes del Sistema → Privacidad y seguridad.
 - **Clips** (Guardar clip) necesitan ffmpeg: `brew install ffmpeg`.
 - Los adaptadores serie (Pico, CH9329) funcionan sin controladores; aparecen como `/dev/cu.usbserial-…` o `/dev/cu.usbmodem…`.

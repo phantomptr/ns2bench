@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::io::AsyncWriteExt;
 const MANIFEST: &str =
     "https://github.com/phantomptr/ns2bench/releases/latest/download/latest.json";
@@ -237,7 +237,7 @@ async fn verify(path: &Path, expected: &str) -> Result<()> {
     Ok(())
 }
 #[cfg(target_os = "macos")]
-async fn install(path: &Path) -> Result<()> {
+async fn install(path: &Path, relaunch: bool) -> Result<()> {
     let exe = std::env::current_exe()?;
     let bundle = exe
         .ancestors()
@@ -308,19 +308,19 @@ async fn install(path: &Path) -> Result<()> {
     std::fs::write(
         &script,
         r#"#!/bin/sh
-pid=$1; app=$2; stage=$3
+pid=$1; app=$2; stage=$3; relaunch=$4
 while kill -0 "$pid" 2>/dev/null; do sleep 1; done
 backup="$stage/previous.app"
 if mv "$app" "$backup"; then
   if mv "$stage/NS2Bench.app" "$app"; then
     rm -rf "$stage"
-    /usr/bin/open "$app"
+    [ "$relaunch" = 1 ] && /usr/bin/open "$app"
     exit 0
   fi
   mv "$backup" "$app"
 fi
 rm -rf "$stage"
-/usr/bin/open "$app"
+[ "$relaunch" = 1 ] && /usr/bin/open "$app"
 exit 1
 "#,
     )?;
@@ -329,6 +329,7 @@ exit 1
         .arg(std::process::id().to_string())
         .arg(bundle)
         .arg(stage)
+        .arg(if relaunch { "1" } else { "0" })
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -336,15 +337,17 @@ exit 1
     Ok(())
 }
 #[cfg(target_os = "windows")]
-async fn install(path: &Path) -> Result<()> {
-    // Tauri NSIS update mode, as used by ps5upload: progress UI and restart.
+async fn install(path: &Path, relaunch: bool) -> Result<()> {
+    // Tauri NSIS update mode, as used by ps5upload: a progress bar, no questions; /R starts the
+    // app again afterwards (not when installing as NS2Bench quits).
+    let args: &[&str] = if relaunch { &["/P", "/R", "/UPDATE"] } else { &["/P", "/UPDATE"] };
     std::process::Command::new(path)
-        .args(["/P", "/R", "/UPDATE"])
+        .args(args)
         .spawn()?;
     Ok(())
 }
 #[cfg(target_os = "linux")]
-async fn install(path: &Path) -> Result<()> {
+async fn install(path: &Path, relaunch: bool) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let current=std::env::var_os("APPIMAGE").context("Automatic installation needs the AppImage build; use your package manager for a system package")?;
     let current = PathBuf::from(current);
@@ -361,10 +364,11 @@ async fn install(path: &Path) -> Result<()> {
     }
     if let Err(e) = std::process::Command::new("/bin/sh")
         .arg("-c")
-        .arg(r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done; exec "$2""#)
+        .arg(r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done; [ "$3" = 1 ] && exec "$2""#)
         .arg("ns2bench-update")
         .arg(std::process::id().to_string())
         .arg(&current)
+        .arg(if relaunch { "1" } else { "0" })
         .spawn()
     {
         let _ = std::fs::rename(&backup, &current);
@@ -385,7 +389,7 @@ pub async fn cli(action: &str) -> Result<Value> {
     download(&mut u).await?;
     let path = u.path.clone().context("download produced no file")?;
     verify(&path, u.hash.as_deref().context("checksum missing")?).await?;
-    install(&path).await?;
+    install(&path, true).await?;
     Ok(json!(u))
 }
 
@@ -395,6 +399,11 @@ pub async fn update_action(
     app: AppHandle,
     state: State<'_, Updates>,
 ) -> Result<Value, String> {
+    // "Install when NS2Bench closes" (Settings → Updates), told by the page.
+    if action == "quit_install_on" || action == "quit_install_off" {
+        INSTALL_ON_QUIT.store(action == "quit_install_on", std::sync::atomic::Ordering::Relaxed);
+        return Ok(json!({"install_on_quit": action == "quit_install_on"}));
+    }
     // Asked while a download runs (which holds the lock): answered without waiting for it.
     if action == "progress" {
         use std::sync::atomic::Ordering::Relaxed;
@@ -412,7 +421,16 @@ pub async fn update_action(
                 }
             }
             "check" => {
-                *u = check().await?;
+                let fresh = check().await?;
+                // A finished download of this same version stays (no second download).
+                let keep = u.downloaded && fresh.latest_version == u.latest_version && fresh.hash == u.hash;
+                let (path, downloaded) = (u.path.clone(), u.downloaded);
+                *u = fresh;
+                if keep {
+                    u.path = path;
+                    u.downloaded = downloaded;
+                    u.message = "Verified update ready to install".into();
+                }
                 // Only the AppImage can replace itself. A .deb install is told where the new one is,
                 // instead of downloading an AppImage it could never install.
                 if cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_none() && u.available {
@@ -425,7 +443,10 @@ pub async fn update_action(
             "install" => {
                 let path = u.path.as_deref().context("Download the update first")?;
                 verify(path, u.hash.as_deref().context("checksum missing")?).await?;
-                install(path).await?;
+                install(path, true).await?;
+                // Installing now: nothing left to install as NS2Bench quits (no second installer).
+                INSTALLING.store(true, std::sync::atomic::Ordering::SeqCst);
+                u.downloaded = false;
                 app.exit(0);
             }
             _ => bail!("Unknown update action"),
@@ -442,6 +463,34 @@ pub async fn update_action(
 /// Lower-case hex of a digest (sha2 0.11 digests don't implement LowerHex).
 pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Install a downloaded update when NS2Bench quits (on by default, like ps5upload).
+static INSTALL_ON_QUIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+/// An installer already started (Restart now, or the idle install).
+static INSTALLING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Called as the app exits: if an update was downloaded and verified, and installing on quit is
+/// on, start the installer without opening NS2Bench again (quitting still means quitting).
+pub fn install_on_quit(app: &AppHandle) {
+    if !INSTALL_ON_QUIT.load(std::sync::atomic::Ordering::Relaxed) || INSTALLING.load(std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
+    let state = app.state::<Updates>();
+    let Ok(u) = state.0.try_lock() else { return };
+    let (Some(path), Some(hash)) = (u.path.clone(), u.hash.clone()) else { return };
+    if !u.downloaded || u.manual {
+        return;
+    }
+    drop(u);
+    let r = tauri::async_runtime::block_on(async move {
+        verify(&path, &hash).await?;
+        install(&path, false).await
+    });
+    match r {
+        Ok(()) => ns2bench_core::report::trace("update installs as NS2Bench quits"),
+        Err(e) => ns2bench_core::report::trace(format!("update on quit failed: {e}")),
+    }
 }
 
 #[cfg(test)]

@@ -56,7 +56,6 @@ pub async fn serve(cfg: Config) -> anyhow::Result<()> {
         b2.hub.release_all();
     }).await?;
     report::trace("stopped (Ctrl+C)");
-    report::clean_exit();
     Ok(())
 }
 

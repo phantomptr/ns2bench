@@ -35,7 +35,7 @@ Instale o aplicativo a partir da [versão mais recente](https://github.com/phant
 ### macOS (14 ou mais recente)
 
 - **Nada mais para instalar.** Captura, som e leitura de texto na tela já vêm no aplicativo.
-- Primeira execução: se o macOS disser que o aplicativo está danificado ou não pode ser verificado, rode `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` uma vez.
+- Primeira execução: se o macOS disser que a Apple não pôde verificar o .dmg, ou que o aplicativo está danificado ou não pode ser verificado, rode `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg` antes de abrir o .dmg (ou `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` depois de instalado), ou clique em **Abrir Mesmo Assim** em Ajustes do Sistema → Privacidade e Segurança. Só na primeira instalação: atualizações de dentro do app não precisam disso.
 - Permita **Câmera** (a imagem), **Microfone** (o som do console) e **Rede Local** (o dispositivo de entrada) quando for pedido. Você pode mudar isso depois em Ajustes do Sistema → Privacidade e Segurança.
 - **Clipes** (Salvar clipe) precisam do ffmpeg: `brew install ffmpeg`.
 - Adaptadores seriais (Pico, CH9329) funcionam sem drivers; eles aparecem como `/dev/cu.usbserial-…` ou `/dev/cu.usbmodem…`.

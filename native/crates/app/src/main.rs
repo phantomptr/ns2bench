@@ -6,6 +6,7 @@
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
 
 mod agents;
+mod tray;
 mod cli_install;
 mod components;
 mod updates;
@@ -189,16 +190,19 @@ fn main() {
     let mut target: tauri::Url = url.parse().expect("engine url");
     if let Some(token) = cfg.token() { target.query_pairs_mut().append_pair("token", &token); }
     tauri::Builder::default()
+        // Opening NS2Bench again brings back the running window (it may be in the tray).
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| tray::show_main(app)))
         .plugin(tauri_plugin_notification::init())
+        .on_window_event(tray::on_window_event)
         .manage(updates::Updates::default())
-        .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action, agents::agent_action, open_logs])
+        .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action, agents::agent_action, open_logs, tray::tray_configure])
         .setup(move |app| {
             // Installing, updating and the command line tool are only offered to the engine this
             // app started itself, never to whatever else may be answering on the port.
             let mut cap = tauri::ipc::CapabilityBuilder::new("engine-ui").local(false).window("main")
                 .remote(format!("{}/*", target.origin().ascii_serialization())).permission("notification:default");
             if ours {
-                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("allow-agent-action").permission("allow-open-logs");
+                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("allow-agent-action").permission("allow-open-logs").permission("allow-tray-configure");
             }
             app.add_capability(cap)?;
             let mut window = app.config().app.windows.iter().find(|w| w.label == "main")
@@ -251,11 +255,20 @@ fn main() {
         .build(tauri::generate_context!())
         .inspect_err(|e| { ns2bench_core::report::trace(format!("window could not be created: {e}")); })
         .expect("error while running the NS2Bench app")
-        .run(|_, event| {
+        .run(|app, event| {
             match event {
                 tauri::RunEvent::Ready => ns2bench_core::report::trace("ready"),
-                // closing normally: no "ended unexpectedly" next time
-                tauri::RunEvent::Exit => { ns2bench_core::report::trace("closed normally"); ns2bench_core::report::clean_exit(); }
+                // macOS: clicking the Dock icon (or opening NS2Bench again) while it's in the menu bar
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen { .. } => tray::show_main(app),
+                tauri::RunEvent::Exit => {
+                    // closing normally: no "ended unexpectedly" next time (marked first: the
+                    // installer below may stop this process)
+                    ns2bench_core::report::trace("closed normally");
+                    ns2bench_core::report::clean_exit();
+                    // a downloaded update installs now, without opening NS2Bench again
+                    updates::install_on_quit(app);
+                }
                 _ => {}
             }
         });

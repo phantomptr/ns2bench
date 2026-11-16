@@ -35,7 +35,7 @@ NS2Bench 讓你（或 AI 代理）從電腦上看到、聽到並操作 Nintendo 
 ### macOS（14 或更新版本）
 
 - **不需要另外安裝任何東西。** 擷取、聲音和畫面文字辨識都已內建在應用程式中。
-- 第一次啟動：如果 macOS 顯示應用程式已損毀或無法檢查，請執行一次 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`。
+- 第一次啟動：如果 macOS 顯示 Apple 無法驗證 .dmg，或顯示應用程式已損毀或無法檢查，請在開啟 .dmg 之前執行 `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`（安裝後則執行 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`），或在 系統設定 → 隱私權與安全性 中按一下 **強制打開**。只有第一次安裝時需要：App 內更新不需要。
 - 系統詢問時，請允許**相機**（畫面）、**麥克風**（主機聲音）和**區域網路**（輸入裝置）。之後可以在「系統設定 → 隱私權與安全性」中更改。
 - **片段**（儲存片段）需要 ffmpeg：`brew install ffmpeg`。
 - 序列轉接器（Pico、CH9329）不需要驅動程式，會顯示為 `/dev/cu.usbserial-…` 或 `/dev/cu.usbmodem…`。

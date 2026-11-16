@@ -175,17 +175,17 @@ In [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## How do updates work?
 
-The app checks GitHub releases daily and shows when an update is available. Every download is checked against the release's SHA-256 before installing. Automatic download and install are off by default; turn them on in Settings → Updates.
+Like ps5upload: NS2Bench checks GitHub releases at start, every 6 hours and when you open Settings → Updates. It downloads a new version in the background and installs it when you close NS2Bench (or right away with **Restart now**). Every download is checked against the release's SHA-256, and on macOS against NS2Bench's signature, before it installs. Each part can be turned off in Settings → Updates. A Linux .deb is updated by downloading the new .deb.
 
 ## macOS says the app is damaged or can't be checked.
 
-The app isn't notarized yet, so macOS quarantines the download. Run this once in Terminal, then open the app:
+Messages like "Apple could not verify "NS2Bench-….dmg" is free of malware", "NS2Bench is damaged" or "cannot be opened because Apple cannot check it". NS2Bench is signed but not notarized by Apple (that needs a paid Apple Developer ID), so macOS blocks it when it's downloaded in a browser. Allow it once:
 
-```bash
-xattr -dr com.apple.quarantine /Applications/NS2Bench.app
-```
+- Before opening the .dmg, in Terminal: `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`, then open it and drag NS2Bench to Applications.
+- If it's already in Applications: `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- Without Terminal: click **Done**, open **System Settings → Privacy & Security**, scroll down, click **Open Anyway** next to NS2Bench and open it again (for the .dmg, and once more for the app if asked).
 
-Or right-click NS2Bench in Applications → **Open** → **Open**, or use System Settings → Privacy & Security → **Open Anyway**.
+Updates from inside the app (**Settings → Updates**) don't trigger this, so you only do it for the first install.
 
 ## Windows says it protected my PC.
 

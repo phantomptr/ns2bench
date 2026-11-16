@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tray-configure"
+description = "Enables the tray_configure command without any pre-configured scope."
+commands.allow = ["tray_configure"]
+
+[[permission]]
+identifier = "deny-tray-configure"
+description = "Denies the tray_configure command without any pre-configured scope."
+commands.deny = ["tray_configure"]

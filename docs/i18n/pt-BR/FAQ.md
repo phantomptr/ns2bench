@@ -175,11 +175,17 @@ Em [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Como funcionam as atualizações?
 
-O app verifica as versões no GitHub diariamente e avisa quando há uma atualização. Cada download é conferido com o SHA-256 da versão antes de instalar. Download e instalação automáticos vêm desligados; ligue-os em Configurações → Atualizações.
+Como no ps5upload: o NS2Bench verifica as versões no GitHub ao iniciar, a cada 6 horas e quando você abre Configurações → Atualizações. Ele baixa a nova versão em segundo plano e a instala quando você fecha o NS2Bench (ou na hora com **Reiniciar agora**). Cada download é conferido com o SHA-256 da versão, e no macOS com a assinatura do NS2Bench, antes de instalar. Cada parte pode ser desligada em Configurações → Atualizações. Um .deb do Linux é atualizado baixando o novo .deb.
 
 ## O macOS diz que o app está danificado ou não pode ser verificado.
 
-O app ainda não é notarizado. Rode `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` uma vez e depois abra-o.
+Mensagens como “A Apple não pôde verificar se “NS2Bench-….dmg” está livre de malware”, “NS2Bench está danificado” ou “não pode ser aberto porque a Apple não pode verificá-lo”. O NS2Bench é assinado, mas não notarizado pela Apple (isso exige um Apple Developer ID pago), então o macOS o bloqueia quando é baixado pelo navegador. Permita uma vez:
+
+- Antes de abrir o .dmg, no Terminal: `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`; depois abra-o e arraste o NS2Bench para Aplicativos.
+- Se ele já estiver em Aplicativos: `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- Sem o Terminal: clique em **OK**, abra **Ajustes do Sistema → Privacidade e Segurança**, role para baixo, clique em **Abrir Mesmo Assim** ao lado de NS2Bench e abra de novo (para o .dmg e, se pedir, mais uma vez para o app).
+
+Atualizações feitas dentro do app (**Configurações → Atualizações**) não causam isso, então você só faz isso na primeira instalação.
 
 ## O Windows diz que protegeu meu PC.
 

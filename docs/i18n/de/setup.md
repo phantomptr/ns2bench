@@ -35,7 +35,7 @@ Installiere die App aus dem [neuesten Release](https://github.com/phantomptr/ns2
 ### macOS (14 oder neuer)
 
 - **Sonst nichts zu installieren.** Capture, Ton und das Lesen von Bildschirmtext sind in die App eingebaut.
-- Erster Start: Wenn macOS meldet, die App sei beschädigt oder könne nicht überprüft werden, führe einmal `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` aus.
+- Erster Start: Wenn macOS meldet, Apple konnte die .dmg nicht überprüfen, oder die App sei beschädigt oder könne nicht überprüft werden, führe vor dem Öffnen der .dmg `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg` aus (oder `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`, sobald sie installiert ist), oder klicke in Systemeinstellungen → Datenschutz & Sicherheit auf **Dennoch öffnen**. Nur bei der Erstinstallation: Updates aus der App heraus brauchen das nicht.
 - Erlaube **Kamera** (das Bild), **Mikrofon** (Konsolenton) und **Lokales Netzwerk** (das Eingabegerät), wenn danach gefragt wird. Später änderst du das unter Systemeinstellungen → Datenschutz & Sicherheit.
 - **Clips** (Clip speichern) brauchen ffmpeg: `brew install ffmpeg`.
 - Serielle Adapter (Pico, CH9329) funktionieren ohne Treiber; sie erscheinen als `/dev/cu.usbserial-…` oder `/dev/cu.usbmodem…`.

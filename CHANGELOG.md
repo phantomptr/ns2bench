@@ -6,6 +6,20 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Updates now work like ps5upload.**
+  - NS2Bench checks at start, every 6 hours, and whenever you open Settings → Updates (before, it checked once a day and the Updates page showed an old answer).
+  - New versions download in the background and install when you quit NS2Bench, or right away with **Restart now**.
+  - Each part can be turned off in Settings → Updates.
+- **Close to the menu bar / system tray, like ps5upload.** Closing the window keeps NS2Bench running in the menu bar (macOS) or system tray (Windows, Linux), so agents, tests and the engine keep working. The icon brings the window back and has Quit. Minimizing to the tray is a separate option (Windows, Linux). Settings → Appearance → Window. Opening NS2Bench again brings back the running window instead of starting a second copy.
+- macOS install help: the README, FAQ, setup guide, website download cards and each release page explain the "Apple could not verify… is free of malware" message and how to allow NS2Bench once.
+- Fixes from an audit:
+  - "Restart now" no longer runs the installer twice, and checking again no longer throws away a finished download.
+  - Windows asks the capture card for its exact frame rate (59.94), opens serial ports COM10 and up, and finds cards that also carry sound.
+  - A card picked automatically is kept, so its sound pairs with it, and virtual cameras (OBS, webcam apps) are skipped.
+  - Wake presses the power button only after 6 seconds of no signal, never during a dark loading screen.
+  - Reports never include a `--token` value.
+  - Opening NS2Bench a second time no longer reports that the last run "ended unexpectedly".
+
 ## 0.0.13
 
 - **Reports that help fix problems:**

@@ -94,13 +94,20 @@ For the input device: `ns2bench-board-*` (Linux boards, installed with `board/in
 
 NS2Bench isn't signed with paid Apple or Microsoft certificates yet. Gatekeeper (macOS) and SmartScreen (Windows) treat unsigned downloads as suspicious until you allow them once.
 
-**macOS**: "NS2Bench is damaged and can't be opened" or "cannot be opened because Apple cannot check it":
+**macOS**: "Apple could not verify "NS2Bench-….dmg" is free of malware", "NS2Bench is damaged and can't be opened" or "cannot be opened because Apple cannot check it". NS2Bench is signed, but not notarized by Apple (that needs a paid Apple Developer ID), so macOS blocks it when it comes from a browser. Allow it once:
 
-```bash
-xattr -dr com.apple.quarantine /Applications/NS2Bench.app
-```
+- **Before opening the .dmg**, in Terminal:
+  ```bash
+  xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg
+  ```
+  Then open the .dmg and drag NS2Bench to Applications.
+- **Already in Applications**:
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/NS2Bench.app
+  ```
+- **Without Terminal**: click **Done** on the warning, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to NS2Bench, then open it again. Do this for the .dmg and, if asked, once more for the app.
 
-That removes the *quarantine* flag macOS puts on everything downloaded from a browser. Or: right-click NS2Bench in Applications → **Open** → **Open**, or System Settings → Privacy & Security → **Open Anyway**. Either way, once per install. Then allow **Camera** (the capture card's picture), **Microphone** (console sound) and **Local Network** (the input device) when asked.
+This removes the *quarantine* flag macOS puts on everything downloaded from a browser, once per download. Updates installed from inside the app (**Settings → Updates**) don't get the flag, so after the first install you won't see this again. Then allow **Camera** (the capture card's picture), **Microphone** (console sound) and **Local Network** (the input device) when asked.
 
 **Windows**: "Windows protected your PC":
 - Click **More info** → **Run anyway**. It's shown only until SmartScreen trusts the file.

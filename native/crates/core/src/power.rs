@@ -131,12 +131,24 @@ async fn run(mut c: Command, stdin: Option<&str>) -> (bool, String) {
                 // SAFETY: signals the group this child leads (process_group(0) above).
                 unsafe { libc::killpg(pid as libc::pid_t, libc::SIGKILL) };
             }
+            // Windows: cmd.exe and whatever it started (a curl), as a tree.
+            #[cfg(windows)]
+            if let Some(pid) = child.id() {
+                let mut k = std::process::Command::new("taskkill");
+                std::os::windows::process::CommandExt::creation_flags(&mut k, 0x0800_0000);
+                let _ = k.args(["/T", "/F", "/PID", &pid.to_string()]).status();
+            }
             let _ = child.kill().await;
+            out.abort();
+            err.abort();
             return (false, format!("no answer within {} s", RUN_LIMIT.as_secs()));
         }
     };
     let grab = |h: tokio::task::JoinHandle<Vec<u8>>| async move {
-        tokio::time::timeout(Duration::from_secs(1), h).await.ok().and_then(Result::ok).unwrap_or_default()
+        let abort = h.abort_handle();
+        let r = tokio::time::timeout(Duration::from_secs(1), h).await.ok().and_then(Result::ok).unwrap_or_default();
+        abort.abort(); // a helper the command left running keeps the pipe: stop reading
+        r
     };
     let text = format!("{}{}", String::from_utf8_lossy(&grab(out).await), String::from_utf8_lossy(&grab(err).await));
     let tail: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
@@ -263,8 +275,17 @@ pub async fn wake(b: &S, source: &str, full: bool) -> Value {
             wait_picture(b, Duration::from_secs(30)).await;
         }
     }
-    let now = seen(b).await;
     let button_set = s["wake_with_button"] == true && !s["button_command"].as_str().unwrap_or("").is_empty();
+    // Before pressing the power button, be sure: a dark loading screen also looks black for a
+    // moment, and a press would put a running console to sleep. No signal for 6 s in a row.
+    let mut now = seen(b).await;
+    if now == Seen::NoSignal && button_set {
+        for _ in 0..6 {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            now = seen(b).await;
+            if now != Seen::NoSignal { break; }
+        }
+    }
     if now == Seen::NoSignal && button_set {
         if usb_up(b) {
             steps.push(json!({"step": "power button", "ok": false, "detail": "not pressed: the console's USB is up, so it is on (a press would put it to sleep)"}));
@@ -302,7 +323,7 @@ pub async fn get_power(State(_b): State<S>, h: HeaderMap) -> Json<Value> {
     }
     s["button_command_set"] = set.into();
     Json(json!({"settings": s, "cec_tool": cec_tool().map(|(n, _)| n),
-        "can_wake": s["cec"] == true || (s["wake_with_button"] == true && !s["button_command"].as_str().unwrap_or("").is_empty()),
+        "can_wake": s["cec"] == true || (s["wake_with_button"] == true && set),
         "can_sleep": s["cec"] == true, "can_press_button": set}))
 }
 

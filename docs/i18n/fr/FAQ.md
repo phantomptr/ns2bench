@@ -175,11 +175,17 @@ Dans [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Comment fonctionnent les mises à jour ?
 
-L’app vérifie les versions GitHub chaque jour et vous prévient quand une mise à jour est disponible. Chaque téléchargement est vérifié avec le SHA-256 de la version avant l’installation. Le téléchargement et l’installation automatiques sont désactivés par défaut ; activez-les dans Réglages → Mises à jour.
+Comme ps5upload : NS2Bench vérifie les versions GitHub au démarrage, toutes les 6 heures et quand vous ouvrez Réglages → Mises à jour. Il télécharge la nouvelle version en arrière-plan et l’installe quand vous fermez NS2Bench (ou tout de suite avec **Redémarrer maintenant**). Chaque téléchargement est vérifié avec le SHA-256 de la version, et sur macOS avec la signature de NS2Bench, avant l’installation. Chaque partie peut être désactivée dans Réglages → Mises à jour. Un .deb Linux se met à jour en téléchargeant le nouveau .deb.
 
 ## macOS dit que l’app est endommagée ou ne peut pas être vérifiée.
 
-L’app n’est pas encore notarisée. Lancez `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` une fois, puis ouvrez-la.
+Des messages comme « Apple n’a pas pu confirmer que « NS2Bench-….dmg » ne contenait pas de logiciel malveillant », « NS2Bench est endommagé » ou « ne peut pas être ouvert car Apple ne peut pas le vérifier ». NS2Bench est signé mais pas notarisé par Apple (cela demande un Apple Developer ID payant), donc macOS le bloque quand il est téléchargé dans un navigateur. Autorisez-le une fois :
+
+- Avant d’ouvrir le .dmg, dans Terminal : `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`, puis ouvrez-le et glissez NS2Bench dans Applications.
+- S’il est déjà dans Applications : `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- Sans Terminal : cliquez sur **Terminé**, ouvrez **Réglages Système → Confidentialité et sécurité**, faites défiler vers le bas, cliquez sur **Ouvrir quand même** à côté de NS2Bench et rouvrez-le (pour le .dmg, puis une fois encore pour l’app si demandé).
+
+Les mises à jour depuis l’app (**Réglages → Mises à jour**) ne déclenchent pas cela : vous ne le faites qu’à la première installation.
 
 ## Windows dit qu’il a protégé mon PC.
 

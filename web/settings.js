@@ -24,6 +24,8 @@ async function showTab(tab) {
   dialog.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.tab === tab)));
   dialog.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== tab; });
   if (tab === 'network') await network();
+  // Opening Updates looks again (at most every 10 minutes), instead of showing an old answer.
+  if (tab === 'updates' && invoke && Date.now() - lastAttempt > 600000) updateAction('check').then(automaticUpdates).catch(() => {});
   if (tab === 'devices') serialPorts();
 }
 for (const b of dialog.querySelectorAll('[data-tab]')) b.onclick = run(() => showTab(b.dataset.tab));
@@ -201,18 +203,26 @@ const ls = {
 const pref = (key) => ls.get(`ns2bench.update.${key}`) === 'true';
 let update = null, busy = false, lastActivity = Date.now(), failedAutoInstall = false, lastAttempt = 0, failedDownload = false;
 for (const event of ['keydown', 'pointerdown', 'pointermove']) addEventListener(event, () => { lastActivity = Date.now(); }, { passive: true });
-for (const [id, key, fallback] of [['#update-auto-check', 'check', true], ['#update-auto-download', 'download', false], ['#update-auto-install', 'install', false]]) {
-  const el = $(id); el.checked = ls.get(`ns2bench.update.${key}`) === null ? fallback : pref(key);
-  el.onchange = () => { ls.set(`ns2bench.update.${key}`, String(el.checked)); failedAutoInstall = false; };
-}
 const invoke = window.__TAURI__?.core?.invoke;
+// Defaults like ps5upload: find, download in the background, install when NS2Bench closes.
+// (A choice saved before these existed keeps its value; "download" was off by default then.)
+const quitInstall = () => invoke?.('update_action', { action: $('#update-auto-quit').checked ? 'quit_install_on' : 'quit_install_off' }).catch(() => {});
+for (const [id, key, fallback] of [['#update-auto-check', 'check', true], ['#update-auto-download', 'download2', true], ['#update-auto-quit', 'quit', true], ['#update-auto-install', 'install', false]]) {
+  const el = $(id); el.checked = ls.get(`ns2bench.update.${key}`) === null ? fallback : pref(key);
+  el.onchange = () => { ls.set(`ns2bench.update.${key}`, String(el.checked)); failedAutoInstall = false; if (id === '#update-auto-quit') quitInstall(); };
+}
+prefsReady.then(() => {
+  for (const [id, key, fallback] of [['#update-auto-check', 'check', true], ['#update-auto-download', 'download2', true], ['#update-auto-quit', 'quit', true], ['#update-auto-install', 'install', false]]) $(id).checked = ls.get(`ns2bench.update.${key}`) === null ? fallback : pref(key);
+  quitInstall();
+});
 function renderUpdate() {
-  $('#update-status').textContent = update ? `${t('Installed')} ${update.current_version}${update.latest_version ? ` · ${t('Latest')} ${update.latest_version}` : ''} · ${t(update.message)}` : 'Updates are available in the NS2Bench desktop app.';
+  const ready = update?.downloaded && $('#update-auto-quit').checked ? ` · ${t('installs when you quit NS2Bench')}` : '';
+  $('#update-status').textContent = update ? `${t('Installed')} ${update.current_version}${update.latest_version ? ` · ${t('Latest')} ${update.latest_version}` : ''} · ${t(update.message)}${ready}` : 'Updates are available in the NS2Bench desktop app.';
   renderNotes($('#update-notes'), update?.notes || '');
   $('#update-check').disabled = busy || !invoke;
   $('#update-download').disabled = busy || !update?.available || update.downloaded || update.manual;
   $('#update-install').disabled = busy || !update?.downloaded;
-  for (const id of ['#update-auto-check', '#update-auto-download', '#update-auto-install']) $(id).disabled = !invoke;
+  for (const id of ['#update-auto-check', '#update-auto-download', '#update-auto-quit', '#update-auto-install']) $(id).disabled = !invoke;
 }
 async function updateAction(action) {
   if (busy || !invoke) return;
@@ -236,7 +246,10 @@ async function updateAction(action) {
     clearInterval(poll);
     $('#update-progress').hidden = true;
     busy = false; renderUpdate();
-    if (action === 'download' && update?.downloaded) toast(t('Update downloaded and verified. Install it from Settings → Updates.'), 'ok', { label: t('Install and restart'), run: () => $('#update-install').click() });
+    if (action === 'download' && update?.downloaded) {
+      toast($('#update-auto-quit').checked ? `NS2Bench ${update.latest_version} ${t('is ready. It installs when you quit NS2Bench.')}` : `NS2Bench ${update.latest_version} ${t('is ready to install.')}`,
+        'ok', { label: t('Restart now'), run: () => $('#update-install').click() });
+    }
   }
 }
 $('#update-check').onclick = run(() => updateAction('check'));
@@ -245,7 +258,8 @@ $('#update-install').onclick = run(async () => (await ask({ title: t('Install th
 async function automaticUpdates() {
   if (!invoke || busy) return;
   await prefsReady;
-  if ($('#update-auto-check').checked && Date.now() - lastAttempt > 900000 && Date.now() - Number(ls.get('ns2bench.update.lastCheck') || 0) > 86400000) await updateAction('check');
+  // Once at start, then every 6 hours (a result is not kept across restarts, so start always asks).
+  if ($('#update-auto-check').checked && (!lastAttempt || Date.now() - lastAttempt > 6 * 3600000)) await updateAction('check');
   $('#btn-settings').classList.toggle('badge', !!update?.available);
   $('#btn-update').classList.toggle('badge', !!update?.available);
   $('#btn-update').title = update?.available ? t('Update available') : t('Updates');
@@ -562,3 +576,26 @@ $('#power-button').onclick = run(async () => {
   powerResult(await api('/api/power', { action: 'button' }));
 });
 document.addEventListener('ns2bench:wake', run(wakeConsole));
+
+// ---------------------------------------------------------------- Appearance: the window and the tray (app only)
+{
+  const mac = /Mac/.test(navigator.platform || navigator.userAgent);
+  const close = $('#tray-close'), min = $('#tray-min');
+  const get = (k, d) => { const v = ls.get(`ns2bench.tray.${k}`); return v === null ? d : v === 'true'; };
+  async function tray() {
+    if (!invoke) return;
+    try {
+      const r = await invoke('tray_configure', { minimize: !mac && min.checked, close: close.checked,
+        labels: { show: t('Show NS2Bench'), quit: t('Quit NS2Bench'), tooltip: 'NS2Bench' } });
+      $('#tray-note').textContent = r.available ? '' : t('This system has no tray (on Linux, install libayatana-appindicator3), so closing the window quits NS2Bench.');
+    } catch (e) { $('#tray-note').textContent = String(e); }
+  }
+  if (invoke) {
+    $('#window-group').hidden = false;
+    $('#tray-min-row').hidden = mac;
+    const linux = /Linux/.test(navigator.platform || navigator.userAgent) && !/Android/.test(navigator.userAgent);
+    prefsReady.then(() => { close.checked = get('close', !linux); min.checked = get('minimize', false); return tray(); });
+    close.onchange = () => { ls.set('ns2bench.tray.close', String(close.checked)); tray(); };
+    min.onchange = () => { ls.set('ns2bench.tray.minimize', String(min.checked)); tray(); };
+  }
+}

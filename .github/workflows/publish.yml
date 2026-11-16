@@ -270,6 +270,9 @@ jobs:
             echo "**Downloads:** macOS \`.dmg\` (Apple silicon: \`mac-arm64\`, Intel: \`mac-x64\`), Windows \`-setup.exe\` (\`win-x64\` or \`win-arm64\`), Linux \`.AppImage\` or \`.deb\`."
             echo "Input devices: \`ns2bench-board-*\` for Linux USB-gadget boards, \`ns2bench-pico-*.uf2\` for a Raspberry Pi Pico."
             echo "Setup guide: https://ns2bench.phantomptr.com/setup/ · FAQ: https://ns2bench.phantomptr.com/faq/"
+            echo
+            echo "**macOS first install:** if macOS says Apple could not verify the .dmg, run \`xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg\` in Terminal, or click **Open Anyway** in System Settings → Privacy & Security. NS2Bench is signed but not notarized. Updates from inside the app don't need this."
+            echo "**Windows:** if SmartScreen says it protected your PC, choose **More info → Run anyway**."
           } >> RELEASE_NOTES.md
           RELEASE_NOTES_TEXT="$(node scripts/changelog.mjs notes "$V")" node scripts/release-manifest.mjs release "$TAG"
           (cd release && sha256sum -- * > SHA256SUMS)

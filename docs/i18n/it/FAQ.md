@@ -175,11 +175,17 @@ In [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Come funzionano gli aggiornamenti?
 
-L’app controlla ogni giorno le release su GitHub e avvisa quando c’è un aggiornamento. Ogni download viene verificato con lo SHA-256 della release prima dell’installazione. Download e installazione automatici sono disattivati per impostazione predefinita; attivali in Impostazioni → Aggiornamenti.
+Come ps5upload: NS2Bench controlla le release su GitHub all’avvio, ogni 6 ore e quando apri Impostazioni → Aggiornamenti. Scarica la nuova versione in background e la installa quando chiudi NS2Bench (o subito con **Riavvia ora**). Ogni download viene verificato con lo SHA-256 della release, e su macOS con la firma di NS2Bench, prima dell’installazione. Ogni parte si può disattivare in Impostazioni → Aggiornamenti. Un .deb per Linux si aggiorna scaricando il nuovo .deb.
 
 ## macOS dice che l’app è danneggiata o non può essere verificata.
 
-L’app non è ancora autenticata (notarizzata). Esegui una volta `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`, poi aprila.
+Messaggi come «Apple non è riuscita a verificare che “NS2Bench-….dmg” sia privo di malware», «NS2Bench è danneggiato» o «non può essere aperto perché Apple non può verificarlo». NS2Bench è firmato ma non autenticato (notarizzato) da Apple (serve un Apple Developer ID a pagamento), quindi macOS lo blocca se è scaricato da un browser. Consentilo una volta:
+
+- Prima di aprire il .dmg, nel Terminale: `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`, poi aprilo e trascina NS2Bench in Applicazioni.
+- Se è già in Applicazioni: `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- Senza Terminale: fai clic su **Fine**, apri **Impostazioni di Sistema → Privacy e sicurezza**, scorri in basso, fai clic su **Apri comunque** accanto a NS2Bench e aprilo di nuovo (per il .dmg e, se richiesto, ancora una volta per l’app).
+
+Gli aggiornamenti dall’interno dell’app (**Impostazioni → Aggiornamenti**) non lo causano, quindi lo fai solo alla prima installazione.
 
 ## Windows dice di aver protetto il PC.
 

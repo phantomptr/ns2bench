@@ -113,8 +113,7 @@ impl AudioHub {
         } else {
             // Windows: the card's sound device usually carries its name ("Game Capture 4K Pro").
             let found = if cfg!(windows) && vc["audio_device"].as_str().is_none() {
-                let (_, audio) = crate::video::parse_dshow_devices(&String::from_utf8_lossy(&crate::video::quiet(crate::video::ffmpeg())
-                    .args(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]).output().await.map(|o| o.stderr).unwrap_or_default()));
+                let (_, audio) = crate::video::dshow_devices_names().await;
                 pair_by_name(vc["device"].as_str().unwrap_or(""), &audio)
             } else {
                 None

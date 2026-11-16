@@ -35,7 +35,7 @@ C, GL, GR을 포함한 모든 컨트롤러 버튼을 쓰고 싶다면 Linux 보�
 ### macOS (14 이상)
 
 - **추가로 설치할 것이 없습니다.** 캡처, 소리, 화면 텍스트 읽기가 앱에 내장되어 있습니다.
-- 처음 실행할 때: macOS가 앱이 손상되었거나 확인할 수 없다고 하면 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`을 한 번 실행하세요.
+- 처음 실행할 때: macOS가 Apple이 .dmg를 확인할 수 없다고 하거나 앱이 손상되었거나 확인할 수 없다고 하면, .dmg를 열기 전에 `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`을 실행하거나(설치 후라면 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`), 시스템 설정 → 개인정보 보호 및 보안에서 **그래도 열기**를 클릭하세요. 처음 설치할 때만 필요하며 앱 안에서 하는 업데이트에는 필요 없습니다.
 - 요청이 나오면 **카메라**(화면), **마이크**(본체 소리), **로컬 네트워크**(입력 장치)를 허용하세요. 나중에 시스템 설정 → 개인정보 보호 및 보안에서 바꿀 수 있습니다.
 - **클립**(클립 저장)에는 ffmpeg가 필요합니다: `brew install ffmpeg`.
 - 시리얼 어댑터(Pico, CH9329)는 드라이버 없이 동작하며, `/dev/cu.usbserial-…` 또는 `/dev/cu.usbmodem…`으로 나타납니다.

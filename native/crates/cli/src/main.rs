@@ -405,11 +405,18 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             }
             if let Some(h) = host { cfg.server["host"] = h.into(); }
             if let Some(p) = port { cfg.server["port"] = p.into(); }
-            ns2bench_core::serve(cfg).await.map_err(|e| e.to_string())?;
+            let r = ns2bench_core::serve(cfg).await;
+            // ended on its own terms (Ctrl+C, or an error it reports): not "unexpectedly"
+            ns2bench_core::report::clean_exit();
+            r.map_err(|e| e.to_string())?;
         }
         Cmd::Mcp => ns2bench_core::mcp::run(cfg).await.map_err(|e| e.to_string())?,
         Cmd::Report { output } => {
             let target = output.map(std::path::PathBuf::from).unwrap_or_else(ns2bench_core::report::downloads_dir);
+            // a path without an extension is a folder (made if needed)
+            if target.extension().is_none() {
+                std::fs::create_dir_all(&target).map_err(|e| format!("{}: {e}", target.display()))?;
+            }
             // The running engine's report has live status, the check and a screenshot too.
             let path = match api(&c, "GET", "/api/bundle", None).await {
                 Ok(r) if r.body.starts_with(b"PK") => {
@@ -417,8 +424,11 @@ async fn run(cli: Cli) -> Res<ExitCode> {
                     std::fs::write(&p, &r.body).map_err(|e| format!("{}: {e}", p.display()))?;
                     p
                 }
-                _ => {
-                    eprintln!("(no running engine: the report has what's on disk)");
+                other => {
+                    match other {
+                        Ok(r) => eprintln!("(the engine answered {} instead of a report; the report has what's on disk)", r.status),
+                        Err(_) => eprintln!("(no running engine: the report has what's on disk)"),
+                    }
                     let dir = if target.extension().is_some() { target.parent().map(std::path::Path::to_path_buf).unwrap_or_default() } else { target.clone() };
                     let p = ns2bench_core::report::save_offline(&dir).await.map_err(|e| e.to_string())?;
                     if target.extension().is_some() { std::fs::rename(&p, &target).map_err(|e| e.to_string())?; target.clone() } else { p }

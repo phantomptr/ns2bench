@@ -175,11 +175,17 @@ In [docs/REFERENCE.md](docs/REFERENCE.md#agents-mcp-and-http-api).
 
 ## Wie funktionieren Updates?
 
-Die App prüft täglich die GitHub-Releases und zeigt an, wenn ein Update verfügbar ist. Jeder Download wird vor der Installation mit dem SHA-256 des Releases abgeglichen. Automatischer Download und Installation sind standardmäßig aus; schalte sie unter Einstellungen → Updates ein.
+Wie bei ps5upload: NS2Bench prüft die GitHub-Releases beim Start, alle 6 Stunden und wenn du Einstellungen → Updates öffnest. Eine neue Version wird im Hintergrund heruntergeladen und installiert, wenn du NS2Bench schließt (oder sofort mit **Jetzt neu starten**). Jeder Download wird vor der Installation mit dem SHA-256 des Releases abgeglichen, unter macOS zusätzlich mit der Signatur von NS2Bench. Jeder Teil lässt sich unter Einstellungen → Updates ausschalten. Ein Linux-.deb wird aktualisiert, indem du das neue .deb herunterlädst.
 
 ## macOS sagt, die App sei beschädigt oder könne nicht geprüft werden.
 
-Die App ist noch nicht notarisiert. Führe einmal `xattr -dr com.apple.quarantine /Applications/NS2Bench.app` aus und öffne sie dann.
+Meldungen wie „Apple konnte nicht überprüfen, ob „NS2Bench-….dmg“ frei von Malware ist“, „NS2Bench ist beschädigt“ oder „kann nicht geöffnet werden, da Apple es nicht überprüfen kann“. NS2Bench ist signiert, aber nicht von Apple notarisiert (dafür braucht es eine kostenpflichtige Apple Developer ID), daher blockiert macOS die App, wenn sie im Browser geladen wurde. Erlaube sie einmal:
+
+- Vor dem Öffnen der .dmg im Terminal: `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`, dann öffnen und NS2Bench in „Programme“ ziehen.
+- Wenn sie schon in „Programme“ liegt: `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- Ohne Terminal: klicke auf **Fertig**, öffne **Systemeinstellungen → Datenschutz & Sicherheit**, scrolle nach unten, klicke neben NS2Bench auf **Dennoch öffnen** und öffne sie erneut (für die .dmg und, falls gefragt, noch einmal für die App).
+
+Updates aus der App heraus (**Einstellungen → Updates**) lösen das nicht aus, du machst es also nur bei der Erstinstallation.
 
 ## Windows sagt, es habe meinen PC geschützt.
 

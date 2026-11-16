@@ -175,11 +175,17 @@ GL 和 GR 是 Nintendo Switch 2 Pro手柄背面的两个按键；Joy-Con 2 没�
 
 ## 更新是怎么进行的？
 
-应用每天检查 GitHub 发布，有更新时会提示。每次下载在安装前都会与发布的 SHA-256 校验。自动下载和安装默认关闭；可在 设置 → 更新 中开启。
+和 ps5upload 一样：NS2Bench 会在启动时、每 6 小时以及打开 设置 → 更新 时检查 GitHub 发布。新版本在后台下载，并在你关闭 NS2Bench 时安装（或用 **立即重启** 立即安装）。每次下载在安装前都会与发布的 SHA-256 校验，在 macOS 上还会校验 NS2Bench 的签名。每一项都可以在 设置 → 更新 中关闭。Linux 的 .deb 通过下载新的 .deb 来更新。
 
 ## macOS 提示应用已损坏或无法检查。
 
-应用还没有经过公证。运行一次 `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`，然后打开它。
+例如“Apple 无法验证“NS2Bench-….dmg”是否包含恶意软件”、“NS2Bench 已损坏”或“无法打开，因为 Apple 无法检查”。NS2Bench 已签名，但没有经过 Apple 公证（公证需要付费的 Apple Developer ID），所以通过浏览器下载后 macOS 会拦截它。允许一次即可：
+
+- 打开 .dmg 之前，在终端中运行 `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`，然后打开它并把 NS2Bench 拖到“应用程序”。
+- 如果已经在“应用程序”里：`xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- 不用终端：点按 **完成**，打开 **系统设置 → 隐私与安全性**，向下滚动，点按 NS2Bench 旁边的 **仍要打开**，再打开一次（.dmg 一次；如有提示，应用再一次）。
+
+在应用内更新（**设置 → 更新**）不会触发这个提示，所以只有首次安装时需要这样做。
 
 ## Windows 提示已保护你的电脑。
 

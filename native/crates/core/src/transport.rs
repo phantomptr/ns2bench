@@ -59,6 +59,9 @@ impl Link {
                 }
                 // Windows: reads that time out every 200 ms on one reader thread, which ends with the
                 // connection (a plain blocking read would keep a thread forever on a silent device).
+                // Windows: COM10 and up are only reachable as \\.\COM10
+                #[cfg(windows)]
+                let path = &win_serial::device_path(path);
                 #[cfg(windows)]
                 if let Ok((r, w)) = win_serial::open(path) {
                     return Ok((Box::new(r), Box::new(w)));
@@ -119,6 +122,11 @@ pub(crate) mod win_serial {
             return Err(io::Error::last_os_error());
         }
         Ok(())
+    }
+
+    /// `COM12` -> `\\.\COM12` (Windows only reserves the bare names COM1-COM9).
+    pub fn device_path(path: &str) -> String {
+        if path.starts_with(r"\\.\") { path.to_string() } else { format!(r"\\.\{path}") }
     }
 
     pub fn open(path: &str) -> io::Result<(ChanReader, tokio::fs::File)> {

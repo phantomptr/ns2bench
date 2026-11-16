@@ -175,11 +175,17 @@ GL과 GR은 Nintendo Switch 2 Pro 컨트롤러 뒷면의 두 버튼이며, Joy-C
 
 ## 업데이트는 어떻게 이루어지나요?
 
-앱은 매일 GitHub 릴리스를 확인하고 업데이트가 있으면 알려 줍니다. 모든 다운로드는 설치 전에 릴리스의 SHA-256과 대조됩니다. 자동 다운로드와 설치는 기본적으로 꺼져 있으며, 설정 → 업데이트에서 켤 수 있습니다.
+ps5upload처럼 NS2Bench는 시작할 때, 6시간마다, 그리고 설정 → 업데이트를 열 때 GitHub 릴리스를 확인합니다. 새 버전은 백그라운드에서 다운로드되고 NS2Bench를 닫을 때(또는 **지금 다시 시작**으로 바로) 설치됩니다. 모든 다운로드는 설치 전에 릴리스의 SHA-256과, macOS에서는 NS2Bench의 서명과도 대조됩니다. 각 기능은 설정 → 업데이트에서 끌 수 있습니다. Linux .deb는 새 .deb를 다운로드해서 업데이트합니다.
 
 ## macOS에서 앱이 손상되었거나 확인할 수 없다고 나와요.
 
-앱이 아직 공증되지 않았습니다. `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`을 한 번 실행한 뒤 여세요.
+“Apple은 'NS2Bench-….dmg'에 악성 코드가 없음을 확인할 수 없습니다”, “NS2Bench이(가) 손상되었습니다”, “Apple에서 확인할 수 없기 때문에 열 수 없습니다” 같은 메시지입니다. NS2Bench는 서명되어 있지만 Apple의 공증은 받지 않았습니다(유료 Apple Developer ID가 필요합니다). 그래서 브라우저로 다운로드하면 macOS가 막습니다. 한 번만 허용하세요:
+
+- .dmg를 열기 전에 터미널에서 `xattr -dr com.apple.quarantine ~/Downloads/NS2Bench-*.dmg`을 실행한 다음, 열어서 NS2Bench를 응용 프로그램으로 드래그하세요.
+- 이미 응용 프로그램에 있다면: `xattr -dr com.apple.quarantine /Applications/NS2Bench.app`
+- 터미널 없이: **완료**를 클릭하고, **시스템 설정 → 개인정보 보호 및 보안**을 열어 아래로 스크롤한 뒤 NS2Bench 옆의 **그래도 열기**를 클릭하고 다시 여세요(.dmg에 한 번, 물어보면 앱에 한 번 더).
+
+앱 안에서 하는 업데이트(**설정 → 업데이트**)에서는 이 문제가 생기지 않으므로 처음 설치할 때만 하면 됩니다.
 
 ## Windows에서 PC를 보호했다고 나와요.
 
