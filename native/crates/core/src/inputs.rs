@@ -582,6 +582,8 @@ impl InputHub {
             }
         }
         self.log(source, "release", json!({"buttons": names.map(|n| n.to_vec()).unwrap_or(vec!["all".into()])}));
+        // "everything" includes mouse buttons held with mouse_move {buttons}
+        if names.is_none_or(|n| n.is_empty()) { self.mouse_up(source == "ui", source != "ui"); }
         self.flush()
     }
 
@@ -645,8 +647,8 @@ impl InputHub {
         let strokes: Vec<(u8, u8)> = text.chars().map(char_to_key).collect::<Result<_>>()?;
         let _g = self.agent_lock.lock().await;
         self.check_agent(source)?;
-        let shown: String = text.chars().take(80).collect();
-        self.log(source, "type", json!({"text": shown}));
+        // the length only: typed text can be a password, and logs end up in bug reports
+        self.log(source, "type", json!({"characters": text.chars().count()}));
         // delay_ms is the time per character: half held, half released (each at least the minimum press)
         let delay_ms = delay_ms.clamp(16, 2000);
         let hold = (delay_ms / 2).max(self.min_press()).min(1000);
@@ -671,13 +673,19 @@ impl InputHub {
         if !self.backend.devices().iter().any(|d| d == "mouse") {
             bail!("NS2Bench Bridge has no USB mouse in this mode");
         }
-        let b = {
+        let (b, before) = {
             let mut st = self.st.lock().unwrap();
             let mine = if source == "ui" { &mut st.ui_mouse } else { &mut st.agent_mouse };
+            let before = *mine;
             if let Some((mask, v)) = buttons { *mine = (*mine & !mask) | (v & mask & 0x1F); }
-            st.ui_mouse | st.agent_mouse
+            (st.ui_mouse | st.agent_mouse, before)
         };
         self.backend.send(Msg::Mouse([b as i32, dx.clamp(-4096, 4096), dy.clamp(-4096, 4096), wheel.clamp(-64, 64)]))
+            .inspect_err(|_| {
+                // not sent: the button isn't down on the console, so don't remember it as down
+                let mut st = self.st.lock().unwrap();
+                *(if source == "ui" { &mut st.ui_mouse } else { &mut st.agent_mouse }) = before;
+            })
     }
 
     pub async fn click(&self, button: &str, hold_ms: u64, source: &str) -> Result<()> {

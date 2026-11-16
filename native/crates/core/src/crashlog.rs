@@ -70,7 +70,7 @@ mod native {
         match code {
             0xC00000FD => "stack overflow",
             0xC0000005 => "access violation",
-            0xC0000409 => "fast fail / stack buffer overrun (also a Rust abort)",
+            0xC0000409 => "stack buffer overrun",
             0xC0000374 => "heap corruption",
             0xC000001D => "illegal instruction",
             0xC0000094 => "integer division by zero",
@@ -89,11 +89,19 @@ mod native {
                 None => (0, 0),
             }
         };
+        // After a stack overflow this thread has only a few KB left: write the file from a fresh
+        // thread, and give up after 3 s (a crash inside the heap can leave its lock held).
         let thread = std::thread::current().name().unwrap_or("unnamed").to_string();
-        let module = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
-        let text = format!("native crash (not a Rust panic)\nexception: 0x{code:08X} ({})\naddress: 0x{addr:X}\nthread: {thread}\nexe: {module}\n\nSee logs/stderr-{}.txt for Rust's own message, if any.",
-            name(code), PROGRAM.get().copied().unwrap_or("app"));
-        super::write(PROGRAM.get().copied().unwrap_or("app"), &text);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let spawned = std::thread::Builder::new().stack_size(256 << 10).spawn(move || {
+            let program = PROGRAM.get().copied().unwrap_or("app");
+            let module = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
+            let text = format!("native crash (not a Rust panic)\nexception: 0x{code:08X} ({})\naddress: 0x{addr:X}\nthread: {thread}\nexe: {module}\n\nSee logs/stderr-{program}.txt for Rust's own message, if any.",
+                name(code));
+            super::write(program, &text);
+            let _ = tx.send(());
+        });
+        if spawned.is_ok() { let _ = rx.recv_timeout(std::time::Duration::from_secs(3)); }
         EXCEPTION_CONTINUE_SEARCH
     }
 

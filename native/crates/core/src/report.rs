@@ -103,6 +103,13 @@ fn alive(pid: u32) -> bool {
     }
 }
 
+/// Is another copy of `program` running right now (one this launch is about to hand over to)?
+pub fn another_running(program: &str) -> bool {
+    let marker = logs_dir().join(format!(".running-{program}"));
+    std::fs::read_to_string(marker).ok().and_then(|p| p.trim().parse::<u32>().ok())
+        .is_some_and(|p| p != std::process::id() && alive(p))
+}
+
 /// One startup step ("config loaded", "engine listening", "window created" …).
 pub fn trace(step: impl AsRef<str>) {
     if let Some(t) = TRACE.lock().unwrap().as_mut() {
@@ -136,6 +143,15 @@ fn run(prog: &str, args: &[&str]) -> String {
     // at most 5 s: a stuck driver or program must not hold up the report
     c.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
     let Ok(mut child) = c.spawn() else { return String::new() };
+    // Read both pipes while it runs: a program that writes more than the pipe holds (ffmpeg's
+    // device list on Windows, ~4 KB) would otherwise wait on us forever.
+    let drain = |p: Option<Box<dyn std::io::Read + Send>>| std::thread::spawn(move || {
+        let mut v = vec![];
+        if let Some(mut p) = p { let _ = p.read_to_end(&mut v); }
+        v
+    });
+    let out = drain(child.stdout.take().map(|p| Box::new(p) as _));
+    let err = drain(child.stderr.take().map(|p| Box::new(p) as _));
     let t0 = std::time::Instant::now();
     loop {
         match child.try_wait() {
@@ -144,8 +160,8 @@ fn run(prog: &str, args: &[&str]) -> String {
             _ => { let _ = child.kill(); let _ = child.wait(); return "(no answer within 5 s)".into(); }
         }
     }
-    child.wait_with_output().map(|o| format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).trim().to_string())
-        .unwrap_or_default()
+    let (o, e) = (out.join().unwrap_or_default(), err.join().unwrap_or_default());
+    format!("{}{}", String::from_utf8_lossy(&o), String::from_utf8_lossy(&e)).trim().to_string()
 }
 
 fn os_version() -> String {

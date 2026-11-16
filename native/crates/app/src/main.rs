@@ -149,8 +149,11 @@ fn main() {
         return;
     }
 
-    // the window app: no console, so keep what Rust prints before an abort
-    ns2bench_core::crashlog::capture_stderr("app");
+    // the window app: no console, so keep what Rust prints before an abort (not over the file of
+    // a copy that's already running: this launch only hands over to it)
+    if !ns2bench_core::report::another_running("app") {
+        ns2bench_core::crashlog::capture_stderr("app");
+    }
     if let Some(prev) = ns2bench_core::report::start_trace("app") {
         eprintln!("NS2Bench: the last run ended unexpectedly; its startup trace:\n{prev}");
     }

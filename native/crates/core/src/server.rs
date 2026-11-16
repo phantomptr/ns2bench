@@ -421,6 +421,17 @@ pub async fn run_sequence(b: &Bench, steps: &Value, source: &str) -> Result<()> 
     let steps = steps.as_array().ok_or_else(|| anyhow::anyhow!("steps must be a list"))?;
     if steps.len() > 200 { anyhow::bail!("at most 200 steps"); }
     for s in steps {
+        if let Err(e) = run_step(b, s, source).await {
+            // a failed step must not leave a hold from an earlier step down on the console
+            let _ = b.hub.release(None, source);
+            return Err(e);
+        }
+    }
+    Ok(())
+}
+
+async fn run_step(b: &Bench, s: &Value, source: &str) -> Result<()> {
+    {
         if let Some(w) = s["wait_ms"].as_u64() {
             tokio::time::sleep(Duration::from_millis(w.min(30_000))).await;
         } else if s.get("press").is_some() {

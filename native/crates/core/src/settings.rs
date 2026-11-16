@@ -113,7 +113,8 @@ pub async fn set_input(State(b): State<S>, h: axum::http::HeaderMap, Json(v): Js
     validate_input(&v)?;
     // The Bridge token is sent to the configured host: only the person at the page may point
     // it somewhere new, or an agent could have it sent to a listener of its own.
-    if !v["token_file"].is_null() && !crate::server::from_browser(&h) {
+    // (also without a token_file: the engine would still connect to that address on its own)
+    if !crate::server::from_browser(&h) {
         let cur = b.input_cfg.lock().unwrap().clone();
         if ["backend", "host", "port", "serial_port", "token_file"].iter().any(|k| v[*k] != cur[*k]) {
             return Err(crate::server::ApiError(axum::http::StatusCode::FORBIDDEN,
