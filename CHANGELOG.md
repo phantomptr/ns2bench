@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.15
+
 - **Windows: NS2Bench closing by itself.** Some people saw NS2Bench find the capture card and then close with no message.
   - It now has more room to run on Windows.
   - If it still closes, it leaves a crash file saying why, and the diagnostics report includes it. Please send us that report.
