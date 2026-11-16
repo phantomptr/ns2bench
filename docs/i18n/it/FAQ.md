@@ -78,6 +78,8 @@ L’indicatore **video** nella barra in alto diventa verde con il frame rate, e 
 
 Qualsiasi scheda di acquisizione HDMI USB (UVC). L’obiettivo è 1080p60. Testata: UGREEN 15389 (MS2130), a 1080p60 e 1440p30.
 
+Su Windows funzionano anche le schede interne (PCIe) come la Elgato 4K Pro, se in OBS compaiono come **Video Capture Device**. Scegli la scheda in **Video → Dispositivo** e il suo audio in **Video → Audio** (oppure lascia Audio su automatico). NS2Bench chiede alla scheda una dimensione e una frequenza dei fotogrammi che offre. Se la scheda rifiuta comunque, NS2Bench ripiega sull’impostazione predefinita della scheda, come fa OBS. Se i colori sembrano slavati, disattiva l’HDR sulla console oppure l’uscita HDR nel software della scheda.
+
 ## Posso usare OBS contemporaneamente?
 
 Su macOS sì: NS2Bench condivide la scheda con OBS e non gliela toglie mai. Su Windows e Linux, ffmpeg di solito ha bisogno della scheda in esclusiva, quindi chiudi le altre app che la usano.

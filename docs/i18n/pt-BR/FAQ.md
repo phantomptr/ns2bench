@@ -78,6 +78,8 @@ O indicador **vídeo** na barra superior fica verde com a taxa de quadros, e o i
 
 Qualquer placa de captura HDMI USB (UVC). O objetivo é 1080p60. Testada: UGREEN 15389 (MS2130), em 1080p60 e 1440p30.
 
+No Windows, placas internas (PCIe) como a Elgato 4K Pro também funcionam, se aparecerem no OBS como **Video Capture Device**. Escolha a placa em **Vídeo → Dispositivo** e o som dela em **Vídeo → Som** (ou deixe Som no automático). O NS2Bench pede à placa um tamanho e uma taxa de quadros que ela oferece. Se a placa ainda recusar, o NS2Bench volta ao padrão da própria placa, como o OBS faz. Se as cores parecerem desbotadas, desligue o HDR no console ou a saída HDR no software da placa.
+
 ## Posso usar o OBS ao mesmo tempo?
 
 No macOS, sim: o NS2Bench compartilha a placa com o OBS e nunca a toma para si. No Windows e no Linux, o ffmpeg geralmente precisa da placa só para ele, então feche outros apps que a estejam usando.

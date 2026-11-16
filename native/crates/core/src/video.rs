@@ -216,7 +216,12 @@ pub fn ffmpeg_input_args(cfg: &Value) -> Vec<String> {
     if cfg!(target_os = "macos") {
         vec!["-f".into(), "avfoundation".into(), "-framerate".into(), fps, "-video_size".into(), size, "-i".into(), format!("{}:none", dev.unwrap_or("0".into()))]
     } else if cfg!(windows) {
-        vec!["-f".into(), "dshow".into(), "-rtbufsize".into(), "256M".into(), "-video_size".into(), size, "-framerate".into(), fps, "-i".into(), format!("video={}", dev.unwrap_or_default())]
+        let mut a: Vec<String> = vec!["-f".into(), "dshow".into(), "-rtbufsize".into(), "256M".into()];
+        if !USE_DEVICE_DEFAULT.load(std::sync::atomic::Ordering::Relaxed) {
+            a.extend(["-video_size".into(), size, "-framerate".into(), fps]);
+        }
+        a.extend(["-i".into(), format!("video={}", dev.unwrap_or_default())]);
+        a
     } else {
         vec!["-f".into(), "v4l2".into(), "-input_format".into(), "mjpeg".into(), "-video_size".into(), size, "-framerate".into(), fps, "-i".into(), dev.unwrap_or("/dev/video0".into())]
     }
@@ -277,6 +282,17 @@ fn split_aus(buf: &mut Vec<u8>) -> Vec<Bytes> {
 /// (libx264, h264_vaapi, h264_nvenc, h264_qsv, h264_mf, h264_videotoolbox ...), H.264 with AUD
 /// delimiters to a local socket for the hardware-decoded live view.
 async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
+    // Windows: ask the card only for a size and frame rate it offers (internal cards such as an
+    // Elgato 4K Pro often don't offer exactly what was asked for, and DirectShow then refuses).
+    let mut cfg = cfg.clone();
+    if cfg!(windows) && cfg["ffmpeg_input"].is_null() {
+        if let Some(dev) = cfg["device"].as_str().filter(|d| !d.is_empty()) {
+            let formats = dshow_formats(dev).await;
+            let (w, h, f) = pick_format(&formats, cfg["width"].as_u64().unwrap_or(1920), cfg["height"].as_u64().unwrap_or(1080), cfg["fps"].as_u64().unwrap_or(60));
+            cfg["width"] = w.into(); cfg["height"] = h.into(); cfg["fps"] = f.into();
+        }
+    }
+    let cfg = &cfg;
     let q = (31.0 - cfg["quality"].as_f64().unwrap_or(80.0) * 0.29).round().clamp(2.0, 31.0) as u32;
     let passthrough = cfg!(target_os = "linux") && cfg["ffmpeg_input"].is_null();
     let mut args: Vec<String> = vec!["-hide_banner".into(), "-loglevel".into(), "error".into(), "-nostdin".into()];
@@ -343,6 +359,10 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
         if n == 0 {
             tokio::time::sleep(Duration::from_millis(100)).await;
             let e = tail.lock().unwrap().clone();
+            if cfg!(windows) && (e.contains("Could not set video options") || e.contains("Could not find output pin") || e.contains("I/O error")) {
+                USE_DEVICE_DEFAULT.store(true, std::sync::atomic::Ordering::Relaxed);
+                bail!("the capture card refused {}x{} at {} fps; trying its own default next: {}", cfg["width"], cfg["height"], cfg["fps"], e.trim());
+            }
             bail!("ffmpeg exited: {}", e.trim());
         }
         buf.extend_from_slice(&chunk[..n]);
@@ -375,6 +395,113 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub)
     }
 }
 
+// ------------------------------------------------------------------ Windows (DirectShow) and Linux devices
+
+/// `ffmpeg -list_devices true -f dshow -i dummy`: (video names, audio names). Handles both the
+/// current `"Name" (video)` lines and older ffmpeg's "DirectShow video devices" sections.
+pub fn parse_dshow_devices(text: &str) -> (Vec<String>, Vec<String>) {
+    let (mut video, mut audio) = (vec![], vec![]);
+    let mut section = "";
+    for line in text.lines() {
+        let l = line.split_once(']').map_or(line, |(_, r)| r).trim();
+        if l.starts_with("DirectShow video devices") { section = "video"; continue; }
+        if l.starts_with("DirectShow audio devices") { section = "audio"; continue; }
+        if l.starts_with("Alternative name") || !l.starts_with('"') { continue; }
+        let Some(end) = l[1..].find('"') else { continue };
+        let name = l[1..1 + end].to_string();
+        let kind = if l.ends_with("(video)") { "video" } else if l.ends_with("(audio)") { "audio" }
+            else if l.ends_with("(none)") { continue } else { section };
+        match kind {
+            "video" if !video.contains(&name) => video.push(name),
+            "audio" if !audio.contains(&name) => audio.push(name),
+            _ => {}
+        }
+    }
+    (video, audio)
+}
+
+/// `ffmpeg -f dshow -list_options true -i video=NAME`: one entry per size with its best frame rate.
+pub fn parse_dshow_options(text: &str) -> Vec<Value> {
+    let mut best: Vec<(u64, u64, f64, String)> = vec![];
+    for line in text.lines() {
+        let l = line.split_once(']').map_or(line, |(_, r)| r).trim();
+        let pixel = l.split_whitespace().next().unwrap_or("").replace("pixel_format=", "").replace("vcodec=", "");
+        // "... min s=1280x720 fps=5 max s=1920x1080 fps=60"
+        let mut it = l.split_whitespace().peekable();
+        while let Some(tok) = it.next() {
+            let Some(size) = tok.strip_prefix("s=") else { continue };
+            let Some(fps) = it.peek().and_then(|f| f.strip_prefix("fps=")).and_then(|f| f.parse::<f64>().ok()) else { continue };
+            let Some((w, h)) = size.split_once('x').and_then(|(w, h)| Some((w.parse::<u64>().ok()?, h.parse::<u64>().ok()?))) else { continue };
+            match best.iter_mut().find(|b| b.0 == w && b.1 == h) {
+                Some(b) if fps > b.2 => { b.2 = fps; b.3 = pixel.clone(); }
+                Some(_) => {}
+                None => best.push((w, h, fps, pixel.clone())),
+            }
+        }
+    }
+    best.sort_by_key(|b| std::cmp::Reverse(b.0 * b.1));
+    best.into_iter().map(|(w, h, f, p)| json!({"width": w, "height": h, "max_fps": f, "pixel": p})).collect()
+}
+
+/// The size and frame rate to ask a card for: what was asked if the card offers it, otherwise
+/// 1920×1080 if offered, otherwise the largest size; the frame rate capped at what that size can do.
+pub fn pick_format(formats: &[Value], width: u64, height: u64, fps: u64) -> (u64, u64, u64) {
+    let has = |w: u64, h: u64| formats.iter().find(|f| f["width"] == w && f["height"] == h);
+    let f = has(width, height).or_else(|| has(1920, 1080)).or_else(|| formats.first());
+    match f {
+        Some(f) => {
+            let max = f["max_fps"].as_f64().unwrap_or(fps as f64).floor().max(1.0) as u64;
+            (f["width"].as_u64().unwrap_or(width), f["height"].as_u64().unwrap_or(height), fps.min(max))
+        }
+        None => (width, height, fps),
+    }
+}
+
+async fn ffmpeg_text(args: &[&str], limit: Duration) -> String {
+    let mut c = Command::new(ffmpeg());
+    c.args(args).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).kill_on_drop(true);
+    #[cfg(windows)]
+    c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    match tokio::time::timeout(limit, c.output()).await {
+        Ok(Ok(o)) => format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)),
+        _ => String::new(),
+    }
+}
+
+/// DirectShow capture and sound devices, each video device with the sizes it offers.
+pub async fn dshow_devices() -> (Vec<Value>, Vec<String>) {
+    let (video, audio) = parse_dshow_devices(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await);
+    // All cards at once: the Video panel waits at most 8 s for the whole list.
+    let out = futures::future::join_all(video.into_iter().map(|name| async move {
+        let formats = dshow_formats(&name).await;
+        json!({"id": name, "name": name, "kind": "video", "formats": formats})
+    })).await;
+    (out, audio)
+}
+
+pub async fn dshow_formats(name: &str) -> Vec<Value> {
+    parse_dshow_options(&ffmpeg_text(&["-hide_banner", "-f", "dshow", "-list_options", "true", "-i", &format!("video={name}")], Duration::from_secs(5)).await)
+}
+
+/// `ffmpeg -f v4l2 -list_formats all`: sizes listed after the format names.
+pub fn parse_v4l2_formats(text: &str) -> Vec<Value> {
+    let mut sizes: Vec<(u64, u64)> = vec![];
+    for line in text.lines().filter(|l| l.contains("Compressed") || l.contains("Raw")) {
+        for tok in line.rsplit(':').next().unwrap_or("").split_whitespace() {
+            if let Some((w, h)) = tok.split_once('x').and_then(|(w, h)| Some((w.parse::<u64>().ok()?, h.parse::<u64>().ok()?))) {
+                if !sizes.contains(&(w, h)) { sizes.push((w, h)); }
+            }
+        }
+    }
+    sizes.sort_by_key(|s| std::cmp::Reverse(s.0 * s.1));
+    // V4L2 doesn't say the frame rate here: offer up to 60.
+    sizes.into_iter().map(|(w, h)| json!({"width": w, "height": h, "max_fps": 60.0})).collect()
+}
+
+/// When a card refuses the size and frame rate (ffmpeg: "Could not set video options"), the next
+/// start lets it use its own default, as OBS does. Cleared when video settings change.
+pub static USE_DEVICE_DEFAULT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// Capture devices and their formats (macOS helper; best effort elsewhere).
 pub async fn list_devices() -> Value {
     if has_helper() {
@@ -405,15 +532,25 @@ pub async fn list_devices() -> Value {
         }
         return json!([]);
     }
-    let out = if cfg!(windows) {
-        Command::new(ffmpeg()).args(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]).output().await
-    } else {
-        Command::new("sh").args(["-c", "for d in /dev/video*; do echo \"== $d $(cat /sys/class/video4linux/$(basename $d)/name 2>/dev/null)\"; ffmpeg -hide_banner -f v4l2 -list_formats all -i $d 2>&1 | tail -20; done"]).output().await
-    };
-    match out {
-        Ok(o) => json!([{"id": null, "name": "see raw", "formats": [], "raw": format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr))}]),
-        Err(e) => json!([{"id": null, "name": "ffmpeg missing", "formats": [], "raw": e.to_string()}]),
+    if cfg!(windows) {
+        let (mut video, audio) = dshow_devices().await;
+        video.extend(audio.into_iter().map(|a| json!({"id": a, "name": a, "kind": "audio", "formats": []})));
+        return Value::Array(video);
     }
+    // Linux: every /dev/videoN that offers capture sizes, with the card's name.
+    let mut out = vec![];
+    let mut nodes: Vec<String> = std::fs::read_dir("/dev").into_iter().flatten().flatten()
+        .filter_map(|e| e.file_name().into_string().ok()).filter(|n| n.starts_with("video")).map(|n| format!("/dev/{n}")).collect();
+    nodes.sort();
+    for dev in nodes {
+        let base = dev.trim_start_matches("/dev/");
+        let name = std::fs::read_to_string(format!("/sys/class/video4linux/{base}/name")).map(|s| s.trim().to_string()).unwrap_or_else(|_| dev.clone());
+        let formats = parse_v4l2_formats(&ffmpeg_text(&["-hide_banner", "-f", "v4l2", "-list_formats", "all", "-i", &dev], Duration::from_secs(4)).await);
+        if !formats.is_empty() {
+            out.push(json!({"id": dev, "name": name, "kind": "video", "formats": formats}));
+        }
+    }
+    Value::Array(out)
 }
 
 #[cfg(test)]
@@ -439,6 +576,36 @@ mod tests {
         assert_eq!(&bytes, b"frame");
         assert_eq!(super::capture_read(&mut reader, &mut bytes, std::time::Duration::from_secs(1)).await.unwrap(), 0);
     }
+    #[test]
+    fn dshow_lists_and_options() {
+        let new = "[dshow @ 0001] \"Game Capture 4K Pro\" (video)\n[dshow @ 0001]   Alternative name \"@device_pnp_\\\\?\\pci#ven_1cd7\"\n[dshow @ 0001] \"Game Capture 4K Pro\" (audio)\n[dshow @ 0001] \"Microphone (Realtek)\" (audio)\n[dshow @ 0001] \"OBS Virtual Camera\" (none)\n";
+        let (v, a) = super::parse_dshow_devices(new);
+        assert_eq!(v, ["Game Capture 4K Pro"]);
+        assert_eq!(a, ["Game Capture 4K Pro", "Microphone (Realtek)"]);
+        let old = "[dshow @ 0x1] DirectShow video devices (some may be both video and audio devices)\n[dshow @ 0x1]  \"USB Video\"\n[dshow @ 0x1]     Alternative name \"@device_pnp_x\"\n[dshow @ 0x1] DirectShow audio devices\n[dshow @ 0x1]  \"Digital Audio Interface (USB Digital Audio)\"\n";
+        let (v, a) = super::parse_dshow_devices(old);
+        assert_eq!(v, ["USB Video"]);
+        assert_eq!(a, ["Digital Audio Interface (USB Digital Audio)"]);
+        let opts = "[dshow @ 0x2] DirectShow video device options (from video devices)\n[dshow @ 0x2]  Pin \"Capture\" (alternative pin name \"0\")\n[dshow @ 0x2]   pixel_format=nv12  min s=1920x1080 fps=30 max s=1920x1080 fps=59.9402\n[dshow @ 0x2]   pixel_format=yuyv422  min s=1280x720 fps=60 max s=1280x720 fps=60\n[dshow @ 0x2]   unknown compression type 0x30313050  min s=3840x2160 fps=59.94 max s=3840x2160 fps=59.94\n";
+        let f = super::parse_dshow_options(opts);
+        assert_eq!(f[0]["width"], 3840);
+        assert_eq!(f.iter().find(|x| x["width"] == 1920).unwrap()["max_fps"], 59.9402);
+        // asked 1080p60: the card offers 1080p up to 59.94 -> 1920x1080 at 59
+        assert_eq!(super::pick_format(&f, 1920, 1080, 60), (1920, 1080, 59));
+        // asked a size it doesn't offer -> 1080p
+        assert_eq!(super::pick_format(&f, 2560, 1440, 60), (1920, 1080, 59));
+        // nothing known -> as asked
+        assert_eq!(super::pick_format(&[], 1920, 1080, 60), (1920, 1080, 60));
+    }
+
+    #[test]
+    fn v4l2_sizes() {
+        let t = "[video4linux2,v4l2 @ 0x5] Compressed:       mjpeg :          Motion-JPEG : 1920x1080 1280x720 640x480\n[video4linux2,v4l2 @ 0x5] Raw       :     yuyv422 :           YUYV 4:2:2 : 1920x1080 640x480\n";
+        let f = super::parse_v4l2_formats(t);
+        assert_eq!(f.len(), 3);
+        assert_eq!(f[0]["width"], 1920);
+    }
+
     #[test]
     fn split() {
         let mut b = b"junk\xff\xd8one\xff\xd9\xff\xd8tw".to_vec();

@@ -78,6 +78,8 @@ La etiqueta **vídeo** de la barra superior se pone verde con la tasa de fotogra
 
 Cualquier capturadora HDMI USB (UVC). El objetivo es 1080p60. Probada: UGREEN 15389 (MS2130), a 1080p60 y 1440p30.
 
+En Windows también funcionan las capturadoras internas (PCIe), como la Elgato 4K Pro, si aparecen en OBS como **Video Capture Device**. Elige la capturadora en **Vídeo → Dispositivo** y su sonido en **Vídeo → Sonido** (o deja Sonido en automático). NS2Bench pide a la capturadora un tamaño y una frecuencia de fotogramas que ofrezca. Si aun así la rechaza, NS2Bench recurre a la configuración predeterminada de la capturadora, como hace OBS. Si los colores se ven apagados, desactiva el HDR en la consola o la salida HDR en el software de la capturadora.
+
 ## ¿Puedo usar OBS a la vez?
 
 En macOS, sí: NS2Bench comparte la capturadora con OBS y nunca se la quita. En Windows y Linux, ffmpeg suele necesitar la capturadora en exclusiva, así que cierra otras apps que la estén usando.

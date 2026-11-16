@@ -111,7 +111,18 @@ impl AudioHub {
             Command::new(helper).args(["audio", &device]).stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null()).kill_on_drop(true).spawn()?
         } else {
-            let Some(device) = vc["audio_device"].as_str() else { bail!("set video.audio_device to capture console audio") };
+            // Windows: the card's sound device usually carries its name ("Game Capture 4K Pro").
+            let found = if cfg!(windows) && vc["audio_device"].as_str().is_none() {
+                let (_, audio) = crate::video::parse_dshow_devices(&String::from_utf8_lossy(&Command::new(crate::video::ffmpeg())
+                    .args(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]).output().await.map(|o| o.stderr).unwrap_or_default()));
+                pair_by_name(vc["device"].as_str().unwrap_or(""), &audio)
+            } else {
+                None
+            };
+            let Some(device) = vc["audio_device"].as_str().map(str::to_string).or(found) else {
+                bail!("no sound device matched the capture card: pick it under Video → Sound")
+            };
+            let device = device.as_str();
             self.st.lock().unwrap().device = Some(device.to_string());
             let input: Vec<String> = if cfg!(windows) {
                 vec!["-f".into(), "dshow".into(), "-i".into(), format!("audio={device}")]
@@ -180,6 +191,22 @@ async fn list(helper: &std::path::Path) -> Result<Vec<Dev>> {
     }).collect())
 }
 
+/// Windows: the sound device that belongs to a capture card, by name. The same name, or one that
+/// contains the other ("Game Capture 4K Pro" / "Digital Audio Interface (Game Capture 4K Pro)"),
+/// else the one sharing the most words with it (at least two).
+pub fn pair_by_name(video: &str, audio: &[String]) -> Option<String> {
+    let v = video.to_lowercase();
+    if v.is_empty() {
+        return None;
+    }
+    if let Some(a) = audio.iter().find(|a| a.to_lowercase() == v || a.to_lowercase().contains(&v) || v.contains(&a.to_lowercase())) {
+        return Some(a.clone());
+    }
+    let words = |s: &str| s.to_lowercase().split(|c: char| !c.is_alphanumeric()).filter(|w| w.len() > 1).map(str::to_string).collect::<std::collections::HashSet<_>>();
+    let vw = words(video);
+    audio.iter().map(|a| (vw.intersection(&words(a)).count(), a)).filter(|(n, _)| *n >= 2).max_by_key(|(n, _)| *n).map(|(_, a)| a.clone())
+}
+
 /// Audio device for a video device: same USB location, else the one no other card owns.
 pub fn pair(video_id: &str, devs: &[Dev]) -> Option<String> {
     let video = devs.iter().find(|d| d.kind == "video" && d.id == video_id)?;
@@ -233,6 +260,15 @@ mod tests {
     fn d(kind: &str, id: &str, name: &str) -> Dev {
         Dev { kind: kind.into(), id: id.into(), name: name.into() }
     }
+    #[test]
+    fn pairs_by_name_on_windows() {
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(pair_by_name("Game Capture 4K Pro", &a(&["Microphone (Realtek)", "Game Capture 4K Pro"])).as_deref(), Some("Game Capture 4K Pro"));
+        assert_eq!(pair_by_name("Game Capture 4K Pro", &a(&["Digital Audio Interface (Game Capture 4K Pro)"])).as_deref(), Some("Digital Audio Interface (Game Capture 4K Pro)"));
+        assert_eq!(pair_by_name("USB3.0 Capture", &a(&["Digital Audio Interface (USB3.0 Capture)", "Microphone"])).as_deref(), Some("Digital Audio Interface (USB3.0 Capture)"));
+        assert_eq!(pair_by_name("Cam Link 4K", &a(&["Microphone (Realtek)"])), None);
+    }
+
     #[test]
     fn pairs_by_usb_location() {
         let devs = vec![

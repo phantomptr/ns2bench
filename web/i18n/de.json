@@ -255,6 +255,7 @@
   "Lost the connection to the NS2Bench engine.": "Verbindung zur NS2Bench-Engine verloren.",
   "macOS keeps asking for permission": "macOS fragt immer wieder nach der Berechtigung",
   "Match system": "Wie System",
+  "Match the capture card (automatic)": "Passend zur Capture-Karte (automatisch)",
   "MCP address": "MCP-Adresse",
   "MCP and API": "MCP und API",
   "MCP lets an AI agent see and drive your console with tools it understands: look at the screen, press buttons, read text, run tests. Add it once, then just ask.": "Mit MCP kann ein KI-Agent deine Konsole sehen und steuern, mit Tools, die er versteht: auf den Bildschirm schauen, Tasten drücken, Text lesen, Tests ausführen. Einmal hinzufügen, dann einfach fragen.",

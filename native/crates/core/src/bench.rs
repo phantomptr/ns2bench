@@ -82,6 +82,8 @@ impl Bench {
             let saved: serde_json::Map<String, Value> = allowed.iter().filter_map(|k| v.get(*k).map(|x| (k.to_string(), x.clone()))).collect();
             let _ = write_json(&state_dir().join("video.json"), &Value::Object(saved));
         }
+        // new settings: ask the card for them again (it may accept these)
+        crate::video::USE_DEVICE_DEFAULT.store(false, std::sync::atomic::Ordering::Relaxed);
         self.logs.add("bench", format!("video settings changed: {changes}"));
         self.restart_video();
         Ok(())

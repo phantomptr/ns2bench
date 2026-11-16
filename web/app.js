@@ -547,8 +547,14 @@ function fillFps(want) {
 async function loadVideo() {
   $('#v-note').textContent = t('Loading devices…');
   const d = await (await fetch('/api/video')).json();
-  vdevices = d.devices.filter((x) => x.formats?.length || x.raw);
+  vdevices = d.devices.filter((x) => x.kind !== 'audio' && (x.formats?.length || x.raw));
   const s = d.settings;
+  // Windows and Linux: the card's sound is a separate device (macOS pairs it by itself).
+  const sounds = d.devices.filter((x) => x.kind === 'audio');
+  $('#v-audio-field').hidden = !sounds.length && !s.audio_device;
+  $('#v-audio').replaceChildren(opt('', t('Match the capture card (automatic)'), !s.audio_device),
+    ...sounds.map((x) => opt(x.id, x.name, x.id === s.audio_device)));
+  if (s.audio_device && !sounds.some((x) => x.id === s.audio_device)) $('#v-audio').append(opt(s.audio_device, s.audio_device, true));
   vsel.device.replaceChildren(...vdevices.map((x) => opt(x.id ?? '', `${x.name}${x.in_use ? ' (in use)' : ''} · ${x.id ?? ''}`, x.id === s.device)));
   vsel.q.value = s.quality; $('#v-qval').textContent = s.quality;
   fillSizes(s);
@@ -560,6 +566,7 @@ vsel.q.addEventListener('input', () => { $('#v-qval').textContent = vsel.q.value
 $('#v-apply').addEventListener('click', async () => {
   const [width, height] = vsel.size.value.split('x').map(Number);
   const body = { device: vsel.device.value, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
+  if (!$('#v-audio-field').hidden) body.audio_device = $('#v-audio').value || null;
   const r = await fetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   $('#v-note').textContent = r.ok ? t('Applied') : await r.text();
   setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);

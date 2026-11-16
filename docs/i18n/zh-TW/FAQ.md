@@ -78,6 +78,8 @@
 
 任何 USB（UVC）HDMI 擷取卡。目標是 1080p60。已測試：UGREEN 15389（MS2130），1080p60 和 1440p30。
 
+在 Windows 上，Elgato 4K Pro 等內建（PCIe）擷取卡也可用，只要它們在 OBS 中顯示為 **Video Capture Device**。在 **影像 → 裝置** 中選擇擷取卡，在 **影像 → 聲音** 中選擇它的聲音（或讓聲音維持自動）。NS2Bench 會向擷取卡要求它支援的解析度和影格率。如果擷取卡仍然拒絕，NS2Bench 會像 OBS 一樣改用擷取卡本身的預設設定。如果顏色看起來泛白，請關閉主機上的 HDR，或在擷取卡隨附軟體中關閉 HDR 輸出。
+
 ## 能同時用 OBS 嗎？
 
 macOS 上可以：NS2Bench 與 OBS 共用擷取卡，從不搶占。Windows 和 Linux 上，ffmpeg 通常需要獨占擷取卡，請關閉其他占用它的 App。

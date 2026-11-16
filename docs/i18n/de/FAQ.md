@@ -78,6 +78,8 @@ Die **Video**-Anzeige in der oberen Leiste wird grün und zeigt die Bildrate, un
 
 Jede USB-(UVC-)HDMI-Capture-Karte. Ziel ist 1080p60. Getestet: UGREEN 15389 (MS2130), bei 1080p60 und 1440p30.
 
+Unter Windows funktionieren auch interne (PCIe-)Karten wie die Elgato 4K Pro, sofern sie in OBS als **Video Capture Device** erscheinen. Wähle die Karte unter **Video → Gerät** und ihren Ton unter **Video → Ton** (oder lass Ton auf automatisch). NS2Bench fragt bei der Karte eine Größe und Bildrate an, die sie anbietet. Lehnt die Karte trotzdem ab, greift NS2Bench wie OBS auf die Standardeinstellung der Karte zurück. Wirken die Farben ausgewaschen, schalte HDR an der Konsole aus oder die HDR-Ausgabe in der Software der Karte.
+
 ## Kann ich gleichzeitig OBS nutzen?
 
 Unter macOS ja: NS2Bench teilt die Karte mit OBS und nimmt sie ihm nie weg. Unter Windows und Linux braucht ffmpeg die Karte meist für sich allein, also schließe andere Apps, die sie belegen.

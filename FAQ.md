@@ -78,6 +78,8 @@ The **video** pill in the top bar turns green with a frame rate, and the **Bridg
 
 Any USB (UVC) HDMI capture card. 1080p60 is the goal. Tested: UGREEN 15389 (MS2130), at 1080p60 and 1440p30.
 
+On Windows, internal (PCIe) cards such as the Elgato 4K Pro work too, if they show up in OBS as a **Video Capture Device**. Pick the card under **Video → Device** and its sound under **Video → Sound** (or leave Sound on automatic). NS2Bench asks the card for a size and frame rate it offers. If the card still refuses, NS2Bench falls back to the card's own default, as OBS does. If the colours look washed out, turn off HDR on the console, or turn off HDR output in the card's own software.
+
 ## Can I use OBS at the same time?
 
 On macOS, yes: NS2Bench shares the card with OBS and never takes it away. On Windows and Linux, ffmpeg usually needs the card for itself, so close other apps that hold it.

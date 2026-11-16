@@ -6,6 +6,10 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Windows: capture cards show up by name.** The Video panel lists every DirectShow capture card (internal PCIe cards such as the **Elgato 4K Pro** included) with the sizes and frame rates it offers. Before, Windows showed only a raw list you couldn't pick from. Linux lists its /dev/video cards the same way.
+- **Windows: cards that don't offer exactly 1080p60 start anyway.** NS2Bench asks for a size and frame rate the card offers, and if the card still refuses, uses the card's own default (as OBS does).
+- **Windows: the card's sound is found by name** ("Game Capture 4K Pro" and similar), and the Video panel has a **Sound** picker on Windows and Linux.
+
 ## 0.0.10
 
 - **Network helper (macOS):** it now takes requests only from the console's adapter. Before, it also heard other adapters' broadcasts, for example your home router's address requests, and answered them on the console network. Its answers never left the console adapter, but it shouldn't listen anywhere else. After updating, click **Settings → Install → Network helper → Update helper**.

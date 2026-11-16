@@ -255,6 +255,7 @@
   "Lost the connection to the NS2Bench engine.": "与 NS2Bench 引擎的连接已断开。",
   "macOS keeps asking for permission": "macOS 反复请求权限",
   "Match system": "跟随系统",
+  "Match the capture card (automatic)": "匹配采集卡（自动）",
   "MCP address": "MCP 地址",
   "MCP and API": "MCP 和 API",
   "MCP lets an AI agent see and drive your console with tools it understands: look at the screen, press buttons, read text, run tests. Add it once, then just ask.": "MCP 让 AI 代理用它能理解的工具查看并操控你的主机：看屏幕、按按键、读文字、运行测试。添加一次，之后直接提要求即可。",
