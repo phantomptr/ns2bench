@@ -113,7 +113,7 @@ impl AudioHub {
         } else {
             // Windows: the card's sound device usually carries its name ("Game Capture 4K Pro").
             let found = if cfg!(windows) && vc["audio_device"].as_str().is_none() {
-                let (_, audio) = crate::video::parse_dshow_devices(&String::from_utf8_lossy(&Command::new(crate::video::ffmpeg())
+                let (_, audio) = crate::video::parse_dshow_devices(&String::from_utf8_lossy(&crate::video::quiet(crate::video::ffmpeg())
                     .args(["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]).output().await.map(|o| o.stderr).unwrap_or_default()));
                 pair_by_name(vc["device"].as_str().unwrap_or(""), &audio)
             } else {
@@ -129,7 +129,7 @@ impl AudioHub {
             } else {
                 vec!["-f".into(), "alsa".into(), "-i".into(), device.into()]
             };
-            Command::new(crate::video::ffmpeg()).args(["-hide_banner", "-loglevel", "error", "-nostdin"]).args(&input)
+            crate::video::quiet(crate::video::ffmpeg()).args(["-hide_banner", "-loglevel", "error", "-nostdin"]).args(&input)
                 .args(["-ac", "2", "-ar", "48000", "-f", "s16le", "-"]).stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null()).kill_on_drop(true).spawn()?
         };

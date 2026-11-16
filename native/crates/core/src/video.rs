@@ -85,6 +85,16 @@ impl FrameHub {
 
 // ------------------------------------------------------------------ ffmpeg
 
+/// A program started without a console window: the Windows app has none of its own, and each
+/// ffmpeg or helper would otherwise pop one up (every capture retry, every clip, every OCR read).
+pub fn quiet(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut c = Command::new(program);
+    #[cfg(windows)]
+    c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    c
+}
+
 /// Where ffmpeg is: $NS2BENCH_FFMPEG, next to the app, common install places
 /// (apps started from Finder or the Start menu don't get a shell's PATH), then PATH.
 pub fn ffmpeg() -> PathBuf {
@@ -285,6 +295,16 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
     // Windows: ask the card only for a size and frame rate it offers (internal cards such as an
     // Elgato 4K Pro often don't offer exactly what was asked for, and DirectShow then refuses).
     let mut cfg = cfg.clone();
+    // No card chosen yet (a first start, or settings from another computer): use the first one
+    // found, rather than asking ffmpeg for a device with no name.
+    if !cfg!(target_os = "macos") && cfg["ffmpeg_input"].is_null() && cfg["device"].as_str().unwrap_or("").is_empty() {
+        let found = list_devices().await;
+        let first = found.as_array().into_iter().flatten().find(|d| d["kind"] == "video").and_then(|d| d["id"].as_str().map(str::to_string));
+        match first {
+            Some(d) => cfg["device"] = d.into(),
+            None => bail!("no capture card found. Connect one (and close OBS or other apps using it), then pick it in the Video panel"),
+        }
+    }
     if cfg!(windows) && cfg["ffmpeg_input"].is_null() {
         if let Some(dev) = cfg["device"].as_str().filter(|d| !d.is_empty()) {
             let formats = dshow_formats(dev).await;
@@ -333,7 +353,7 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
     struct Abort(Option<tokio::task::JoinHandle<()>>);
     impl Drop for Abort { fn drop(&mut self) { if let Some(h) = &self.0 { h.abort(); } } }
     let _h264 = Abort(h264);
-    let mut child = Command::new(ffmpeg()).args(&args).stdout(std::process::Stdio::piped())
+    let mut child = quiet(ffmpeg()).args(&args).stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()
         .map_err(|_| anyhow!("video capture needs ffmpeg: {}", ffmpeg_hint()))?;
     let mut out = child.stdout.take().unwrap();

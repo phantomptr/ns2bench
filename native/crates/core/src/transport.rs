@@ -90,7 +90,7 @@ async fn configure_serial(path: &str, baud: u32) {
         let port = path.trim_start_matches(r"\\.\");
         // `mode` is mode.com: Command::new("mode") would look for mode.exe and fail.
         let mode = std::path::Path::new(&std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into())).join(r"System32\mode.com");
-        let _ = tokio::process::Command::new(mode).args([port, &format!("BAUD={b}"), "PARITY=N", "DATA=8", "STOP=1"]).status().await;
+        let _ = crate::video::quiet(mode).args([port, &format!("BAUD={b}"), "PARITY=N", "DATA=8", "STOP=1"]).status().await;
     }
 }
 

@@ -306,7 +306,14 @@ document.querySelectorAll('input[name=kbmode]').forEach((r) => {
 hint();
 
 // ------------------------------------------------------------ status, activity, tools
+let crashOffered = false;
 function showStatus(s) {
+  $('#safe-mode').hidden = !s.safe_mode;
+  if (s.last_run_unclean && !crashOffered) {
+    crashOffered = true;
+    toast(t('NS2Bench closed unexpectedly last time. A bug report helps fix it.'), 'warn',
+      { label: t('Save bug report'), run: () => { document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'help' })); setTimeout(() => $('#help-bundle').click(), 300); } });
+  }
   if (s.version && $('#brand-version').textContent !== `v${s.version}`) $('#brand-version').textContent = `v${s.version}`;
   const v = $('#pill-video'), i = $('#pill-input');
   const live = s.video.age_s !== null && s.video.age_s < 3;
@@ -533,7 +540,10 @@ function fillSizes(settings) {
   const want = `${settings.width}x${settings.height}`;
   vsel.size.replaceChildren(...formats.map((f) => opt(`${f.width}x${f.height}`,
     `${f.width}×${f.height} (≤${Math.round(f.max_fps)} fps)`, `${f.width}x${f.height}` === want)));
-  if (!formats.length) vsel.size.append(opt(want, `${settings.width}×${settings.height}`, true));
+  if (!formats.length) for (const [w, h] of [[settings.width, settings.height], [1920, 1080], [1280, 720]]) {
+    const v = `${w}x${h}`;
+    if (![...vsel.size.options].some((o) => o.value === v)) vsel.size.append(opt(v, `${w}×${h}`, v === want));
+  }
   fillFps(settings.fps);
 }
 function fillFps(want) {
@@ -547,7 +557,8 @@ function fillFps(want) {
 async function loadVideo() {
   $('#v-note').textContent = t('Loading devices…');
   const d = await (await fetch('/api/video')).json();
-  vdevices = d.devices.filter((x) => x.kind !== 'audio' && (x.formats?.length || x.raw));
+  // every capture card, also one that didn't say which sizes it offers (it still works)
+  vdevices = d.devices.filter((x) => x.kind === 'video' || (x.kind !== 'audio' && (x.formats?.length || x.raw)));
   const s = d.settings;
   // Windows and Linux: the card's sound is a separate device (macOS pairs it by itself).
   const sounds = d.devices.filter((x) => x.kind === 'audio');

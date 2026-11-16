@@ -12,6 +12,8 @@ pub mod ocr;
 pub mod power;
 pub mod testrun;
 pub mod config;
+pub mod crashlog;
+pub mod report;
 pub mod features;
 pub mod h264;
 pub mod inputs;
@@ -33,7 +35,9 @@ pub async fn serve(cfg: Config) -> anyhow::Result<()> {
     let bench = Bench::new(cfg.clone());
     bench.start();
     let app = server::router(bench.clone());
-    let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
+    report::trace(format!("engine starting on {host}:{port}"));
+    let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await.inspect_err(|e| report::trace(format!("engine could not listen on {host}:{port}: {e}")))?;
+    report::trace("engine listening");
     server::SERVING.store(true, std::sync::atomic::Ordering::Relaxed);
     // Without the desktop app there is no window to trust, so the page proves it is the person
     // at the bench with a key from the link printed here (never logged, never served by the API):
@@ -51,6 +55,8 @@ pub async fn serve(cfg: Config) -> anyhow::Result<()> {
         let _ = tokio::signal::ctrl_c().await;
         b2.hub.release_all();
     }).await?;
+    report::trace("stopped (Ctrl+C)");
+    report::clean_exit();
     Ok(())
 }
 

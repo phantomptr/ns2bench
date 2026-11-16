@@ -495,3 +495,4 @@ dialog.palette { padding: 8px; top: 12vh; margin-top: 0; }
 .update-progress progress { flex: 1; height: 8px; accent-color: var(--accent); }
 #update-bytes { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); white-space: nowrap; }
 #toasts { inset: auto 16px 16px auto; margin: 0; border: 0; padding: 0; background: transparent; overflow: visible; color: inherit; }
+.engine-lost.safe { background: color-mix(in srgb, var(--warn) 16%, transparent); border-bottom-color: var(--warn); }

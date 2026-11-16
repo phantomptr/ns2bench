@@ -31,6 +31,9 @@
   <button id="btn-shot" type="button" class="ibtn" title="Save a full-resolution screenshot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.3-2h5l1.3 2h1.7A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.3"/></svg><span>Screenshot</span></button>
   <button id="btn-full" type="button" class="ibtn" title="Fullscreen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Fullscreen</span></button>
 </header>
+<div class="engine-lost safe" id="safe-mode" role="status" hidden>
+  <span><b>Safe mode.</b> <span>Capture, input and sound are off. Quit and open NS2Bench normally to turn them back on, or change the device that caused the problem in Settings first.</span></span>
+</div>
 <div class="engine-lost" id="engine-lost" role="alert" hidden>
   <span><b>Lost the connection to the NS2Bench engine.</b> <span>Reconnecting by itself. If this stays, the app may have stopped: close and reopen it.</span></span>
   <button type="button" id="engine-retry">Reconnect now</button>
@@ -424,9 +427,19 @@ ns2bench --help</pre>
     </div>
     <div class="group">
       <h3>Report a problem</h3>
-      <p>Save a bug report, then open an issue and attach it. The report holds logs, status, a screenshot and your settings, never tokens. Look through it before you share it.</p>
-      <div class="field-row wrap"><button type="button" class="primary" id="help-bundle">Save bug report (.zip)</button><button type="button" id="help-diag">Copy diagnostics</button><button type="button" id="help-issue">Open an issue on GitHub</button></div>
+      <p>Save a bug report, then open an issue and attach it (or send it on Discord). The report holds what NS2Bench sees (capture cards, sound devices, serial ports, the network helper), the check, recent logs, startup traces, crash reports, a screenshot and your settings, never tokens. Look through it before you share it.</p>
+      <div class="field-row wrap"><button type="button" class="primary" id="help-bundle">Save bug report (.zip)</button><button type="button" id="help-logs" hidden>Open logs folder</button><button type="button" id="help-diag">Copy diagnostics</button><button type="button" id="help-issue">Open an issue on GitHub</button></div>
       <p class="hint" id="help-note"></p>
+      <details class="faq"><summary>NS2Bench closes as soon as it opens</summary>
+        <p>Make a report without the window, from Terminal (macOS, Linux) or Command Prompt (Windows):</p>
+        <pre data-no-i18n>ns2bench report</pre>
+        <p>If the ns2bench command isn’t installed, use the app itself:</p>
+        <pre data-no-i18n>macOS    /Applications/NS2Bench.app/Contents/MacOS/ns2bench-app report
+Windows  "%LOCALAPPDATA%\NS2Bench\ns2bench-app.exe" report
+Linux    ./NS2Bench-*.AppImage report</pre>
+        <p>The report is saved to your Downloads folder. To start NS2Bench without capture, input or sound (when a device makes it crash), add --safe instead of report.</p>
+        <p>Logs and crash reports are in the logs folder: ~/.ns2bench/logs (Windows: %USERPROFILE%\.ns2bench\logs).</p>
+      </details>
     </div>
     <div class="group">
       <h3>Guides</h3>

@@ -98,6 +98,15 @@ impl Config {
                 if crate::settings::validate_input(&saved).is_ok() { input = merge(&input, Some(&saved)); }
             }
         }
+        let mut raw = raw;
+        // Safe mode (`ns2bench-app --safe`, NS2BENCH_SAFE=1): no capture, input or sound, so a
+        // device or driver that crashes NS2Bench can't stop it from opening.
+        if safe_mode() {
+            video["backend"] = "none".into();
+            input = json!({"backend": "none"});
+            if !raw.is_object() { raw = json!({}); }
+            raw["audio"] = json!({"enabled": false});
+        }
         Config {
             server: merge(&d["server"], raw.get("server")),
             input,
@@ -146,4 +155,9 @@ pub fn write_json(path: &Path, v: &Value) -> std::io::Result<()> {
         let _ = std::fs::remove_file(&tmp);
     }
     result
+}
+
+/// Safe mode: started with `--safe` (or NS2BENCH_SAFE=1).
+pub fn safe_mode() -> bool {
+    std::env::var("NS2BENCH_SAFE").is_ok_and(|v| v == "1")
 }

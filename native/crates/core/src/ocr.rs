@@ -9,7 +9,6 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Line {
@@ -52,7 +51,7 @@ pub fn make_engine(cfg: Option<&Value>) -> Option<Engine> {
 }
 
 async fn pipe(cmd: &str, args: &[&str], input: &[u8]) -> Result<Vec<u8>> {
-    let mut child = Command::new(cmd).args(args).stdin(Stdio::piped()).stdout(Stdio::piped())
+    let mut child = crate::video::quiet(cmd).args(args).stdin(Stdio::piped()).stdout(Stdio::piped())
         .stderr(Stdio::piped()).kill_on_drop(true).spawn()?;
     let mut stdin = child.stdin.take().unwrap();
     let data = input.to_vec();

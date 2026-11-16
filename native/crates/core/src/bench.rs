@@ -98,6 +98,8 @@ impl Bench {
             "active_operations": self.active_operations.load(std::sync::atomic::Ordering::Relaxed),
             "engine": "native",
             "version": env!("CARGO_PKG_VERSION"),
+            "safe_mode": crate::config::safe_mode(),
+            "last_run_unclean": crate::report::unclean_previous().is_some(),
         });
         crate::features::status(self, &mut s);
         s

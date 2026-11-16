@@ -3,7 +3,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -187,4 +187,22 @@ test('power: only the page sets the command; wake and the power button run it', 
   // sleep needs HDMI-CEC
   assert.notEqual(cli('power', 'sleep').code, 0);
   await fetch(`${URL}/api/power/settings`, { method: 'POST', headers: page, body: JSON.stringify({}) });
+});
+
+test('report: one zip with system, devices, settings without secrets, and logs', async () => {
+  const out = join(home, 'reports');
+  mkdirSync(out, { recursive: true });
+  const r = cli('report', '-o', out);
+  assert.equal(r.code, 0, r.err);
+  const file = r.out.trim();
+  assert.ok(existsSync(file), file);
+  const zip = readFileSync(file);
+  assert.equal(zip.subarray(0, 2).toString(), 'PK');
+  const text = zip.toString('latin1');
+  for (const name of ['README.txt', 'system.txt', 'devices.json', 'status.json', 'check.json']) assert.ok(text.includes(name), `has ${name}`);
+  assert.ok(!text.includes('secret-token'), 'no token values');
+  // The engine's own download is the same report
+  const api = await fetch(`${URL}/api/bundle`);
+  assert.equal(api.status, 200);
+  assert.ok(Buffer.from(await api.arrayBuffer()).toString('latin1').includes('system.txt'));
 });

@@ -217,6 +217,8 @@ Yes. **Settings → Notifications** turns on desktop notifications for when the 
 
 Click **Help** in the top bar, then **Save bug report** (a zip of logs, status and a screenshot; no tokens), and attach it to a [GitHub issue](https://github.com/phantomptr/ns2bench/issues/new/choose).
 
+If NS2Bench closes as soon as it opens, make the report without the window: run `ns2bench report` (or `ns2bench-app report`; on Windows `"%LOCALAPPDATA%\NS2Bench\ns2bench-app.exe" report`). It's saved to Downloads and includes crash reports (`crash-….txt` in `~/.ns2bench/logs`) and startup traces. To get the window up when a device makes it crash, start it with `--safe`: no capture, input or sound.
+
 ## What do the log colours mean?
 
 Blue lines are normal activity, amber lines are warnings that may fix themselves, and red lines need you. For problems NS2Bench recognises, a blue box under the line says what happened and what to do. **Problems** in the Logs panel shows only warnings and errors; **Everything** adds detail such as each API call.

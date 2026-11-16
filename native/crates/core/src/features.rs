@@ -12,7 +12,6 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -492,31 +491,24 @@ pub fn redact(v: &mut Value) {
 
 /// Everything needed to report a problem, in one zip (no secrets).
 async fn get_bundle(State(b): State<S>) -> R<Response> {
-    let mut cfg = b.cfg.raw.clone();
-    redact(&mut cfg);
-    let files: Vec<(&str, Vec<u8>)> = vec![
-        ("diagnostics.md", diagnostics_md(&b, 200).into_bytes()),
-        ("status.json", serde_json::to_vec_pretty(&b.status()).unwrap()),
-        ("logs.txt", b.logs.all().iter().map(|e| format!("{} [{}] {} {}", local(e.t, "%Y-%m-%dT%H:%M:%S"), e.source, e.level, e.text))
+    // The live engine's view, plus everything a report has without one (crate::report).
+    let mut files: Vec<(String, Vec<u8>)> = vec![
+        ("README.txt".into(), crate::report::readme(true)),
+        ("diagnostics.md".into(), diagnostics_md(&b, 200).into_bytes()),
+        ("status.json".into(), serde_json::to_vec_pretty(&b.status()).unwrap()),
+        ("logs/live.txt".into(), b.logs.all().iter().map(|e| format!("{} [{}] {} {}", local(e.t, "%Y-%m-%dT%H:%M:%S"), e.source, e.level, e.text))
             .collect::<Vec<_>>().join("\n").into_bytes()),
-        ("events.json", serde_json::to_vec_pretty(&b.hub.events.lock().unwrap().iter().cloned().collect::<Vec<_>>()).unwrap()),
-        ("config.json", serde_json::to_vec_pretty(&cfg).unwrap()),
-        ("calibration.json", serde_json::to_vec_pretty(&*b.calibration.lock().unwrap()).unwrap()),
+        ("events.json".into(), serde_json::to_vec_pretty(&b.hub.events.lock().unwrap().iter().cloned().collect::<Vec<_>>()).unwrap()),
     ];
-    let shot = b.frames.latest().map(|f| f.jpeg.to_vec());
-    let data = tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<u8>> {
-        let mut z = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-        let opt = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-        for (n, d) in files {
-            z.start_file(n, opt)?;
-            z.write_all(&d)?;
-        }
-        if let Some(j) = shot {
-            z.start_file("screenshot.jpg", opt.compression_method(zip::CompressionMethod::Stored))?;
-            z.write_all(&j)?;
-        }
-        Ok(z.finish()?.into_inner())
-    }).await.map_err(|e| bad(e.to_string()))??;
+    // The check, without pressing anything.
+    if let Ok(check) = tokio::time::timeout(Duration::from_secs(15), crate::doctor::run(&b, false)).await {
+        files.push(("check.json".into(), serde_json::to_vec_pretty(&check).unwrap()));
+    }
+    files.extend(crate::report::offline_files().await);
+    if let Some(f) = b.frames.latest() {
+        files.push(("screenshot.jpg".into(), f.jpeg.to_vec()));
+    }
+    let data = tokio::task::spawn_blocking(move || crate::report::zip(files)).await.map_err(|e| bad(e.to_string()))?.map_err(|e| bad(e.to_string()))?;
     let name = format!("ns2bench-report-{}.zip", chrono::Local::now().format("%Y%m%d-%H%M%S"));
     Ok(([(header::CONTENT_TYPE, "application/zip".to_string()), (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{name}\""))], data).into_response())
 }

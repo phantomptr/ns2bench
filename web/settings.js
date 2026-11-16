@@ -366,6 +366,9 @@ $('#help-doctor').onclick = run(async () => {
   finally { btn.disabled = false; btn.textContent = t('Run the check'); }
 });
 $('#help-bundle').onclick = () => { location.href = authURL('/api/bundle'); helpNote('Bug report saved to your Downloads folder.'); };
+// The desktop app can open the folder with the logs and crash reports.
+$('#help-logs').hidden = !invoke;
+$('#help-logs').onclick = run(async () => { await invoke('open_logs'); });
 $('#help-diag').onclick = run(async () => {
   const r = await apiFetch('/api/diagnostics');
   await navigator.clipboard.writeText(await r.text());

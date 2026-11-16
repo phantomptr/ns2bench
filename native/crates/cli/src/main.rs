@@ -46,6 +46,16 @@ enum Cmd {
         host: Option<String>,
         #[arg(long)]
         port: Option<u16>,
+        /// start without capture, input or sound (when a device makes NS2Bench crash)
+        #[arg(long)]
+        safe: bool,
+    },
+    /// Save a diagnostic report (zip) to send with a bug report. Uses the running engine if
+    /// there is one, else what's on disk (works when the app can't open)
+    Report {
+        /// folder or file to save to (default: Downloads)
+        #[arg(short, long)]
+        output: Option<String>,
     },
     /// MCP server on stdio for Claude Code, Codex, opencode (talks to the running engine)
     Mcp,
@@ -383,12 +393,40 @@ async fn run(cli: Cli) -> Res<ExitCode> {
     let raw = cli.json;
     let ok = |v: &Value| if raw { pretty(v) } else { println!("ok") };
     match cli.cmd {
-        Cmd::Serve { host, port } => {
+        Cmd::Serve { host, port, safe } => {
+            if safe {
+                // SAFETY: set before the engine starts its threads.
+                unsafe { std::env::set_var("NS2BENCH_SAFE", "1") };
+                cfg = ns2bench_core::Config::from_raw(cfg.path.clone(), cfg.raw.clone());
+            }
+            if let Some(prev) = ns2bench_core::report::start_trace("serve") {
+                eprintln!("note: the last `ns2bench serve` ended unexpectedly (its startup trace is in the report)");
+                let _ = prev;
+            }
             if let Some(h) = host { cfg.server["host"] = h.into(); }
             if let Some(p) = port { cfg.server["port"] = p.into(); }
             ns2bench_core::serve(cfg).await.map_err(|e| e.to_string())?;
         }
         Cmd::Mcp => ns2bench_core::mcp::run(cfg).await.map_err(|e| e.to_string())?,
+        Cmd::Report { output } => {
+            let target = output.map(std::path::PathBuf::from).unwrap_or_else(ns2bench_core::report::downloads_dir);
+            // The running engine's report has live status, the check and a screenshot too.
+            let path = match api(&c, "GET", "/api/bundle", None).await {
+                Ok(r) if r.body.starts_with(b"PK") => {
+                    let p = if target.is_dir() { target.join(ns2bench_core::report::file_name()) } else { target.clone() };
+                    std::fs::write(&p, &r.body).map_err(|e| format!("{}: {e}", p.display()))?;
+                    p
+                }
+                _ => {
+                    eprintln!("(no running engine: the report has what's on disk)");
+                    let dir = if target.extension().is_some() { target.parent().map(std::path::Path::to_path_buf).unwrap_or_default() } else { target.clone() };
+                    let p = ns2bench_core::report::save_offline(&dir).await.map_err(|e| e.to_string())?;
+                    if target.extension().is_some() { std::fs::rename(&p, &target).map_err(|e| e.to_string())?; target.clone() } else { p }
+                }
+            };
+            println!("{}", path.display());
+            eprintln!("Report saved. Attach it to a GitHub issue or send it on Discord.");
+        }
 
         Cmd::Status => {
             let v = get(&c, "/api/status").await?;
@@ -730,6 +768,7 @@ fn stamp() -> String {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    ns2bench_core::crashlog::install("cli", |p| eprintln!("ns2bench stopped unexpectedly. Details: {}", p.display()));
     match run(Cli::parse()).await {
         Ok(c) => c,
         Err(e) => {

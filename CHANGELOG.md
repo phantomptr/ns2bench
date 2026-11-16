@@ -6,7 +6,26 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+<<<<<<< Updated upstream
 ## 0.0.12
+=======
+- **Reports that help fix problems:**
+  - **Help → Save bug report** now holds everything needed in one zip:
+    - the system (OS version, WebView2 on Windows, ffmpeg and the other parts NS2Bench uses);
+    - the capture cards, sound devices and serial ports NS2Bench sees;
+    - the check;
+    - the last two days of logs, startup traces and crash reports;
+    - settings with secrets removed.
+  - **When the window won't open:** `ns2bench report` or `ns2bench-app report` saves the same report to Downloads.
+  - **Crash files:** if NS2Bench stops unexpectedly, it saves the reason in `~/.ns2bench/logs/crash-….txt`. On Windows it also says where the file is.
+  - **After an unexpected close:** the next start offers to save a report.
+  - **Safe mode:** `ns2bench-app --safe` starts without capture, input or sound, for when a device makes NS2Bench crash.
+  - **Help → Open logs folder** opens the logs folder.
+- **Windows:**
+  - when no capture card is chosen, NS2Bench uses the first one it finds instead of failing;
+  - cards that don't report their sizes still appear in the Video panel;
+  - ffmpeg no longer opens console windows.
+>>>>>>> Stashed changes
 
 - The Discord link in the app (Help and About), README and website now says **UndefinedLab Discord**, the PhantomPtr server shared with ps5upload, and uses a permanent invite.
 
