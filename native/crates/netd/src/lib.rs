@@ -184,6 +184,12 @@ impl Config {
         u32::from(ip) & u32::from(self.mask) == self.network
     }
 
+    /// A shared home network (the config lists consoles, or has no address pool): the home router
+    /// hands out addresses there, so DHCP must never run, whatever the controls file says.
+    pub fn is_shared(&self) -> bool {
+        !self.consoles.is_empty() || self.pool.is_empty()
+    }
+
     /// May this peer use DNS and the test page? Direct link: anyone on it. Shared network: only
     /// the listed consoles (none listed: no one).
     pub fn serves(&self, ip: Ipv4Addr, shared: bool) -> bool {

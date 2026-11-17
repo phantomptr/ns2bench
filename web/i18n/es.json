@@ -591,5 +591,7 @@
   "Type this on each console": "Escribe esto en cada consola",
   "not on the network of the adapter you picked": "no está en la red del adaptador elegido",
   "Pick this adapter instead:": "Elige este adaptador en su lugar:",
-  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "Ningún adaptador de este ordenador está en esa red. Conéctalo primero a la red de las consolas."
+  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "Ningún adaptador de este ordenador está en esa red. Conéctalo primero a la red de las consolas.",
+  "on your network, but the network helper isn’t running, so NS2Bench can’t protect or check it. Start the helper (Settings → Install).": "en tu red, pero el asistente de red no está en marcha, así que NS2Bench no puede protegerla ni comprobarla. Inicia el asistente (Ajustes → Instalar).",
+  "can’t tell whether it’s on the network (this computer couldn’t check)": "no se puede saber si está en la red (este ordenador no pudo comprobarlo)"
 }

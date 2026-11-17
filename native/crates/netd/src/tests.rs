@@ -259,3 +259,14 @@ fn console_addresses_are_checked() {
     // a pool is all-or-nothing
     assert!(shared_config(json!({"pool_start": "192.168.86.20"})).is_err());
 }
+
+#[test]
+fn a_shared_config_is_shared_whatever_the_controls_file_says() {
+    let with_consoles = shared_config(json!({"consoles": ["192.168.86.251"]})).unwrap();
+    assert!(with_consoles.is_shared());
+    // no pool at all: nothing to hand out, also shared
+    assert!(shared_config(json!({})).unwrap().is_shared());
+    // a direct link with a pool and no consoles is not
+    let direct = shared_config(json!({"pool_start": "192.168.86.20", "pool_end": "192.168.86.30"})).unwrap();
+    assert!(!direct.is_shared());
+}

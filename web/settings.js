@@ -185,6 +185,8 @@ function renderShared(n, loadForm) {
       warning: [`${c.console}: ${t('on your network but not using NS2Bench. It may be back on automatic settings and online: check its gateway and DNS.')}`, 'bad'],
       waiting: [`${c.console}: ${t('on your network, waiting for its first lookup')}`, ''],
       away: [`${c.console}: ${t('not on the network right now')} · ${seen}`, ''],
+      'helper-down': [`${c.console}: ${t('on your network, but the network helper isn’t running, so NS2Bench can’t protect or check it. Start the helper (Settings → Install).')}`, 'bad'],
+      unknown: [`${c.console}: ${t('can’t tell whether it’s on the network (this computer couldn’t check)')} · ${seen}`, ''],
     }[c.state] || [c.console, ''];
     li.textContent = text[0]; if (text[1]) li.className = text[1];
     return li;

@@ -547,7 +547,13 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     let mut status_at = Instant::now() - Duration::from_secs(2);
     let mut seen: BTreeMap<String, Instant> = BTreeMap::new();
     loop {
-        let (controls, shared) = read_controls(&state);
+        let (mut controls, file_shared) = read_controls(&state);
+        // Shared comes from the config too: a missing, stale or edited controls file must never
+        // turn DHCP on (or open DNS to everyone) on a home network.
+        let shared = file_shared || cfg.is_shared();
+        if shared {
+            controls[0] = false;
+        }
         if status_at.elapsed() >= Duration::from_secs(1) { publish_status(&state, &cfg, controls, shared, &console_seen); status_at = Instant::now(); }
         if !forwarding_off() {
             log.event(

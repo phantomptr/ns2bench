@@ -175,14 +175,16 @@ pub async fn get_network(State(b): State<S>) -> Json<Value> {
                 "blocking": blocking}),
         });
     }
-    let status: Value = std::fs::read(state_dir().join("network-status.json"))
+    // the helper's own folder (its config's state_dir), the one it reads and writes
+    let dir = crate::shared_net::helper_state_dir(&b);
+    let status: Value = std::fs::read(dir.join("network-status.json"))
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or(json!({}));
     let age = status["time"].as_f64().map(|t| crate::logs::now() - t);
-    let controls = read_network_controls();
+    let controls = read_network_controls(&dir);
     let settings = crate::shared_net::network_settings(&b);
-    let leases: Value = std::fs::read(state_dir().join("leases.json"))
+    let leases: Value = std::fs::read(dir.join("leases.json"))
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or(json!({}));
@@ -192,8 +194,8 @@ pub async fn get_network(State(b): State<S>) -> Json<Value> {
         "leases": leases, "blocking": blocking, "shared": crate::shared_net::report(&b)}),
     )
 }
-pub fn read_network_controls() -> Value {
-    std::fs::read(state_dir().join("network-controls.json"))
+pub fn read_network_controls(dir: &std::path::Path) -> Value {
+    std::fs::read(dir.join("network-controls.json"))
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or(json!({"dhcp":true,"dns":true,"connectivity":true,"topology":"direct"}))
@@ -203,10 +205,14 @@ pub async fn set_network(State(b): State<S>, h: axum::http::HeaderMap, Json(v): 
     let mut v = v;
     if let Some(o) = v.as_object_mut() { o.remove("source"); }
     ns2bench_netd::validate_controls(&v).map_err(bad)?;
+    // the settings say this is a shared home network: the router hands out addresses there
+    if crate::shared_net::is_shared(&b) && (v["dhcp"] == true || v["topology"] != "shared") {
+        return Err(bad("this computer's network helper is set up for a shared home network: use the shared setup, or change it in Settings → Network first (DHCP stays off on a home network)"));
+    }
     if let Some(c) = helper(&b) {
         helper_call(&c, "POST", "/controls", Some(&v)).await.map_err(|e| bad(e.to_string()))?;
     } else {
-        write_json(&state_dir().join("network-controls.json"), &v).map_err(anyhow::Error::from)?;
+        write_json(&crate::shared_net::helper_state_dir(&b).join("network-controls.json"), &v).map_err(anyhow::Error::from)?;
     }
     let onoff = |k: &str| if v[k].as_bool().unwrap_or(false) { "on" } else { "off" };
     b.logs.add("bench", format!("console network: {} · DHCP {} · DNS {} · connectivity page {}",

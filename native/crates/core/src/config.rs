@@ -146,7 +146,12 @@ pub fn write_json(path: &Path, v: &Value) -> std::io::Result<()> {
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let tmp = path.with_extension(format!("json.{}.{n}.tmp", std::process::id()));
     let result = (|| {
-        let mut f = std::fs::File::create(&tmp)?;
+        // settings can hold addresses and token paths: readable by this user only
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut opts, 0o600);
+        let mut f = opts.open(&tmp)?;
         f.write_all(&serde_json::to_vec_pretty(v)?)?;
         f.sync_all()?;
         std::fs::rename(&tmp, path)

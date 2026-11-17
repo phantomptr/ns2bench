@@ -591,5 +591,7 @@
   "Type this on each console": "在每台主机上输入以下内容",
   "not on the network of the adapter you picked": "不在所选网卡的网络中",
   "Pick this adapter instead:": "请改选这个网卡：",
-  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "这台电脑没有任何网卡在那个网络中。请先把它连到主机所在的网络。"
+  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "这台电脑没有任何网卡在那个网络中。请先把它连到主机所在的网络。",
+  "on your network, but the network helper isn’t running, so NS2Bench can’t protect or check it. Start the helper (Settings → Install).": "在你的网络中，但网络辅助程序没有运行，NS2Bench 无法保护或检查它。请启动辅助程序（设置 → 安装）。",
+  "can’t tell whether it’s on the network (this computer couldn’t check)": "无法判断它是否在网络中（这台电脑无法检查）"
 }
