@@ -23,6 +23,7 @@ Le persone usano la pagina di NS2Bench in un browser oppure l'app desktop. Gli a
 | Un Raspberry Pi Pico (RP2040) e un adattatore USB-UART a 3,3 V | [Pico](#raspberry-pi-pico) | Bridge seriale |
 | Un modulo CH9329 (solo tastiera e mouse) | [CH9329](#ch9329-module) | CH9329 |
 | Vuoi anche la console su una rete locale (strumenti homebrew) | [Rete offline](#optional-offline-console-network) | (scheda Rete) |
+| Più console, ognuna con la propria scheda di acquisizione | [Più console](#several-consoles) | (scheda Console) |
 
 Non sei sicuro? Inizia con la **sola visualizzazione**, poi aggiungi un dispositivo di input in seguito. Le impostazioni di input si cambiano senza riavviare l'app.
 
@@ -227,6 +228,40 @@ Un modulo CH9329 trasforma comandi seriali in una tastiera e un mouse USB. È ec
 - *I pulsanti del controller non fanno nulla:* è previsto. CH9329 è solo tastiera e mouse.
 - *Non succede nulla:* controlla il baud rate e inverti TX/RX se necessario.
 - *Tastiera ignorata dalla console:* controlla Impostazioni di sistema → Controller e accessori → Tastiera USB.
+
+## Più console
+
+![Due console, ognuna con la propria scheda di acquisizione e il proprio indirizzo di rete, che condividono un controller il cui cavo USB viene spostato dall'una all'altra](multi-console.svg)
+
+Un banco può gestire più console insieme. Ognuna ha la propria **scheda di acquisizione** (immagine e audio) e, se usi la rete offline, il proprio **indirizzo di rete**. Possono condividere un **controller** (una scheda Luckfox o Raspberry Pi, un Pico o un CH9329): il suo cavo USB è collegato a una sola console alla volta, e sei tu a dire a NS2Bench quale.
+
+**I nomi usati da NS2Bench**
+
+| Nome | Cos'è |
+|---|---|
+| Console | Una Switch, con un nome scelto da te e il suo modello |
+| Modello | Switch 2 o Switch 1: decide i percorsi dei menu, i nomi delle schermate e la modalità del controller |
+| Scheda di acquisizione | La scheda da HDMI a USB per immagine e audio di quella console |
+| Controller | Il dispositivo che preme i tasti (il NS2Bench Bridge su una scheda o un Pico, oppure un CH9329) |
+| Rete | Come la console raggiunge questo computer (rete di casa condivisa, cavo diretto o nessuna) |
+
+**Configurazione**
+
+1. Collega il dock di ogni console alla propria scheda di acquisizione, e entrambe le schede al computer.
+2. Apri **Impostazioni → Console**. La tua prima console c'è già: dalle un nome e un modello.
+3. In **Aggiungi una console**, scrivi un nome (per esempio *Switch 1*), scegli il modello, la scheda di acquisizione (quelle usate da un'altra console non si possono scegliere) e, se è sulla rete di casa condivisa, il suo indirizzo. Fai clic su **Aggiungi console**.
+4. Sopra l'immagine compare una **barra delle console**: una scheda per console con il suo colore, il modello e se l'immagine è in diretta. Fai clic su una scheda per guardare quella console. Screenshot, clip, lettura dello schermo e test lavorano poi su di essa.
+
+**Il controller**
+
+- 🎮 indica la console a cui è collegato il controller. Tasti, tastiera e input degli agenti vanno solo lì.
+- Stai guardando un'altra console? Il controller disegnato è grigio e una nota dice dov'è il controller. Dopo aver spostato il cavo, fai clic su **Ho spostato il controller su …** (oppure **Il controller è collegato qui** in Impostazioni → Console).
+- **Cavo spostato senza dirlo?** La scheda nota che il collegamento USB cade e poi torna. L'input allora si mette in pausa e NS2Bench chiede su quale console è adesso. Sulla console sbagliata non viene premuto niente.
+- Quando dici dov'è il controller, NS2Bench rilascia tutto ciò che è premuto, poi passa la scheda alla modalità controller che serve al modello di quella console (Switch 2: Controller Pro; Switch 1: controller standard).
+
+**Agenti e script** indicano la console con `?console=<id or name>` o un header `X-NS2Bench-Console`; gli strumenti MCP accettano un argomento `console`, e `list_consoles` le mostra tutte. Senza indicazione, una richiesta riguarda la console dove si trova il controller. L'input per una console senza controller viene rifiutato con un messaggio che dice dov'è. Vedi il [riferimento](../REFERENCE.md#agents-mcp-and-http-api).
+
+**Non ancora:** condividere una scheda di acquisizione tra più console (uno switch HDMI) e più controller insieme. Per ora ogni console ha bisogno della propria scheda di acquisizione.
 
 ## Opzionale: rete offline per la console
 

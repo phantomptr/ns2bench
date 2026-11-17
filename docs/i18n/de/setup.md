@@ -23,6 +23,7 @@ Menschen nutzen die NS2Bench-Seite im Browser oder die Desktop-App. Agenten nutz
 | Ein Raspberry Pi Pico (RP2040) und ein 3,3-V-USB-UART-Adapter | [Pico](#raspberry-pi-pico) | Serielle Bridge |
 | Ein CH9329-Modul (nur Tastatur und Maus) | [CH9329](#ch9329-module) | CH9329 |
 | Du willst die Konsole zusätzlich in einem lokalen Netzwerk (Homebrew-Tools) | [Offline-Netzwerk](#optional-offline-console-network) | (Tab „Netzwerk“) |
+| Mehrere Konsolen, jede mit eigener Capture-Karte | [Mehrere Konsolen](#several-consoles) | (Tab „Konsolen“) |
 
 Unsicher? Fang mit **Nur Anzeige** an und ergänze später ein Eingabegerät. Eingabeeinstellungen ändern sich ohne Neustart der App.
 
@@ -227,6 +228,40 @@ Ein CH9329-Modul macht aus seriellen Befehlen eine USB-Tastatur und -Maus. Es is
 - *Controllertasten tun nichts:* erwartet. CH9329 kann nur Tastatur und Maus.
 - *Nichts passiert:* Prüfe die Baudrate und vertausche bei Bedarf TX/RX.
 - *Konsole ignoriert die Tastatur:* Prüfe Systemeinstellungen → Controller und Zubehör → USB-Tastatur.
+
+## Mehrere Konsolen
+
+![Zwei Konsolen, jede mit eigener Capture-Karte und Netzwerkadresse, teilen sich einen Controller, dessen USB-Kabel zwischen ihnen umgesteckt wird](multi-console.svg)
+
+Ein Arbeitsplatz kann mehrere Konsolen gleichzeitig betreiben. Jede hat ihre eigene **Capture-Karte** (Bild und Ton) und, wenn du das Offline-Netzwerk nutzt, ihre eigene **Netzwerkadresse**. Sie können sich einen **Controller** teilen (ein Luckfox- oder Raspberry-Pi-Board, ein Pico oder ein CH9329): Sein USB-Kabel steckt immer nur an einer Konsole, und du sagst NS2Bench, an welcher.
+
+**Die Begriffe, die NS2Bench verwendet**
+
+| Begriff | Was es ist |
+|---|---|
+| Konsole | Eine Switch, mit einem Namen deiner Wahl und ihrem Modell |
+| Modell | Switch 2 oder Switch 1: bestimmt die Menüwege, Bildschirmnamen und den Controller-Modus |
+| Capture-Karte | Die HDMI-zu-USB-Karte für Bild und Ton dieser Konsole |
+| Controller | Das Gerät, das Tasten drückt (die NS2Bench Bridge auf einem Board oder Pico, oder ein CH9329) |
+| Netzwerk | Wie die Konsole diesen Computer erreicht (gemeinsames Heimnetz, direktes Kabel oder gar nicht) |
+
+**Einrichten**
+
+1. Verbinde das Dock jeder Konsole mit einer eigenen Capture-Karte und beide Karten mit dem Computer.
+2. Öffne **Einstellungen → Konsolen**. Deine erste Konsole ist schon da: Gib ihr einen Namen und ein Modell.
+3. Gib unter **Konsole hinzufügen** einen Namen ein (zum Beispiel *Switch 1*), wähle ihr Modell, ihre Capture-Karte (Karten, die eine andere Konsole nutzt, sind nicht wählbar) und, wenn sie im gemeinsamen Heimnetz ist, ihre Adresse. Klicke auf **Konsole hinzufügen**.
+4. Über dem Bild erscheint eine **Konsolenleiste**: ein Tab pro Konsole mit ihrer Farbe, ihrem Modell und ob ihr Bild live ist. Klicke auf einen Tab, um diese Konsole anzusehen. Screenshots, Clips, Bildschirmerkennung und Tests arbeiten dann mit ihr.
+
+**Der Controller**
+
+- 🎮 markiert die Konsole, an der der Controller steckt. Tasten, Tastatur und Agenten-Eingaben gehen nur dorthin.
+- Du siehst eine andere Konsole an? Der gezeichnete Controller ist ausgegraut, und ein Hinweis sagt, wo der Controller steckt. Nach dem Umstecken klicke auf **Ich habe den Controller umgesteckt an …** (oder **Der Controller steckt hier** unter Einstellungen → Konsolen).
+- **Kabel umgesteckt, ohne Bescheid zu sagen?** Das Board merkt, dass seine USB-Verbindung weg ist und wiederkommt. Dann pausiert die Eingabe, und NS2Bench fragt, an welcher Konsole es jetzt steckt. Auf der falschen Konsole wird nichts gedrückt.
+- Wenn du sagst, wo der Controller steckt, lässt NS2Bench alles Gehaltene los und schaltet das Board dann in den Controller-Modus, den das Modell dieser Konsole braucht (Switch 2: Pro Controller; Switch 1: Standard-Controller).
+
+**Agenten und Skripte** nennen die Konsole mit `?console=<id or name>` oder einem `X-NS2Bench-Console`-Header; MCP-Tools nehmen ein `console`-Argument, und `list_consoles` zeigt alle an. Ohne Angabe geht eine Anfrage an die Konsole, an der der Controller steckt. Eingaben für eine Konsole ohne Controller werden abgelehnt, mit einer Meldung, wo er steckt. Siehe die [Referenz](../REFERENCE.md#agents-mcp-and-http-api).
+
+**Noch nicht:** eine Capture-Karte zwischen Konsolen teilen (ein HDMI-Umschalter) und mehrere Controller gleichzeitig. Vorerst braucht jede Konsole ihre eigene Capture-Karte.
 
 ## Optional: Offline-Netzwerk für die Konsole
 

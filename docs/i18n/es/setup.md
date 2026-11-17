@@ -23,6 +23,7 @@ Las personas usan la página de NS2Bench en un navegador o la app de escritorio.
 | Una Raspberry Pi Pico (RP2040) y un adaptador USB a UART de 3,3 V | [Pico](#raspberry-pi-pico) | Bridge serie |
 | Un módulo CH9329 (solo teclado y ratón) | [CH9329](#ch9329-module) | CH9329 |
 | También quieres la consola en una red local (herramientas homebrew) | [Red sin conexión](#optional-offline-console-network) | (pestaña Red) |
+| Varias consolas, cada una con su propia capturadora | [Varias consolas](#several-consoles) | (pestaña Consolas) |
 
 ¿No estás seguro? Empieza con **solo visualización** y añade un dispositivo de entrada más tarde. Los ajustes de entrada cambian sin reiniciar la app.
 
@@ -227,6 +228,40 @@ Un módulo CH9329 convierte órdenes serie en un teclado y un ratón USB. Es bar
 - *Los botones del mando no hacen nada:* es lo esperado. CH9329 es solo teclado y ratón.
 - *No pasa nada:* revisa la velocidad en baudios e intercambia TX/RX si hace falta.
 - *La consola ignora el teclado:* revisa Configuración de la consola → Mandos y accesorios → Teclado USB.
+
+## Varias consolas
+
+![Dos consolas, cada una con su propia capturadora y dirección de red, que comparten un mando cuyo cable USB se cambia de una a otra](multi-console.svg)
+
+Un mismo banco puede manejar varias consolas a la vez. Cada una tiene su propia **capturadora** (imagen y sonido) y, si usas la red sin conexión, su propia **dirección de red**. Pueden compartir un **mando** (una placa Luckfox o Raspberry Pi, una Pico o un CH9329): su cable USB va conectado a una sola consola a la vez, y tú le dices a NS2Bench a cuál.
+
+**Los nombres que usa NS2Bench**
+
+| Nombre | Qué es |
+|---|---|
+| Consola | Una Switch, con el nombre que elijas y su modelo |
+| Modelo | Switch 2 o Switch 1: define las rutas de menú, los nombres de pantalla y el modo del mando |
+| Capturadora | La tarjeta HDMI a USB para la imagen y el sonido de esa consola |
+| Mando | El dispositivo que pulsa los botones (el NS2Bench Bridge en una placa o Pico, o un CH9329) |
+| Red | Cómo llega la consola a este ordenador (red de casa compartida, cable directo o ninguna) |
+
+**Configuración**
+
+1. Conecta el dock de cada consola a su propia capturadora, y las dos capturadoras al ordenador.
+2. Abre **Ajustes → Consolas**. Tu primera consola ya está ahí: ponle un nombre y un modelo.
+3. En **Añadir una consola**, escribe un nombre (por ejemplo *Switch 1*), elige su modelo, su capturadora (no se pueden elegir las que usa otra consola) y, si está en la red de casa compartida, su dirección. Haz clic en **Añadir consola**.
+4. Encima de la imagen aparece una **barra de consolas**: una pestaña por consola con su color, su modelo y si su imagen está en directo. Haz clic en una pestaña para ver esa consola. Las capturas, los clips, la lectura de pantalla y las pruebas funcionan entonces con ella.
+
+**El mando**
+
+- 🎮 marca la consola a la que está conectado el mando. Los botones, las teclas y la entrada de agentes solo van ahí.
+- ¿Estás viendo otra consola? El mando dibujado aparece en gris y una nota dice dónde está el mando. Después de cambiar el cable, haz clic en **He movido el mando a …** (o en **El mando está conectado aquí** en Ajustes → Consolas).
+- **¿Cable cambiado sin avisar?** La placa nota que su conexión USB se corta y vuelve. Entonces la entrada se pausa y NS2Bench pregunta en qué consola está ahora. No se pulsa nada en la consola equivocada.
+- Cuando dices dónde está el mando, NS2Bench suelta todo lo que esté pulsado y después cambia la placa al modo de mando que necesita el modelo de esa consola (Switch 2: Mando Pro; Switch 1: mando estándar).
+
+**Los agentes y scripts** indican la consola con `?console=<id or name>` o una cabecera `X-NS2Bench-Console`; las herramientas MCP aceptan un argumento `console`, y `list_consoles` las muestra todas. Sin indicarla, la petición va a la consola donde está el mando. La entrada para una consola sin el mando se rechaza con un mensaje que dice dónde está. Consulta la [referencia](../REFERENCE.md#agents-mcp-and-http-api).
+
+**Todavía no:** compartir una capturadora entre consolas (un conmutador HDMI) ni varios mandos a la vez. Por ahora cada consola necesita su propia capturadora.
 
 ## Opcional: red sin conexión para la consola
 

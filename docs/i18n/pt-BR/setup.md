@@ -23,6 +23,7 @@ Pessoas usam a página do NS2Bench no navegador ou o aplicativo para desktop. Ag
 | Um Raspberry Pi Pico (RP2040) e um adaptador USB-UART de 3,3 V | [Pico](#raspberry-pi-pico) | Bridge serial |
 | Um módulo CH9329 (só teclado e mouse) | [CH9329](#ch9329-module) | CH9329 |
 | Você também quer o console em uma rede local (ferramentas homebrew) | [Rede offline](#optional-offline-console-network) | (aba Rede) |
+| Vários consoles, cada um com a própria placa de captura | [Vários consoles](#several-consoles) | (aba Consoles) |
 
 Não tem certeza? Comece com **Só visualização** e adicione um dispositivo de entrada depois. As configurações de entrada mudam sem reiniciar o aplicativo.
 
@@ -227,6 +228,40 @@ Um módulo CH9329 transforma comandos seriais em um teclado e mouse USB. Ele é 
 - *Os botões do controle não fazem nada:* esperado. O CH9329 é só teclado e mouse.
 - *Nada acontece:* confira a taxa de baud e troque TX/RX se precisar.
 - *Teclado ignorado pelo console:* confira Configurações do console → Controles e acessórios → Teclado USB.
+
+## Vários consoles
+
+![Dois consoles, cada um com sua placa de captura e seu endereço de rede, dividindo um controle cujo cabo USB é trocado entre eles](multi-console.svg)
+
+Uma bancada pode rodar vários consoles ao mesmo tempo. Cada um tem sua própria **placa de captura** (imagem e som) e, se você usa a rede offline, seu próprio **endereço de rede**. Eles podem dividir um **controle** (uma placa Luckfox ou Raspberry Pi, um Pico ou um CH9329): o cabo USB dele fica ligado em um console por vez, e você diz ao NS2Bench em qual.
+
+**Os nomes que o NS2Bench usa**
+
+| Nome | O que é |
+|---|---|
+| Console | Um Switch, com um nome que você escolhe e o modelo dele |
+| Modelo | Switch 2 ou Switch 1: define os caminhos de menu, os nomes de tela e o modo do controle |
+| Placa de captura | A placa HDMI para USB que traz a imagem e o som daquele console |
+| Controle | O aparelho que aperta os botões (o NS2Bench Bridge em uma placa ou Pico, ou um CH9329) |
+| Rede | Como o console chega a este computador (rede doméstica compartilhada, cabo direto ou nenhuma) |
+
+**Montagem**
+
+1. Ligue o dock de cada console na própria placa de captura, e as duas placas no computador.
+2. Abra **Configurações → Consoles**. Seu primeiro console já está lá: dê a ele um nome e um modelo.
+3. Em **Adicionar um console**, digite um nome (por exemplo *Switch 1*), escolha o modelo, a placa de captura (placas usadas por outro console não podem ser escolhidas) e, se ele estiver na rede doméstica compartilhada, o endereço. Clique em **Adicionar console**.
+4. Uma **barra de consoles** aparece acima da imagem: uma aba por console com a cor, o modelo e se a imagem está ao vivo. Clique em uma aba para ver aquele console. Capturas de tela, clipes, leitura de tela e testes passam a funcionar nele.
+
+**O controle**
+
+- 🎮 marca o console em que o controle está ligado. Botões, teclas e entradas de agentes vão só para ele.
+- Está vendo outro console? O controle desenhado fica cinza, e um aviso diz onde está o controle. Depois de trocar o cabo, clique em **Mudei o controle para …** (ou em **O controle está ligado aqui** em Configurações → Consoles).
+- **Trocou o cabo sem avisar?** A placa percebe que a ligação USB caiu e voltou. A entrada então pausa, e o NS2Bench pergunta em qual console ele está agora. Nada é apertado no console errado.
+- Quando você diz onde está o controle, o NS2Bench solta tudo o que estiver pressionado e depois muda a placa para o modo de controle que o modelo daquele console precisa (Switch 2: Pro Controller; Switch 1: controle padrão).
+
+**Agentes e scripts** indicam o console com `?console=<id or name>` ou um cabeçalho `X-NS2Bench-Console`; as ferramentas MCP aceitam um argumento `console`, e `list_consoles` mostra todos. Sem isso, o pedido vale para o console em que o controle está. Entradas para um console sem o controle são recusadas com uma mensagem dizendo onde ele está. Veja a [referência](../REFERENCE.md#agents-mcp-and-http-api).
+
+**Ainda não:** dividir uma placa de captura entre consoles (um switch HDMI) e vários controles ao mesmo tempo. Por enquanto, cada console precisa da própria placa de captura.
 
 ## Opcional: rede offline do console
 

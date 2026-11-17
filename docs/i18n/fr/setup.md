@@ -23,6 +23,7 @@ Les personnes utilisent la page NS2Bench dans un navigateur ou l’application d
 | Un Raspberry Pi Pico (RP2040) et un adaptateur USB-UART 3,3 V | [Pico](#raspberry-pi-pico) | Bridge série |
 | Un module CH9329 (clavier et souris uniquement) | [CH9329](#ch9329-module) | CH9329 |
 | Vous voulez aussi mettre la console sur un réseau local (outils homebrew) | [Réseau hors ligne](#optional-offline-console-network) | (onglet Réseau) |
+| Plusieurs consoles, chacune avec sa propre carte de capture | [Plusieurs consoles](#several-consoles) | (onglet Consoles) |
 
 Vous hésitez ? Commencez par la **visualisation seule**, puis ajoutez un appareil d’entrée plus tard. Les réglages d’entrée se changent sans redémarrer l’application.
 
@@ -227,6 +228,40 @@ Un module CH9329 transforme des commandes série en clavier et souris USB. Il es
 - *Les boutons de la manette ne font rien :* c’est normal. Le CH9329 ne gère que le clavier et la souris.
 - *Rien ne se passe :* vérifiez le débit et inversez TX/RX si besoin.
 - *Clavier ignoré par la console :* vérifiez Paramètres de la console → Manettes et accessoires → Clavier USB.
+
+## Plusieurs consoles
+
+![Deux consoles, chacune avec sa carte de capture et son adresse réseau, qui partagent une manette dont le câble USB passe de l’une à l’autre](multi-console.svg)
+
+Un même banc peut faire tourner plusieurs consoles à la fois. Chacune a sa propre **carte de capture** (image et son) et, si vous utilisez le réseau hors ligne, sa propre **adresse réseau**. Elles peuvent partager une **manette** (une carte Luckfox ou Raspberry Pi, un Pico ou un CH9329) : son câble USB est branché sur une seule console à la fois, et vous indiquez laquelle à NS2Bench.
+
+**Les noms utilisés par NS2Bench**
+
+| Nom | Ce que c’est |
+|---|---|
+| Console | Une Switch, avec le nom de votre choix et son modèle |
+| Modèle | Switch 2 ou Switch 1 : fixe les chemins de menu, les noms d’écrans et le mode de la manette |
+| Carte de capture | La carte HDMI vers USB pour l’image et le son de cette console |
+| Manette | L’appareil qui appuie sur les boutons (le NS2Bench Bridge sur une carte ou un Pico, ou un CH9329) |
+| Réseau | Comment la console joint cet ordinateur (réseau domestique partagé, câble direct ou aucun) |
+
+**Installation**
+
+1. Reliez le dock de chaque console à sa propre carte de capture, et les deux cartes à l’ordinateur.
+2. Ouvrez **Réglages → Consoles**. Votre première console y est déjà : donnez-lui un nom et un modèle.
+3. Sous **Ajouter une console**, saisissez un nom (par exemple *Switch 1*), choisissez son modèle, sa carte de capture (celles utilisées par une autre console ne peuvent pas être choisies) et, si elle est sur le réseau domestique partagé, son adresse. Cliquez sur **Ajouter la console**.
+4. Une **barre des consoles** apparaît au-dessus de l’image : un onglet par console avec sa couleur, son modèle et si son image est en direct. Cliquez sur un onglet pour regarder cette console. Les captures d’écran, les clips, la lecture de l’écran et les tests s’appliquent alors à elle.
+
+**La manette**
+
+- 🎮 marque la console sur laquelle la manette est branchée. Les boutons, les touches et les entrées des agents ne vont que là.
+- Vous regardez une autre console ? La manette dessinée est grisée, et une note indique où est la manette. Après avoir déplacé le câble, cliquez sur **J’ai branché la manette sur …** (ou **La manette est branchée ici** dans Réglages → Consoles).
+- **Câble déplacé sans le dire ?** La carte remarque que sa liaison USB tombe puis revient. Les entrées se mettent alors en pause, et NS2Bench demande sur quelle console elle est maintenant. Rien n’est appuyé sur la mauvaise console.
+- Quand vous indiquez où est la manette, NS2Bench relâche tout ce qui est maintenu, puis passe la carte dans le mode de manette dont le modèle de cette console a besoin (Switch 2 : manette Pro ; Switch 1 : manette standard).
+
+**Les agents et scripts** désignent la console avec `?console=<id or name>` ou un en-tête `X-NS2Bench-Console` ; les outils MCP prennent un argument `console`, et `list_consoles` les affiche toutes. Sans précision, une requête concerne la console où est la manette. Une entrée pour une console sans la manette est refusée avec un message indiquant où elle est. Voir la [référence](../REFERENCE.md#agents-mcp-and-http-api).
+
+**Pas encore :** partager une carte de capture entre consoles (un commutateur HDMI), ni plusieurs manettes à la fois. Pour l’instant, chaque console a besoin de sa propre carte de capture.
 
 ## Facultatif : réseau hors ligne pour la console
 
