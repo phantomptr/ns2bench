@@ -27,8 +27,11 @@ fn config_path(b: &S) -> std::path::PathBuf {
     b.cfg.path.clone().filter(|p| p.is_file()).unwrap_or_else(|| crate::config::state_dir().join("config.json"))
 }
 
+/// The settings file this engine was started with, as it is on disk now. None when the engine
+/// has no file (then its in-memory settings are the only ones: never some other file's).
 fn config_doc(b: &S) -> Option<Value> {
-    std::fs::read(config_path(b)).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok())
+    let path = b.cfg.path.as_ref().filter(|p| p.is_file())?;
+    std::fs::read(path).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok())
 }
 
 /// The folder the helper keeps its controls, status and leases in (its config's `state_dir`).
@@ -42,13 +45,14 @@ pub fn helper_state_dir(b: &S) -> std::path::PathBuf {
 
 /// Is the helper set up for a shared home network (consoles listed)?
 pub fn is_shared(b: &S) -> bool {
-    network_settings(b)["consoles"].as_array().is_some_and(|c| !c.is_empty())
+    // a helper on another computer runs its own settings
+    b.cfg.raw["network"]["helper"].is_null()
+        && network_settings(b)["consoles"].as_array().is_some_and(|c| !c.is_empty())
 }
 
 /// The helper's network settings as they are on disk now (they change without a restart).
 pub fn network_settings(b: &S) -> Value {
-    std::fs::read(config_path(b)).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok())
-        .map(|v| v["network"].clone()).filter(|v| !v.is_null()).unwrap_or_else(|| b.cfg.raw["network"].clone())
+    config_doc(b).map(|v| v["network"].clone()).filter(|v| !v.is_null()).unwrap_or_else(|| b.cfg.raw["network"].clone())
 }
 
 /// macOS: "en10" -> "Belkin USB-C LAN" (networksetup's hardware port names).
