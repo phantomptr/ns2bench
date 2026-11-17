@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.17
+
 - **Several consoles on one bench.** Give each console a name, a model (Switch 2 or Switch 1), its own capture card and network address. All their pictures run at once.
   - A **console bar** above the picture switches between them. Screenshots, clips, screen reading and tests work on the console you're watching.
   - They can share one controller: 🎮 shows which console it's plugged into, and buttons only ever go there. Move its cable and click **I moved the controller to …**. If NS2Bench sees the cable move without being told, it pauses input and asks.
