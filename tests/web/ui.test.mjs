@@ -286,8 +286,13 @@ test('shared home network: pick an adapter, add consoles, get the console settin
   const [a, b, c, d] = iface.address.split('.').map(Number);
   const consoleIp = `${a}.${b}.${c}.${d === 250 ? 251 : 250}`;
   const { p, errors, ctx } = await page();
-  // an earlier test may leave "What's new" set to open on the next load
-  await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+  // An earlier test leaves "What's new" due on the next load; it opens a moment after the page
+  // (later on a slow machine). Close it whenever it opens.
+  await p.evaluate(() => {
+    const d = document.querySelector('#whatsnew');
+    new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+    if (d.open) d.close();
+  });
   await p.click('#btn-settings');
   await p.click('[data-tab="network"]');
   await p.selectOption('#network-topology', 'shared');
