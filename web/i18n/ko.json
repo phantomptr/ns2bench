@@ -622,5 +622,6 @@
   "used by": "사용 중:",
   "Watching": "보는 중:",
   "Which console is the controller plugged into? Input is paused until you say.": "컨트롤러가 어느 본체에 연결되어 있나요? 알려 주실 때까지 입력이 일시 중지됩니다.",
-  "Which console is the controller plugged into? Pick it above the picture.": "컨트롤러가 어느 본체에 연결되어 있나요? 화면 위에서 고르세요."
+  "Which console is the controller plugged into? Pick it above the picture.": "컨트롤러가 어느 본체에 연결되어 있나요? 화면 위에서 고르세요.",
+  "Pick its capture card": "캡처 카드를 선택하세요"
 }

@@ -23,6 +23,7 @@ People use the NS2Bench page in a browser or the desktop app. Agents use the HTT
 | A Raspberry Pi Pico (RP2040) and a 3.3 V USB-to-UART adapter | [Pico](#raspberry-pi-pico) | Serial Bridge |
 | A CH9329 module (keyboard and mouse only) | [CH9329](#ch9329-module) | CH9329 |
 | You also want the console on a local network (homebrew tools) | [Offline network](#optional-offline-console-network) | (Network tab) |
+| Several consoles, each with its own capture card | [Several consoles](#several-consoles) | (Consoles tab) |
 
 Not sure? Start with **view only**, then add an input device later. Input settings change without restarting the app.
 
@@ -227,6 +228,40 @@ A CH9329 module turns serial commands into a USB keyboard and mouse. It is cheap
 - *Controller buttons do nothing:* expected. CH9329 is keyboard and mouse only.
 - *Nothing happens:* check the baud rate and swap TX/RX if needed.
 - *Keyboard ignored by the console:* check System Settings → Controllers & Accessories → USB Keyboard.
+
+## Several consoles
+
+![Two consoles, each with its own capture card and network address, sharing one controller whose USB cable is moved between them](multi-console.svg)
+
+One bench can run several consoles at once. Each has its own **capture card** (picture and sound) and, if you use the offline network, its own **network address**. They can share one **controller** (a Luckfox or Raspberry Pi board, a Pico, or a CH9329): its USB cable is plugged into one console at a time, and you tell NS2Bench which.
+
+**The names NS2Bench uses**
+
+| Name | What it is |
+|---|---|
+| Console | One Switch, with a name you choose and its model |
+| Model | Switch 2 or Switch 1: sets the menu routes, screen names and controller mode |
+| Capture card | The HDMI-to-USB card for that console's picture and sound |
+| Controller | The device that presses buttons (the NS2Bench Bridge on a board or Pico, or a CH9329) |
+| Network | How the console reaches this computer (shared home network, direct cable, or none) |
+
+**Set up**
+
+1. Connect each console's dock to its own capture card, and both cards to the computer.
+2. Open **Settings → Consoles**. Your first console is already there: give it a name and model.
+3. Under **Add a console**, enter a name (for example *Switch 1*), pick its model, its capture card (cards another console uses can't be picked) and, if it's on the shared home network, its address. Click **Add console**.
+4. A **console bar** appears above the picture: one tab per console with its colour, model and whether its picture is live. Click a tab to watch that console. Screenshots, clips, screen reading and tests then work on it.
+
+**The controller**
+
+- 🎮 marks the console the controller is plugged into. Buttons, keys and agent input go only there.
+- Watching another console? The drawn controller is greyed out, and a note says where the controller is. After moving the cable, click **I moved the controller to …** (or **The controller is plugged in here** in Settings → Consoles).
+- **Cable moved without saying?** The board notices its USB link drop and come back. Input then pauses, and NS2Bench asks which console it's on now. Nothing is pressed on the wrong console.
+- When you say where the controller is, NS2Bench lets go of everything held, then switches the board to the controller mode that console's model needs (Switch 2: Pro Controller; Switch 1: standard).
+
+**Agents and scripts** name the console with `?console=<id or name>` or an `X-NS2Bench-Console` header; MCP tools take a `console` argument, and `list_consoles` shows them all. Without one, a request is about the console the controller is on. Input for a console the controller isn't on is refused with a message saying where it is. See the [reference](../REFERENCE.md#agents-mcp-and-http-api).
+
+**Not yet:** sharing one capture card between consoles (an HDMI switch), and several controllers at once. Each console needs its own capture card for now.
 
 ## Optional: offline console network
 

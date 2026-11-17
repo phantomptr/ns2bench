@@ -1,6 +1,6 @@
 # Design: several consoles on one bench
 
-Status: in progress (0.0.17). Builds on [shared-network.md](shared-network.md).
+Status: implemented in 0.0.17 (sharing one capture card between consoles, and several controllers at once, come later). Builds on [shared-network.md](shared-network.md).
 
 ## The bench this is for
 

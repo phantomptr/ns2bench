@@ -174,7 +174,9 @@ impl Bench {
         let base = id.clone();
         let mut n = 2;
         while self.console(&id).is_some() { id = format!("{base}-{n}"); n += 1; }
+        // its own card, picked by the person: "automatic" would find the first console's card
         let device = v["video"]["device"].as_str().unwrap_or("");
+        if device.is_empty() { bail!("pick this console's capture card (each console needs its own)"); }
         self.check_device_free(device, None)?;
         let entry = json!({"id": id, "name": name, "model": model, "color": v["color"].as_str().unwrap_or("#0ab9e6"),
             "network_ip": v["network_ip"], "video": v["video"]});
@@ -330,7 +332,7 @@ mod tests {
     #[tokio::test]
     async fn input_only_reaches_the_console_with_the_controller() {
         let b = bench();
-        b.add_console(&json!({"name": "Switch 1", "model": "switch1"})).unwrap();
+        b.add_console(&json!({"name": "Switch 1", "model": "switch1", "video": {"device": "card-2"}})).unwrap();
         assert!(crate::console::SELECTED.scope(Some("switch-2".into()), async { b.check_input_target().is_ok() }).await);
         let elsewhere = crate::console::SELECTED.scope(Some("switch-1".into()), async { b.check_input_target() }).await;
         assert!(elsewhere.unwrap_err().to_string().contains("plugged into Switch 2"));
@@ -347,7 +349,8 @@ mod tests {
     async fn consoles_are_named_and_cards_are_not_shared() {
         let b = bench();
         b.add_console(&json!({"name": "Switch 1", "model": "switch1", "video": {"device": "card-2"}})).unwrap();
-        assert!(b.add_console(&json!({"name": "switch 1"})).is_err(), "names are unique, any case");
+        assert!(b.add_console(&json!({"name": "switch 1", "video": {"device": "card-3"}})).is_err(), "names are unique, any case");
+        assert!(b.add_console(&json!({"name": "No card"})).is_err(), "a new console picks its own card");
         assert!(b.add_console(&json!({"name": "Spare", "video": {"device": "card-2"}})).err().unwrap().to_string().contains("already used by Switch 1"));
         b.update_console("switch-1", &json!({"name": "Switch 1 OLED", "color": "#123abc", "network_ip": "192.168.86.252"})).unwrap();
         assert_eq!(b.console("switch 1 oled").unwrap().network_ip.lock().unwrap().as_deref(), Some("192.168.86.252"));

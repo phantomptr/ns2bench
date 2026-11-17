@@ -622,5 +622,6 @@
   "used by": "используется:",
   "Watching": "Просмотр:",
   "Which console is the controller plugged into? Input is paused until you say.": "К какой консоли подключён контроллер? Ввод приостановлен, пока вы не укажете.",
-  "Which console is the controller plugged into? Pick it above the picture.": "К какой консоли подключён контроллер? Выберите её над изображением."
+  "Which console is the controller plugged into? Pick it above the picture.": "К какой консоли подключён контроллер? Выберите её над изображением.",
+  "Pick its capture card": "Выберите её карту захвата"
 }

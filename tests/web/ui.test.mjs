@@ -384,10 +384,18 @@ test('several consoles: add one, switch the view, input only goes where the cont
   await p.click('#btn-settings');
   await p.click('[data-tab="consoles"]');
   await p.waitForSelector('#consoles-list .console-card');
+  // the form wants this console's own capture card (a test machine may have none to pick)
   await p.fill('#console-add-name', 'Switch 1');
-  await p.selectOption('#console-add-model', 'switch1');
-  await p.fill('#console-add-ip', '192.168.86.252');
   await p.click('#console-add');
+  await p.waitForFunction(() => /capture card/i.test(document.body.textContent));
+  // added as the page would, with a card name (its picture is the test source)
+  const added = await p.evaluate(async () => {
+    const r = await (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', name: 'Switch 1', model: 'switch1', network_ip: '192.168.86.252', video: { device: 'test-card-2' } }) });
+    return r.status;
+  });
+  assert.equal(added, 200);
+  await p.click('[data-tab="network"]'); await p.click('[data-tab="consoles"]');
   await p.waitForFunction(() => document.querySelectorAll('#consoles-list .console-card').length === 2);
   await p.click('#settings-close');
   // two tabs, the controller on the first

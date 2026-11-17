@@ -622,5 +622,6 @@
   "used by": "使用者：",
   "Watching": "正在查看：",
   "Which console is the controller plugged into? Input is paused until you say.": "手柄插在哪台主机上？在你说明之前输入会暂停。",
-  "Which console is the controller plugged into? Pick it above the picture.": "手柄插在哪台主机上？请在画面上方选择。"
+  "Which console is the controller plugged into? Pick it above the picture.": "手柄插在哪台主机上？请在画面上方选择。",
+  "Pick its capture card": "选择它的采集卡"
 }

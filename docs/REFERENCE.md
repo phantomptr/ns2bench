@@ -123,16 +123,19 @@ The MCP server is part of the running engine, so keep NS2Bench open while the ag
 
 Clients that start the server themselves can use the stdio form instead (the same `ns2bench` binary, also inside the desktop app): `ns2bench mcp`, for example `claude mcp add ns2bench -- /path/to/ns2bench mcp`.
 
-Tools (35):
+Tools (36):
 - **See:** `screenshot` (with `region` to crop/zoom), `read_screen` (OCR with positions), `find_text` (every match with its box), `wait_for_text`, `wait_for_screen` (until the screen changes, or until it settles), `where_am_i`, `wait`
 - **Drive:** `press`, `hold`, `release`, `stick`, `key`, `type_text`, `mouse_move` (with `buttons` to drag), `mouse_click`, `scroll`, `sequence`, `navigate`, `list_routes`, `usb_mode`, `probe` (press and measure the reaction)
 - **Check and debug:** `health` (ready to drive? what to fix), `status`, `doctor`, `logs` (with `level` and `after`), `events` (who pressed what), `diagnostics`, `video_info`
 - **Record and test:** `save_clip`, `list_clips`, `run_test`, `list_reports`
 - **Control:** `block_agents` (only the person at the bench can undo it), `screen_log`, `power` (wake, sleep, power button)
+- **Consoles:** `list_consoles` (names, models, pictures, where the controller is). Every other tool takes an optional `console` (id or name)
 
 Most action tools take `look_after_ms` to return a screenshot taken after the action. A good loop: act, then `wait_for_screen` (`until: "change"`), then `screenshot` or `find_text`.
 
 The command line has the same abilities (`ns2bench --help`; `--json` for machine-readable output). Install it from the app: **Settings → Install → Command line tool**.
+
+**Several consoles** (see *Several consoles* in the setup guide): name the console with `?console=<id or name>` or an `X-NS2Bench-Console` header on any request, the live view (`/stream.mjpg`, `/video`, `/audio`) included. Without it, a request is about the console the controller is plugged into. Input (press, hold, stick, key, type, mouse, click, sequence, probe, calibrate, navigate, test) for a console the controller isn't plugged into is refused with `409` and says where it is; so is any input while that isn't known (after its cable was seen moving). Only the person at the page says where the controller is.
 
 HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 
@@ -152,7 +155,8 @@ HTTP (JSON, `127.0.0.1:7630`; binding elsewhere requires `server.token`):
 | `POST /api/calibrate` | sweep press lengths, save the minimum |
 | `GET /api/logs?source=kernel&level=warn&after=SEQ&limit=200&contains=usb` | bench, api, board, kernel, network, screen, your files; levels and hints (see *Logs*) |
 | `GET /api/events?source=mcp&limit=30` | who pressed what (ui, api, mcp) |
-| `GET/POST /api/video` | devices/formats; change capture settings |
+| `GET/POST /api/video` | devices/formats; change capture settings (for the named console; `in_use` lists cards other consoles have) |
+| `GET /api/consoles` · `POST /api/consoles {"action": "add"\|"update"\|"remove"\|"controller", ...}` | the consoles (id, name, model, colour, network address, capture settings, picture state) and `controller_on`; changes from the page only |
 | `GET /api/ocr?region=x,y,w,h&fast=1` · `GET /api/find_text?text=Settings` · `POST /api/wait_text` | read screen text; where a text is; wait for text to appear or go |
 | `GET /api/where` · `GET /api/routes` · `POST /api/navigate` | which screen; known routes; go somewhere and verify |
 | `POST /api/test` | run a test (see *Testing the console*) |

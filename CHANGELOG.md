@@ -6,6 +6,23 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Several consoles on one bench.** Give each console a name, a model (Switch 2 or Switch 1), its own capture card and network address. All their pictures run at once.
+  - A **console bar** above the picture switches between them. Screenshots, clips, screen reading and tests work on the console you're watching.
+  - They can share one controller: 🎮 shows which console it's plugged into, and buttons only ever go there. Move its cable and click **I moved the controller to …**. If NS2Bench sees the cable move without being told, it pauses input and asks.
+  - The board switches to the right controller mode for each model (Switch 2: Pro Controller; Switch 1: standard).
+  - Set it up in **Settings → Consoles**. Agents name a console with `console` (MCP) or `?console=` (API), and `list_consoles` lists them. A single console works exactly as before.
+- **Safer offline network.** NS2Bench can no longer hand out addresses on your home network, even if a settings file goes missing. The leak watch keeps checking while the network helper is stopped, and says so.
+- **Signed downloads for the board, Pico and network helper**, like app updates.
+- **Fixes:**
+  - A mouse button no longer stays held after the controller disconnects mid-click.
+  - With the app and a browser tab both open, one no longer lets go of buttons the other holds.
+  - Windows: serial input no longer stutters, and flow-control settings left by other programs are cleared.
+  - A hardware video encoder that doesn't work on this computer no longer stops the picture.
+  - The × on messages works again while Settings is open.
+  - The shared network setup picks the right network adapter by itself.
+  - Pro Controller mode no longer reports success when the board couldn't set it up.
+- The controller drawing's L/ZL and R/ZR buttons are wider and sit closer to the middle.
+
 ## 0.0.16
 
 - **Keep consoles offline on your home Wi-Fi, with no extra hardware.** New in Settings → Network: **Shared home network**.

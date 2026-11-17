@@ -750,6 +750,9 @@ async function consolesPane() {
   $('#console-add-model').replaceChildren(...modelSelect('switch1').children);
   $('#console-add-model').value = 'switch1';
   $('#console-add-card').replaceChildren(...cardSelect(cards, used, '').children);
+  // a new console picks its own card ("automatic" would find another console's)
+  $('#console-add-card').options[0].text = t('Pick its capture card');
+  $('#console-add-card').options[0].disabled = true;
   $('#consoles-list').replaceChildren(...r.consoles.map((c) => {
     const box = Object.assign(document.createElement('div'), { className: 'group console-card' });
     box.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
@@ -791,6 +794,7 @@ async function consolesPane() {
 $('#console-add').onclick = run(async () => {
   const name = $('#console-add-name').value.trim();
   if (!name) throw new Error(t('Give the console a name.'));
+  if (!$('#console-add-card').value) throw new Error(t('Pick its capture card'));
   const body = { action: 'add', name, model: $('#console-add-model').value, color: $('#console-add-color').value,
     network_ip: $('#console-add-ip').value.trim() || null, video: $('#console-add-card').value ? { device: $('#console-add-card').value } : {} };
   await consoleApi(body);

@@ -622,5 +622,6 @@
   "used by": "verwendet von",
   "Watching": "Ansicht:",
   "Which console is the controller plugged into? Input is paused until you say.": "An welcher Konsole steckt der Controller? Die Eingabe ist pausiert, bis du es sagst.",
-  "Which console is the controller plugged into? Pick it above the picture.": "An welcher Konsole steckt der Controller? Wähle sie über dem Bild."
+  "Which console is the controller plugged into? Pick it above the picture.": "An welcher Konsole steckt der Controller? Wähle sie über dem Bild.",
+  "Pick its capture card": "Wähle ihre Capture-Karte"
 }
