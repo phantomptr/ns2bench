@@ -278,6 +278,8 @@ jobs:
           } >> RELEASE_NOTES.md
           RELEASE_NOTES_TEXT="$(node scripts/changelog.mjs notes "$V")" node scripts/release-manifest.mjs release "$TAG"
           (cd release && sha256sum -- * > SHA256SUMS)
+          # signed: the app installs board, Pico and helper files only from a list signed with the release key
+          node scripts/release-manifest.mjs sign release/SHA256SUMS
           ls -la release
       - name: Is this the newest stable release?
         # Publishing an older tag again must not move "latest" (and the updater) backwards.

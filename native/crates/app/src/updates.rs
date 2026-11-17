@@ -22,7 +22,7 @@ const RELEASE_REQUIREMENT: &str = "-R=identifier \"io.github.phantomptr.ns2bench
 /// Ed25519 key that signs every release (private half: CI secret NS2BENCH_UPDATE_KEY, backup in
 /// ~/.ns2bench/signing/update-ed25519.pem). A manifest is only trusted with its signature: the
 /// checksum next to an installer can't prove who put it there.
-const UPDATE_KEY: &str = "5lU1976+dXXch6e5zkyqqM+R8fTCQpfcWAsP+Pxst8g=";
+pub(crate) const UPDATE_KEY: &str = "5lU1976+dXXch6e5zkyqqM+R8fTCQpfcWAsP+Pxst8g=";
 #[derive(Deserialize)]
 struct Manifest {
     version: String,
@@ -37,7 +37,7 @@ struct Manifest {
 fn signed_text(version: &str, platform: &str, url: &str, hash: &str) -> String {
     format!("ns2bench update\n{version}\n{platform}\n{url}\n{hash}\n")
 }
-fn signature_ok(public_b64: &str, text: &str, sig_b64: &str) -> bool {
+pub(crate) fn signature_ok(public_b64: &str, text: &str, sig_b64: &str) -> bool {
     use base64::Engine;
     let b64 = base64::engine::general_purpose::STANDARD;
     let (Ok(pk), Ok(sig)) = (b64.decode(public_b64), b64.decode(sig_b64)) else { return false };

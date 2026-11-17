@@ -38,6 +38,12 @@ async fn fetch(name: &str) -> Result<PathBuf> {
         bail!("NS2Bench {VERSION} has no published release to download from. Use a released version of the app.");
     }
     let sums = sums.error_for_status()?.text().await?;
+    // The list itself must carry the release key's signature: a checksum next to a file only
+    // proves it wasn't damaged, not who put it there. These files end up running as root.
+    let sig = client.get(format!("{RELEASE}SHA256SUMS.sig")).send().await?.error_for_status()
+        .map_err(|_| anyhow::anyhow!("The {VERSION} release's file list isn't signed; nothing was installed"))?.text().await?;
+    ensure!(crate::updates::signature_ok(crate::updates::UPDATE_KEY, &sums, sig.trim()),
+        "The {VERSION} release's file list doesn't match NS2Bench's signature; nothing was installed");
     let expected = sums_entry(&sums, name).with_context(|| format!("The {VERSION} release has no {name}"))?;
     let dir = ns2bench_core::config::state_dir().join("downloads").join(VERSION);
     tokio::fs::create_dir_all(&dir).await?;

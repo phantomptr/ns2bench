@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateKeyPairSync, verify } from 'node:crypto';
-import { manifest, platformFor, signedText } from './release-manifest.mjs';
+import { manifest, platformFor, signedText, signFile } from './release-manifest.mjs';
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
 test('Tauri installer names map to updater platform names', () => {
@@ -36,5 +36,9 @@ test('release requires every supported installer and hashes the actual bytes', a
       assert.ok(verify(null, Buffer.from(signedText('0.3.0', p, m.assets[p], m.sha256[p])), publicKey, Buffer.from(m.signatures[p], 'base64')), p);
     }
     await assert.rejects(manifest(dir, 'v0.3.0-beta.1', pem), /Stable/);
+    // the checksum list is signed the same way
+    const sums = 'abc  NS2Bench_aarch64.dmg\n';
+    assert.ok(verify(null, Buffer.from(sums), publicKey, Buffer.from(signFile(sums, pem), 'base64')));
+    assert.throws(() => signFile(sums, ''), /NS2BENCH_UPDATE_KEY/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

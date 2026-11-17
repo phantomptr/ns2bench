@@ -31,7 +31,20 @@ export async function manifest(dir, tag, keyPem = process.env.NS2BENCH_UPDATE_KE
   for (const p of Object.keys(assets)) signatures[p] = sign(null, Buffer.from(signedText(version, p, assets[p], sha256[p])), key).toString('base64');
   return { version, pub_date: new Date().toISOString(), notes: process.env.RELEASE_NOTES_TEXT || `NS2Bench ${tag}. See the GitHub release for full release notes.`, assets, sha256, signatures };
 }
+// The release's SHA256SUMS, signed: the app checks it before installing the board daemon, the
+// Pico firmware or the network helper (each listed there by checksum).
+export function signFile(text, keyPem = process.env.NS2BENCH_UPDATE_KEY) {
+  if (!keyPem) throw new Error('NS2BENCH_UPDATE_KEY (the release signing key) is not set');
+  return sign(null, Buffer.from(text), createPrivateKey(keyPem)).toString('base64');
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (process.argv[2] === 'sign') {
+    // node scripts/release-manifest.mjs sign release/SHA256SUMS  ->  release/SHA256SUMS.sig
+    const file = process.argv[3];
+    if (!file) throw new Error('Usage: node scripts/release-manifest.mjs sign <file>');
+    await writeFile(`${file}.sig`, signFile(await readFile(file, 'utf8')) + '\n');
+    process.exit(0);
+  }
   const [dir, tag] = process.argv.slice(2);
   if (!dir || !tag) throw new Error('Usage: node scripts/release-manifest.mjs <installer-directory> <tag>');
   await writeFile(join(dir, 'latest.json'), JSON.stringify(await manifest(dir, tag), null, 2) + '\n');
