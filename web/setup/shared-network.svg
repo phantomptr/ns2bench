@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" width="900" height="620" role="img" aria-labelledby="title desc">
+  <title id="title">Shared home network: consoles with no internet</title>
+  <desc id="desc">Two consoles join the home Wi-Fi with manual settings. Their gateway is their own address, so nothing they send leaves the home network. Their DNS is the computer running NS2Bench, which answers only the connection test with its own address and refuses every other name, including every Nintendo server. The computer keeps its own internet through the router and never shares it.</desc>
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;fill:#111214}
+    .ti{font-size:22px;font-weight:700}
+    .h{font-size:15px;font-weight:600}
+    .s{font-size:12px;fill:#4a5260}
+    .m{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+    .panel{fill:#fff;stroke:#dfe3e8;stroke-width:1.5}
+    .box{fill:#f6f7f9;stroke:#c9ced6;stroke-width:1.5}
+    .ok{stroke:#8b5cf6;stroke-width:4;fill:none;stroke-linecap:round}
+    .wifi{stroke:#94a3b8;stroke-width:2.5;fill:none;stroke-dasharray:3 6;stroke-linecap:round}
+    .own{stroke:#64748b;stroke-width:2.5;fill:none}
+    .no{stroke:#dc2626;stroke-width:2.5;fill:none;stroke-dasharray:8 6}
+    .ll{fill:#6d28d9;font-weight:600;font-size:13px}
+    .lr{fill:#b91c1c;font-weight:600;font-size:13px}
+  </style>
+  <rect x="0" y="0" width="900" height="620" fill="#fbfbfc"/>
+  <text class="ti" x="30" y="40">Shared home network: on your Wi-Fi, no internet</text>
+  <text class="s" x="30" y="62">No extra hardware. The consoles' own settings cut them off; NS2Bench answers only their connection test and watches for leaks.</text>
+
+  <!-- blocked path label, top left (clear of every line) -->
+  <text class="lr" x="30" y="100">✕ No route out</text>
+  <text class="s" x="30" y="118">The gateway is the console itself,</text>
+  <text class="s" x="30" y="134">so nothing it sends leaves the network:</text>
+  <text class="s" x="30" y="150">not by name, not by IP address.</text>
+
+  <!-- internet -->
+  <ellipse cx="450" cy="120" rx="120" ry="36" class="box"/>
+  <text class="h" x="450" y="116" text-anchor="middle">Internet</text>
+  <text class="s" x="450" y="134" text-anchor="middle">Nintendo servers, updates, eShop</text>
+
+  <!-- router -->
+  <rect x="360" y="214" width="180" height="62" rx="12" class="panel"/>
+  <text class="h" x="450" y="240" text-anchor="middle">Home router (Wi-Fi)</text>
+  <text class="m" x="450" y="260" text-anchor="middle">192.168.86.1</text>
+  <path class="own" d="M450 214 V156"/>
+
+  <!-- computer -->
+  <rect x="630" y="196" width="250" height="148" rx="14" class="panel"/>
+  <text class="h" x="646" y="224">Computer with NS2Bench</text>
+  <text class="m" x="646" y="246">en10 · 192.168.86.199</text>
+  <text class="s" x="646" y="272">Network helper, shared mode:</text>
+  <text class="s" x="646" y="290">• DNS for the connection test only</text>
+  <text class="s" x="646" y="308">• the connection-test page</text>
+  <text class="s" x="646" y="326">• no DHCP, never forwards</text>
+  <path class="own" d="M540 245 H630"/>
+  <text class="s" x="585" y="236" text-anchor="middle">own internet</text>
+  <text class="s" x="585" y="264" text-anchor="middle">(never shared)</text>
+
+  <!-- consoles -->
+  <rect x="30" y="440" width="270" height="130" rx="14" class="panel"/>
+  <text class="h" x="46" y="468">Console A</text>
+  <text class="m" x="46" y="492" xml:space="preserve">IP       192.168.86.251</text>
+  <text class="m" x="46" y="512" xml:space="preserve">Gateway  192.168.86.251 (itself)</text>
+  <text class="m" x="46" y="532" xml:space="preserve">DNS      192.168.86.199</text>
+  <text class="s" x="46" y="556">Manual settings · no other saved Wi-Fi</text>
+
+  <rect x="320" y="440" width="270" height="130" rx="14" class="panel"/>
+  <text class="h" x="336" y="468">Console B</text>
+  <text class="m" x="336" y="492" xml:space="preserve">IP       192.168.86.252</text>
+  <text class="m" x="336" y="512" xml:space="preserve">Gateway  192.168.86.252 (itself)</text>
+  <text class="m" x="336" y="532" xml:space="preserve">DNS      192.168.86.199</text>
+  <text class="s" x="336" y="556">Manual settings · no other saved Wi-Fi</text>
+
+  <!-- Wi-Fi association: a link to the router, not a route through it -->
+  <path class="wifi" d="M200 440 C 250 360, 340 300, 390 276"/>
+  <path class="wifi" d="M420 440 V276"/>
+  <text class="s" x="300" y="352" text-anchor="middle">Wi-Fi</text>
+
+  <!-- blocked -->
+  <path class="no" d="M80 440 C 60 300, 160 170, 330 126"/>
+  <g transform="translate(118 268)"><circle r="14" fill="#fff" stroke="#dc2626" stroke-width="2.5"/><path d="M-6 -6 L6 6 M6 -6 L-6 6" stroke="#dc2626" stroke-width="3"/></g>
+
+  <!-- answered -->
+  <path class="ok" d="M260 440 C 330 390, 520 330, 630 312"/>
+  <path class="ok" d="M540 440 C 570 400, 600 350, 630 330"/>
+  <text class="ll" x="760" y="372" text-anchor="middle">← DNS + connection test only</text>
+
+  <!-- what DNS answers -->
+  <rect x="630" y="400" width="250" height="170" rx="12" class="box"/>
+  <text class="h" x="646" y="426">What NS2Bench answers</text>
+  <text class="s" x="646" y="450">✓ connection test → this computer</text>
+  <text class="s" x="646" y="472">✕ every other name, refused:</text>
+  <text class="s" x="660" y="490">eShop, updates, accounts, telemetry</text>
+  <text class="s" x="646" y="514">✕ every device not on the list</text>
+  <text class="s" x="646" y="538">Leak watch: a listed console on the</text>
+  <text class="s" x="646" y="556">network that stops asking → warning</text>
+</svg>

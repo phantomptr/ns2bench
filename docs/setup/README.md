@@ -232,7 +232,7 @@ A CH9329 module turns serial commands into a USB keyboard and mouse. It is cheap
 
 ![Three ways to give the console an offline network](network.svg)
 
-You only need this for local network tools, such as homebrew loaders. Capture and input never need it.
+You only need this for local network tools, such as homebrew loaders. Capture and input never need it. Variants A–C use a separate network for the console. Variant D keeps it on your home Wi-Fi.
 
 Whichever variant you pick, the console gets **no internet**. NS2Bench never forwards traffic, never turns on internet sharing, NAT or a proxy, and never asks an outside DNS server. Its local DNS answers only the console's connectivity test; every other name is refused. Every lookup the console tries shows up in the **network** log.
 
@@ -284,6 +284,52 @@ Windows cannot run the network service locally. Run it on a Linux board or PC in
 5. Keep the management link private: a direct cable or the board's USB network. Its traffic is plain HTTP.
 
 The **Network** tab on Windows then shows the helper's status and controls. Or skip the helper and use variant B.
+
+### D · Shared home network (Wi-Fi, no extra hardware)
+
+![Consoles on the home Wi-Fi with no internet: their gateway is their own address, and the computer answers only their connection test](shared-network.svg)
+
+The consoles stay on your normal home Wi-Fi, next to your computer. Nothing else to buy or plug in. Each console uses **manual settings** that leave it nowhere to send traffic, and NS2Bench on your computer answers only its connection test, so the console still says it's connected.
+
+**How the internet is blocked**
+
+| Way out | What stops it |
+|---|---|
+| Looking up a Nintendo name (eShop, updates, accounts, telemetry) | NS2Bench's DNS refuses every name except the connection test. Each attempt shows in the leak watch and the **network** log. |
+| Connecting to a server by IP address | The console's gateway is **its own address**, so nothing it sends leaves your home network, whatever the address. |
+| IPv6 | Your router must not hand out IPv6, or turn it off. |
+| Your computer passing traffic on | The console never sends traffic to your computer as a gateway, and the helper stops if forwarding or internet sharing is turned on. |
+| The console going back to automatic settings (a reset, an update, someone changing them) | The **leak watch** warns you within about 10 minutes. Add a router-side pause too (step 7). |
+
+The last row is the one thing a shared network can't rule out: there, the console's own settings are the lock. If you need "offline even after a factory reset", use variant A or B, where no route to the internet exists at all.
+
+**You need:** NS2Bench on macOS or Linux with the network helper installed, your computer and the consoles on the same home network, and a router that hands out no IPv6 (or with IPv6 off).
+
+1. **Reserve addresses in your router** (Google Home, your router's app or its web page): one for your computer and one for each console. Note them, for example computer `192.168.86.199`, consoles `192.168.86.251` and `192.168.86.252`.
+2. **Install the network helper** if you haven't: **Settings → Install → Network helper**.
+3. Open **Settings → Network** and choose **Shared home network**.
+4. **Pick the network adapter** that is on the consoles' network. The list shows each adapter with its address, for example `en10 · Belkin USB-C LAN · 192.168.86.199/24`.
+5. Enter the **console addresses**, tick the three checks (no IPv6, computer address reserved, no other saved Wi-Fi on the consoles) and click **Save and use this network**. NS2Bench keeps a backup of your settings file, then click **Restart network helper**.
+6. **On each console:** System Settings → Internet → your Wi-Fi → **Change Settings**:
+   - IP address settings: **Manual**. IP address: the console's reserved address. Subnet mask: `255.255.255.0`. **Gateway: the console's own address.**
+   - DNS settings: **Manual**. Primary and secondary DNS: **your computer's address**.
+   - Save and run the connection test. It passes, and the console says it's connected.
+   NS2Bench shows these exact values for each console under **Type this on each console**.
+7. **Recommended second lock:** in your router's app, pause or block internet for the consoles (Google Home: Wi-Fi → Family Wi-Fi → pause). Check that the connection test still passes with the pause on.
+8. Delete every other saved Wi-Fi network on each console, and avoid local wireless play with a console on newer firmware (consoles can pass system updates to each other that way).
+
+**Reading the leak watch** (Settings → Network, checked every 30 seconds):
+
+- **Protected:** the console asked NS2Bench recently. It shows when, its last connection test, and how many names were refused.
+- **On your network but not using NS2Bench:** it hasn't asked for 10 minutes while it's on the network. It may be back on automatic settings and online. Check its settings. NS2Bench also sends a desktop notification.
+- **Not on the network right now:** off, asleep or away. Nothing to do.
+
+**Common problems**
+
+- *The console won't connect:* check that its DNS is your computer's address, the helper is running (Settings → Install), and the adapter picked in step 4 is on the consoles' network. Only listed addresses get answers, so check the console's IP too.
+- *The console refuses its own address as the gateway:* use an unused address outside the router's DHCP range instead, for example `192.168.86.254`. Make sure nothing uses it, now or later.
+- *Your computer's address changed:* the consoles can't connect (they stay offline). Reserve it in the router and run the setup again.
+- *Only one network at a time:* the helper serves either this shared network or a direct cable (variant A), not both.
 
 **Common problems**
 

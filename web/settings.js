@@ -75,8 +75,15 @@ $('#input-settings').onsubmit = run(async () => {
   await checkInput(kind);
 });
 function networkFields() {
-  const direct = $('#network-topology').value === 'direct';
-  for (const key of ['dhcp', 'dns', 'connectivity']) { const el = $(`#network-${key}`); el.disabled = !direct; if (!direct) el.checked = false; }
+  const topology = $('#network-topology').value, direct = topology === 'direct', shared = topology === 'shared';
+  for (const key of ['dhcp', 'dns', 'connectivity']) {
+    const el = $(`#network-${key}`);
+    // shared: DNS and the test page only; handing out addresses would fight the home router
+    const on = direct || (shared && key !== 'dhcp');
+    el.disabled = !on; if (!on) el.checked = false;
+  }
+  $('#shared-setup').hidden = !shared;
+  if (shared) { $('#network-help').textContent = t('Consoles stay on your home network with manual settings (gateway: their own address, DNS: this computer). NS2Bench answers only their connection test and refuses every other name, including all of Nintendo. Set it up below.'); return; }
   $('#network-help').textContent = direct
     ? 'Requires the local ns2bench-netd service on macOS or Linux and a dedicated console interface. Interface/address changes require configuring that interface and restarting netd.'
     : $('#network-topology').value === 'router'
@@ -103,7 +110,81 @@ async function network(loadForm = true) {
   $('#network-status').className = `status ${n.error ? 'bad' : running ? 'ok' : 'info'}`;
   // Controls stay editable: saved settings apply as soon as the service starts.
   $('#network-leases').textContent = Object.entries(n.leases).map(([mac, lease]) => `${mac}  ${lease.ip}  ${lease.hostname || ''}`).join('\n') || 'No DHCP leases recorded';
+  renderShared(n, loadForm && revision === networkRevision);
+  if (loadForm) loadInterfaces(n.shared?.interface).catch((e) => message(e.message));
 }
+
+// ---------------------------------------------------------------- shared home network
+// docs/design/shared-network.md. Every value from the engine goes in as text, never as HTML.
+let sharedEdited = false;
+$('#shared-consoles').addEventListener('input', () => { sharedEdited = true; sharedReady(); });
+for (const c of document.querySelectorAll('.shared-check')) c.addEventListener('change', sharedReady);
+$('#shared-iface').addEventListener('change', sharedReady);
+const sharedList = () => $('#shared-consoles').value.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+function sharedReady() {
+  const checked = [...document.querySelectorAll('.shared-check')].every((c) => c.checked);
+  $('#shared-save').disabled = !checked || !$('#shared-iface').value || !sharedList().length;
+}
+async function loadInterfaces(saved) {
+  const r = await api('/api/network/interfaces');
+  const sel = $('#shared-iface'), keep = sel.value || saved || '';
+  sel.replaceChildren();
+  if (!r.supported) { sel.append(new Option(t('The network helper runs on macOS and Linux'), '')); sel.disabled = true; return sharedReady(); }
+  if (!r.interfaces.length) sel.append(new Option(t('No network adapter with a private address'), ''));
+  for (const i of r.interfaces) {
+    sel.append(new Option(`${i.name}${i.label ? ` · ${i.label}` : ''} · ${i.address}/${i.prefix}`, i.name));
+  }
+  sel.value = r.interfaces.some((i) => i.name === keep) ? keep : (r.interfaces[0]?.name || '');
+  sharedReady();
+}
+const ago = (t0) => {
+  if (!t0) return t('never');
+  const s = Math.max(0, Date.now() / 1000 - t0);
+  return s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${Math.round(s / 3600)} h`;
+};
+function renderShared(n, loadForm) {
+  const s = n.shared || {};
+  if (loadForm && !sharedEdited && s.consoles?.length) $('#shared-consoles').value = s.consoles.join(', ');
+  const shared = n.controls?.topology === 'shared' && s.consoles?.length;
+  $('#shared-settings-box').hidden = !shared;
+  if (!shared) return;
+  $('#shared-settings').replaceChildren(...s.settings.map((row) => {
+    const tr = document.createElement('tr');
+    for (const k of ['console', 'ip', 'mask', 'gateway', 'dns']) { const td = document.createElement('td'); td.textContent = row[k]; tr.append(td); }
+    return tr;
+  }));
+  const rows = s.watch?.consoles;
+  const items = rows ? rows.map((c) => {
+    const li = document.createElement('li');
+    const seen = `${t('last asked NS2Bench')} ${ago(c.last_dns)} · ${t('connection test')} ${ago(c.last_ctest)} · ${c.refused || 0} ${t('names refused')}`;
+    const text = {
+      protected: [`${c.console}: ${t('protected')} · ${seen}`, 'ok'],
+      warning: [`${c.console}: ${t('on your network but not using NS2Bench. It may be back on automatic settings and online: check its gateway and DNS.')}`, 'bad'],
+      waiting: [`${c.console}: ${t('on your network, waiting for its first lookup')}`, ''],
+      away: [`${c.console}: ${t('not on the network right now')} · ${seen}`, ''],
+    }[c.state] || [c.console, ''];
+    li.textContent = text[0]; if (text[1]) li.className = text[1];
+    return li;
+  }) : [Object.assign(document.createElement('li'), { textContent: t('The leak watch starts when the network helper runs in shared mode (it looks every 30 seconds).') })];
+  $('#shared-watch').replaceChildren(...items);
+}
+$('#shared-save').onclick = run(async () => {
+  const r = await api('/api/network/shared', { interface: $('#shared-iface').value, consoles: sharedList() });
+  sharedEdited = false;
+  const box = $('#shared-result');
+  box.hidden = false; box.className = 'status ok';
+  box.textContent = invoke
+    ? `${t('Saved. Restart the network helper so it answers on')} ${r.interface} (${r.address}). ${t('Then enter the settings below on each console and run its connection test.')}`
+    : `${t('Saved. Restart the network helper so it answers on')} ${r.interface} (${r.address}): launchctl kickstart -k gui/$(id -u)/com.phantomptr.ns2bench.netd (macOS) · sudo systemctl restart ns2bench-netd (Linux). ${t('Then enter the settings below on each console and run its connection test.')}`;
+  $('#shared-restart').hidden = !invoke;
+  await network(false);
+  $('#network-topology').value = 'shared'; networkFields();
+});
+$('#shared-restart').onclick = run(async () => {
+  const r = await component('netd', 'restart');
+  const box = $('#shared-result'); box.hidden = false; box.className = 'status ok'; box.textContent = r.message;
+  setTimeout(() => network(false).catch((e) => message(e.message)), 1500);
+});
 $('#network-settings').onsubmit = run(async () => {
   const s = { topology: $('#network-topology').value };
   for (const key of ['dhcp', 'dns', 'connectivity']) s[key] = $(`#network-${key}`).checked;

@@ -36,14 +36,24 @@ pub fn network_settings(b: &S) -> Value {
 /// macOS: "en10" -> "Belkin USB-C LAN" (networksetup's hardware port names).
 #[cfg(unix)]
 fn friendly_names() -> std::collections::HashMap<String, String> {
+    if !cfg!(target_os = "macos") {
+        return Default::default();
+    }
+    let text = std::process::Command::new("/usr/sbin/networksetup").arg("-listallhardwareports").output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+    parse_hardware_ports(&text)
+}
+
+/// "Hardware Port: Belkin USB-C LAN" followed by "Device: en10" -> en10 => Belkin USB-C LAN.
+#[cfg_attr(not(unix), allow(dead_code))]
+fn parse_hardware_ports(text: &str) -> std::collections::HashMap<String, String> {
     let mut out = std::collections::HashMap::new();
-    if cfg!(target_os = "macos") {
-        let text = std::process::Command::new("/usr/sbin/networksetup").arg("-listallhardwareports").output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
-        let mut port = None;
-        for line in text.lines() {
-            if let Some(p) = line.strip_prefix("Hardware Port: ") { port = Some(p.trim().to_string()); }
-            if let (Some(d), Some(p)) = (line.strip_prefix("Device: "), port.take()) { out.insert(d.trim().to_string(), p); }
+    let mut port: Option<String> = None;
+    for line in text.lines() {
+        if let Some(p) = line.strip_prefix("Hardware Port: ") {
+            port = Some(p.trim().to_string());
+        } else if let Some(d) = line.strip_prefix("Device: ") {
+            if let Some(p) = port.take() { out.insert(d.trim().to_string(), p); }
         }
     }
     out
@@ -238,6 +248,12 @@ pub fn report(b: &S) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn adapter_names() {
+        let m = parse_hardware_ports("\nHardware Port: Wi-Fi\nDevice: en0\nEthernet Address: f4:d4\n\nHardware Port: Belkin USB-C LAN\nDevice: en10\nEthernet Address: 58:ef\n");
+        assert_eq!(m.get("en10").map(String::as_str), Some("Belkin USB-C LAN"));
+        assert_eq!(m.get("en0").map(String::as_str), Some("Wi-Fi"));
+    }
     #[test]
     fn leak_watch_states() {
         let now = 10_000.0;

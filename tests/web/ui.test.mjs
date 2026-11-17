@@ -276,3 +276,48 @@ test('guidance: shortcuts, action search, confirm before installing, What’s ne
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('shared home network: pick an adapter, add consoles, get the console settings', async (t) => {
+  if (process.platform === 'win32') { t.skip('the network helper runs on macOS and Linux'); return; }
+  const list = await (await fetch(`${BASE}/api/network/interfaces`)).json();
+  const iface = list.interfaces[0];
+  if (!iface) { t.skip('no adapter with a private address on this machine'); return; }
+  // a console address on the adapter's network that isn't this computer
+  const [a, b, c, d] = iface.address.split('.').map(Number);
+  const consoleIp = `${a}.${b}.${c}.${d === 250 ? 251 : 250}`;
+  const { p, errors, ctx } = await page();
+  // an earlier test may leave "What's new" set to open on the next load
+  await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+  await p.click('#btn-settings');
+  await p.click('[data-tab="network"]');
+  await p.selectOption('#network-topology', 'shared');
+  await p.waitForSelector('#shared-setup:not([hidden])');
+  // DHCP can't be turned on for a shared network
+  assert.equal(await p.isDisabled('#network-dhcp'), true);
+  await p.waitForFunction(() => document.querySelector('#shared-iface').options.length > 0);
+  await p.selectOption('#shared-iface', iface.name);
+  await p.fill('#shared-consoles', consoleIp);
+  // Save waits for the three checks
+  assert.equal(await p.isDisabled('#shared-save'), true);
+  for (const box of await p.$$('.shared-check')) await box.check();
+  assert.equal(await p.isDisabled('#shared-save'), false);
+  await p.click('#shared-save');
+  if (list.forwarding_off) {
+    await p.waitForSelector('#shared-settings tr');
+    const cells = await p.$$eval('#shared-settings tr td', (tds) => tds.map((td) => td.textContent));
+    // console, IP, mask, gateway (itself), DNS (this computer)
+    assert.deepEqual([cells[0], cells[1], cells[3], cells[4]], [consoleIp, consoleIp, consoleIp, iface.address]);
+    const n = await (await fetch(`${BASE}/api/network`)).json();
+    assert.equal(n.controls.topology, 'shared');
+    assert.equal(n.controls.dhcp, false);
+    assert.deepEqual(n.shared.consoles, [consoleIp]);
+  } else {
+    // a machine that forwards (Docker hosts often do) is refused, and says why
+    await p.waitForFunction(() => /forwarding/i.test(document.body.textContent));
+  }
+  // a script without the page's key can't set it up
+  const r = await fetch(`${BASE}/api/network/shared`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ interface: iface.name, consoles: [consoleIp] }) });
+  assert.equal(r.status, 403);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

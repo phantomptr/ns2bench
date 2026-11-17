@@ -245,7 +245,7 @@
   <section data-pane="network" hidden>
     <h3>Console network</h3><p id="network-status">Checking local network service…</p>
     <form id="network-settings">
-      <label class="field">Setup<select id="network-topology"><option value="direct">Direct, isolated computer ↔ console</option><option value="router">Isolated router / VLAN / Wi-Fi</option><option value="none">No managed console network</option></select></label>
+      <label class="field">Setup<select id="network-topology"><option value="direct">Direct, isolated computer ↔ console</option><option value="shared">Shared home network (Wi-Fi, no extra hardware)</option><option value="router">Isolated router / VLAN / Wi-Fi</option><option value="none">No managed console network</option></select></label>
       <p id="network-help" class="hint"></p>
       <label class="row"><input id="network-dhcp" type="checkbox"> Local DHCP address assignment</label>
       <label class="row"><input id="network-dns" type="checkbox"> Local DNS responder (connectivity test only)</label>
@@ -254,6 +254,31 @@
       <button type="submit">Apply network controls</button>
     </form>
     <h3>DHCP leases</h3><pre id="network-leases">None</pre>
+    <div class="group" id="shared-setup">
+      <h3>Shared home network</h3>
+      <p>Keep consoles on your normal home Wi-Fi with no internet and no extra hardware. Each console gets manual settings: its own address as the gateway, so nothing leaves your network, and this computer as DNS, so its connection test passes and every Nintendo name is refused.</p>
+      <figure class="setup-figure"><img src="/static/setup/shared-network.svg" alt="Consoles on the home Wi-Fi use this computer for DNS and the connection test; their gateway is their own address, so they have no route to the internet" loading="lazy"></figure>
+      <label class="field">Network adapter on this computer<select id="shared-iface"></select></label>
+      <p class="hint">Pick the adapter that is on the same network as the consoles (for example 192.168.86.x).</p>
+      <label class="field">Console addresses<input id="shared-consoles" placeholder="192.168.86.251, 192.168.86.252" autocomplete="off" spellcheck="false" data-no-i18n></label>
+      <p class="hint">Reserve each console’s address in your router so it never changes. Only these addresses get answers.</p>
+      <fieldset class="checklist">
+        <legend>Before you save</legend>
+        <label class="row"><input type="checkbox" class="shared-check"> My router gives out no IPv6, or I turned IPv6 off</label>
+        <label class="row"><input type="checkbox" class="shared-check"> This computer’s address is reserved in the router</label>
+        <label class="row"><input type="checkbox" class="shared-check"> I deleted every other saved Wi-Fi network on each console</label>
+      </fieldset>
+      <div class="field-row wrap"><button type="button" id="shared-save" class="primary" disabled>Save and use this network</button><button type="button" id="shared-restart" hidden>Restart network helper</button></div>
+      <p class="status" id="shared-result" hidden></p>
+      <div id="shared-settings-box" hidden>
+        <h3>Type this on each console</h3>
+        <p class="hint">System Settings → Internet → your Wi-Fi → Change Settings. IP address settings: Manual. DNS settings: Manual (primary and secondary).</p>
+        <table class="kv-table"><thead><tr><th>Console</th><th>IP address</th><th>Subnet mask</th><th>Gateway</th><th>DNS</th></tr></thead><tbody id="shared-settings"></tbody></table>
+        <h3>Leak watch</h3>
+        <ul class="shared-watch" id="shared-watch"></ul>
+        <p class="hint">A console that is on your network but stops asking NS2Bench may have gone back to automatic settings, and could be online. NS2Bench warns you if that happens. For a second lock, also pause internet for the consoles in your router’s app.</p>
+      </div>
+    </div>
   </section>
   <section data-pane="integrations" hidden>
     <div class="subtabs" role="tablist" aria-label="MCP and API">
