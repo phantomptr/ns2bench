@@ -399,14 +399,17 @@ test('several consoles: add one, switch the view, input only goes where the cont
   await p.waitForFunction(() => document.querySelectorAll('#consoles-list .console-card').length === 2);
   await p.click('#settings-close');
   // two tabs, the controller on the first
-  await p.waitForSelector('#console-bar:not([hidden]) .console-tab >> nth=1', { timeout: 10000 });
+  await p.waitForSelector('#console-bar:not([hidden]) .console-thumb[data-console] >> nth=1', { timeout: 10000 });
+  // each console's small live picture fills in, and 🎮 marks the one with the controller
+  await p.waitForFunction(() => [...document.querySelectorAll('.console-thumb img')].every((i) => i.naturalWidth > 0), null, { timeout: 15000 });
+  assert.equal(await p.locator('.console-thumb[data-console] >> nth=0 >> .controller-badge').count(), 1);
   const list = await (await fetch(`${BASE}/api/consoles`)).json();
   assert.equal(list.consoles.length, 2);
   const [first, second] = list.consoles;
   assert.equal(list.controller_on, first.id);
   assert.equal(second.model, 'switch1');
   // watching the second: the drawn controller can't press there
-  await p.click('.console-tab >> nth=1');
+  await p.click('.console-thumb[data-console] >> nth=1');
   await p.waitForSelector('.console.input-elsewhere');
   assert.match(await p.textContent('#console-note'), /Switch 1/);
   // an agent pressing on the console without the controller is refused, with why
@@ -424,7 +427,7 @@ test('several consoles: add one, switch the view, input only goes where the cont
   const w = await fetch(`${BASE}/api/consoles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'controller', id: first.id }) });
   assert.equal(w.status, 403);
   // back to one console
-  await p.click('.console-tab >> nth=0');
+  await p.click('.console-thumb[data-console] >> nth=0');
   await p.click('#btn-settings');
   await p.click('[data-tab="consoles"]');
   await p.waitForSelector('#consoles-list .console-card >> nth=1');
@@ -434,6 +437,34 @@ test('several consoles: add one, switch the view, input only goes where the cont
   await waitFor(async () => (await (await fetch(`${BASE}/api/consoles`)).json()).consoles.length === 1);
   await p.click('#settings-close');
   await p.waitForSelector('#console-bar', { state: 'hidden' });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('top buttons: half span by default, full span from Appearance, remembered', async () => {
+  const { p, errors, ctx } = await page();
+  await p.evaluate(() => {
+    const d = document.querySelector('#whatsnew');
+    new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+    if (d.open) d.close();
+  });
+  const reach = () => p.evaluate(() => document.querySelector('.joycon.left .shoulders').getBoundingClientRect().right - document.querySelector('.joycon.left').getBoundingClientRect().right);
+  const half = await reach();
+  assert.ok(half > 20, `L reaches in over the screen (${half}px)`);
+  await p.click('#btn-settings');
+  await p.click('[data-tab="appearance"]');
+  await p.click('#shoulder-choices [data-shoulders="full"]');
+  assert.equal(await p.evaluate(() => document.documentElement.dataset.shoulders), 'full');
+  const full = await reach();
+  assert.ok(full > half * 1.6, `full span reaches further (${full} vs ${half})`);
+  // no top button covers the screen itself
+  const overlap = await p.evaluate(() => {
+    const screen = document.querySelector('#screen').getBoundingClientRect();
+    return [...document.querySelectorAll('.joycon .pill')].some((b) => { const r = b.getBoundingClientRect(); return r.bottom > screen.top + 1 && r.right > screen.left && r.left < screen.right; });
+  });
+  assert.equal(overlap, false);
+  await p.click('#shoulder-choices [data-shoulders="half"]');
+  await p.click('#settings-close');
   assert.deepEqual(errors, []);
   await ctx.close();
 });

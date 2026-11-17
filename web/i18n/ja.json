@@ -623,5 +623,9 @@
   "Watching": "表示中：",
   "Which console is the controller plugged into? Input is paused until you say.": "コントローラーはどの本体につながっていますか？選ぶまで入力は一時停止します。",
   "Which console is the controller plugged into? Pick it above the picture.": "コントローラーはどの本体につながっていますか？映像の上で選んでください。",
-  "Pick its capture card": "キャプチャカードを選んでください"
+  "Pick its capture card": "キャプチャカードを選んでください",
+  "Top buttons": "上部ボタン",
+  "How far ZL, L, R and ZR reach along the top of the drawn console.": "描画された本体の上部で ZL・L・R・ZR をどこまで伸ばすか。",
+  "Half span": "半分",
+  "Full span": "全幅"
 }

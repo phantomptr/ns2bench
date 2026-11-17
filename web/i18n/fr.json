@@ -623,5 +623,9 @@
   "Watching": "Vous regardez",
   "Which console is the controller plugged into? Input is paused until you say.": "Sur quelle console la manette est-elle branchée ? Les commandes sont en pause jusqu’à ce que vous le disiez.",
   "Which console is the controller plugged into? Pick it above the picture.": "Sur quelle console la manette est-elle branchée ? Choisissez-la au-dessus de l’image.",
-  "Pick its capture card": "Choisissez sa carte de capture"
+  "Pick its capture card": "Choisissez sa carte de capture",
+  "Top buttons": "Boutons du haut",
+  "How far ZL, L, R and ZR reach along the top of the drawn console.": "Jusqu’où ZL, L, R et ZR s’étendent en haut de la console dessinée.",
+  "Half span": "Mi-largeur",
+  "Full span": "Pleine largeur"
 }

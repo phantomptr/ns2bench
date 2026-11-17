@@ -623,5 +623,9 @@
   "Watching": "正在查看：",
   "Which console is the controller plugged into? Input is paused until you say.": "手柄插在哪台主机上？在你说明之前输入会暂停。",
   "Which console is the controller plugged into? Pick it above the picture.": "手柄插在哪台主机上？请在画面上方选择。",
-  "Pick its capture card": "选择它的采集卡"
+  "Pick its capture card": "选择它的采集卡",
+  "Top buttons": "顶部按键",
+  "How far ZL, L, R and ZR reach along the top of the drawn console.": "ZL、L、R、ZR 在绘制的主机顶部延伸多远。",
+  "Half span": "一半",
+  "Full span": "全宽"
 }

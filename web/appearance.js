@@ -61,6 +61,16 @@ if (scales) {
 }
 applyScale(store.get('scale'));
 
+// Top buttons on the drawn console: reach halfway over the screen (default) or all the way.
+function applyShoulders(v) {
+  if (v !== 'full') v = 'half';
+  if (v === 'full') document.documentElement.dataset.shoulders = 'full'; else delete document.documentElement.dataset.shoulders;
+  store.set('shoulders', v);
+  for (const b of document.querySelectorAll('#shoulder-choices [data-shoulders]')) b.setAttribute('aria-pressed', String(b.dataset.shoulders === v));
+}
+for (const b of document.querySelectorAll('#shoulder-choices [data-shoulders]')) b.addEventListener('click', () => applyShoulders(b.dataset.shoulders));
+applyShoulders(store.get('shoulders'));
+
 // Accessibility: data attributes on <html> that style.css reads.
 const MOTION = ['auto', 'full', 'reduced', 'none'];
 function applyMotion(m) {

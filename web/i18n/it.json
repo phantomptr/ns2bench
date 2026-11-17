@@ -623,5 +623,9 @@
   "Watching": "Stai guardando",
   "Which console is the controller plugged into? Input is paused until you say.": "A quale console è collegato il controller? L’input è in pausa finché non lo indichi.",
   "Which console is the controller plugged into? Pick it above the picture.": "A quale console è collegato il controller? Sceglila sopra l’immagine.",
-  "Pick its capture card": "Scegli la sua scheda di acquisizione"
+  "Pick its capture card": "Scegli la sua scheda di acquisizione",
+  "Top buttons": "Tasti superiori",
+  "How far ZL, L, R and ZR reach along the top of the drawn console.": "Fin dove arrivano ZL, L, R e ZR lungo il bordo superiore della console disegnata.",
+  "Half span": "Metà larghezza",
+  "Full span": "Larghezza intera"
 }

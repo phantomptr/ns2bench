@@ -623,5 +623,9 @@
   "Watching": "Просмотр:",
   "Which console is the controller plugged into? Input is paused until you say.": "К какой консоли подключён контроллер? Ввод приостановлен, пока вы не укажете.",
   "Which console is the controller plugged into? Pick it above the picture.": "К какой консоли подключён контроллер? Выберите её над изображением.",
-  "Pick its capture card": "Выберите её карту захвата"
+  "Pick its capture card": "Выберите её карту захвата",
+  "Top buttons": "Верхние кнопки",
+  "How far ZL, L, R and ZR reach along the top of the drawn console.": "Насколько далеко ZL, L, R и ZR тянутся по верху нарисованной консоли.",
+  "Half span": "Половина ширины",
+  "Full span": "Вся ширина"
 }

@@ -1,7 +1,7 @@
-// Several consoles on one bench (docs/design/multi-console.md): the console bar above the picture,
+// Several consoles on one bench (docs/design/multi-console.md): the console strip under the picture,
 // which console this page shows, and where the shared controller is plugged in.
 // Everything from the engine goes in as text, never as HTML.
-import { apiFetch, currentConsole, setConsole } from './client.js';
+import { apiFetch, authURL, currentConsole, setConsole } from './client.js';
 import { t } from './i18n.js';
 
 const $ = (s) => document.querySelector(s);
@@ -35,34 +35,67 @@ export async function controllerIsOn(id) {
   await post({ action: 'controller', id });
 }
 
-function tab(c) {
+// A small live picture of each console (a screenshot about once a second: light, unlike a video
+// stream per tile), its name and colour, and 🎮 on the one the controller is plugged into.
+function thumb(c) {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'console-tab';
+  b.className = 'console-thumb';
+  b.dataset.console = c.id;
   b.setAttribute('role', 'tab');
   b.setAttribute('aria-selected', String(c.id === viewed()?.id));
   b.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
-  const dot = Object.assign(document.createElement('span'), { className: 'dot' });
-  const name = Object.assign(document.createElement('span'), { className: 'name', textContent: c.name });
-  const meta = Object.assign(document.createElement('span'), { className: 'meta' });
-  const live = c.video_status?.age_s != null && c.video_status.age_s < 3;
-  meta.textContent = `${c.model_name || ''} · ${live ? t('live') : t('no picture')}`;
-  b.append(dot, name, meta);
+  const pic = Object.assign(document.createElement('div'), { className: 'pic' });
+  const img = Object.assign(document.createElement('img'), { alt: '', decoding: 'async', draggable: false });
+  img.dataset.console = c.id;
+  pic.append(img);
   if (c.controller_here) {
     const pad = Object.assign(document.createElement('span'), { className: 'controller-badge', textContent: '🎮', title: t('The controller is plugged into this console') });
     pad.setAttribute('aria-label', t('The controller is plugged into this console'));
-    b.append(pad);
+    pic.append(pad);
   }
+  const cap = Object.assign(document.createElement('div'), { className: 'cap' });
+  const live = c.video_status?.age_s != null && c.video_status.age_s < 3;
+  cap.append(Object.assign(document.createElement('span'), { className: 'dot' }),
+    Object.assign(document.createElement('span'), { className: 'name', textContent: c.name }),
+    Object.assign(document.createElement('span'), { className: `state${live ? ' live' : ''}`, textContent: live ? t('live') : t('no picture') }));
+  b.title = `${c.name} · ${c.model_name || ''}`;
+  b.append(pic, cap);
   b.onclick = () => { if (c.id !== viewed()?.id) { setConsole(c.id); render(); onSwitch(c); } };
   return b;
 }
+
+function addTile() {
+  const b = Object.assign(document.createElement('button'), { type: 'button', className: 'console-thumb add', textContent: `+ ${t('Add console')}` });
+  b.onclick = () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
+  return b;
+}
+
+// Refresh the thumbnails' pictures (only while they're on screen and the page is visible).
+let refreshing = false;
+function refreshPictures() {
+  if (refreshing || document.hidden || $('#console-bar')?.hidden) return;
+  refreshing = true;
+  const imgs = [...document.querySelectorAll('.console-thumb img')];
+  let left = imgs.length;
+  if (!left) { refreshing = false; return; }
+  for (const img of imgs) {
+    const next = new Image();
+    const done = () => { if (--left === 0) refreshing = false; };
+    next.onload = () => { img.src = next.src; done(); };
+    next.onerror = done;
+    next.src = authURL(`/api/screenshot?console=${encodeURIComponent(img.dataset.console)}&max_width=320&r=${Date.now()}`);
+  }
+}
+setInterval(refreshPictures, 1000);
 
 function render() {
   const bar = $('#console-bar');
   if (!bar) return;
   bar.hidden = consoles.length < 2;
   if (bar.hidden) return;
-  $('#console-tabs').replaceChildren(...consoles.map(tab));
+  $('#console-tabs').replaceChildren(...consoles.map(thumb), addTile());
+  refreshPictures();
   const v = viewed();
   const note = $('#console-note'), act = $('#console-note-actions');
   act.replaceChildren();

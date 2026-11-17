@@ -82,10 +82,6 @@
 
 <main class="layout">
   <section class="stage" id="stage">
-    <div class="console-bar" id="console-bar" hidden>
-      <div class="console-tabs" id="console-tabs" role="tablist" aria-label="Consoles"></div>
-      <div class="console-note-row"><p class="console-note" id="console-note" hidden></p><div class="console-note-actions" id="console-note-actions"></div></div>
-    </div>
     <div class="console" id="console">
       <div class="fs-bar" id="fs-bar" role="toolbar" aria-label="Fullscreen controls">
         <span class="fs-pill" id="fs-video" data-no-i18n></span><span class="fs-pill" id="fs-input" data-no-i18n></span>
@@ -112,6 +108,10 @@
         </div>
       </div>
       <div class="joycon right" id="joy-right" aria-label="Right Joy-Con"></div>
+    </div>
+    <div class="console-bar" id="console-bar" hidden>
+      <div class="console-note-row"><p class="console-note" id="console-note" hidden></p><div class="console-note-actions" id="console-note-actions"></div></div>
+      <div class="console-strip" id="console-tabs" role="tablist" aria-label="Consoles"></div>
     </div>
     <div class="trail" id="trail" aria-label="Recent inputs" aria-live="off"></div>
     <p class="capture-hint" id="capture-hint">Click the screen to drive with the keyboard · Esc to release</p>
@@ -414,6 +414,11 @@ ns2bench --help</pre>
       <h3>Text size</h3>
       <p class="hint">Resize the whole app. Pick a smaller size if things don’t fit in the window.</p>
       <div class="choices" id="scale-choices" role="group" aria-label="Text size"></div>
+    </div>
+    <div class="group">
+      <h3>Top buttons</h3>
+      <p class="hint">How far ZL, L, R and ZR reach along the top of the drawn console.</p>
+      <div class="choices" id="shoulder-choices" role="group" aria-label="Top buttons"><button type="button" class="choice" data-shoulders="half">Half span</button><button type="button" class="choice" data-shoulders="full">Full span</button></div>
     </div>
     <div class="group">
       <h3>Accessibility</h3>

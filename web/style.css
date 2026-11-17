@@ -283,19 +283,29 @@ button:disabled { opacity: .5; cursor: default; }
 .coins img { width: 110px; height: 110px; background: #fff; padding: 5px; border-radius: 8px; }
 .coins code { word-break: break-all; font-size: 10px; color: var(--muted); }
 .setup-figure { margin: 8px 0; }
-/* Several consoles: one tab each above the picture, with the controller's badge */
-.console-bar { display: grid; gap: 6px; margin: 0 auto 8px; width: min(100%, 1400px); }
+/* Several consoles: a strip of small live pictures under the console, the controller's badge */
+.console-bar { display: grid; gap: 8px; margin: 10px auto 0; width: min(100%, 1400px); }
 .console-bar[hidden], .console-note[hidden] { display: none; }
-.console-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.console-tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--field); color: inherit; }
-.console-tab[aria-selected="true"] { border-color: var(--tab-color); box-shadow: inset 0 0 0 1px var(--tab-color); }
-.console-tab .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tab-color); }
-.console-tab .name { font-weight: 600; }
-.console-tab .meta { font-size: 12px; color: var(--muted); }
+.console-strip { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.console-thumb { width: 220px; padding: 0; border-radius: 12px; overflow: hidden; border: 2px solid var(--line); background: var(--field); color: inherit; text-align: left; cursor: pointer; }
+.console-thumb[aria-selected="true"] { border-color: var(--tab-color); }
+.console-thumb .pic { position: relative; aspect-ratio: 16 / 9; background: #0b0c0e; }
+.console-thumb .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.console-thumb .pic img:not([src]) { visibility: hidden; }
+.console-thumb .controller-badge { position: absolute; right: 8px; top: 6px; font-size: 18px; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .6)); }
+.console-thumb .cap { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+.console-thumb .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tab-color); flex: none; }
+.console-thumb .name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.console-thumb .state { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.console-thumb .state.live { color: var(--ok); }
+.console-thumb .state.live::before { content: "● "; }
+.console-thumb.add { width: 150px; display: grid; place-items: center; border-style: dashed; color: var(--muted); background: transparent; min-height: 150px; }
 .console-note-row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .console-note { margin: 0; padding: 6px 12px; border-radius: var(--r-field); background: var(--field); font-size: 13px; }
 .console-note.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); }
 .console-note-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* watching a console the controller isn't plugged into: the drawn controller can't press */
+.console.input-elsewhere .joycon { opacity: .45; pointer-events: none; }
 .consoles-list { display: grid; gap: 10px; }
 .console-card { border-left: 4px solid var(--tab-color); }
 /* watching a console the controller isn't plugged into: the drawn controller can't press */
