@@ -127,6 +127,8 @@ pub fn router(bench: S) -> Router {
         .route("/mcp", post(crate::mcp::http).get(|| async { StatusCode::METHOD_NOT_ALLOWED }))
         .route("/api/input", get(crate::settings::get_input).post(crate::settings::set_input))
         .route("/api/network", get(crate::settings::get_network).post(crate::settings::set_network))
+        .route("/api/network/interfaces", get(crate::shared_net::get_interfaces))
+        .route("/api/network/shared", post(crate::shared_net::set_shared))
         .route("/api/status", get(status))
         .route("/api/events", get(events))
         .route("/api/logs", get(logs))

@@ -188,6 +188,38 @@ pub fn forwarding_off() -> bool {
     false
 }
 
+/// Every up IPv4 address on this computer except loopback: (adapter, address, prefix length).
+/// The shared-network setup offers these so the person picks the adapter.
+pub fn ipv4_interfaces() -> Vec<(String, Ipv4Addr, u32)> {
+    let mut out = vec![];
+    // SAFETY: getifaddrs/freeifaddrs pair; every pointer is checked before use.
+    unsafe {
+        let mut head: *mut libc::ifaddrs = std::ptr::null_mut();
+        if libc::getifaddrs(&mut head) != 0 {
+            return out;
+        }
+        let mut next = head;
+        while !next.is_null() {
+            let row = &*next;
+            next = row.ifa_next;
+            if row.ifa_addr.is_null() || row.ifa_netmask.is_null() || (*row.ifa_addr).sa_family as i32 != libc::AF_INET {
+                continue;
+            }
+            if row.ifa_flags & (libc::IFF_UP as u32) == 0 || row.ifa_flags & (libc::IFF_LOOPBACK as u32) != 0 {
+                continue;
+            }
+            let a = &*(row.ifa_addr as *const libc::sockaddr_in);
+            let m = &*(row.ifa_netmask as *const libc::sockaddr_in);
+            let ip = Ipv4Addr::from(u32::from_be(a.sin_addr.s_addr));
+            let prefix = u32::from_be(m.sin_addr.s_addr).count_ones();
+            let name = CStr::from_ptr(row.ifa_name).to_string_lossy().into_owned();
+            out.push((name, ip, prefix));
+        }
+        libc::freeifaddrs(head);
+    }
+    out
+}
+
 pub fn interface_ready(cfg: &Config) -> bool {
     unsafe {
         let mut head: *mut libc::ifaddrs = std::ptr::null_mut();

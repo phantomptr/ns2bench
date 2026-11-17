@@ -39,6 +39,7 @@ pub fn start(b: Arc<crate::Bench>) {
     tokio::spawn(b.ext.dvr.clone().run(b.frames.clone()));
     tokio::spawn(b.ext.audio.clone().run(b.video_cfg.clone(), b.logs.clone()));
     tokio::spawn(watch_health(b.clone()));
+    tokio::spawn(crate::shared_net::watch(b.clone()));
     tokio::spawn(watch_screen(b));
 }
 

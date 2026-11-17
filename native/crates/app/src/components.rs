@@ -380,6 +380,25 @@ async fn netd_install() -> Result<Value> {
     }).await?
 }
 
+/// Start the installed helper again, so it reads new network settings (another adapter, the
+/// shared network's consoles). The controls (DNS on/off ...) apply without this.
+fn netd_restart() -> Result<Value> {
+    ensure!(netd_os().is_some(), "The network helper runs on macOS and Linux.");
+    ensure!(netd_status()["installed"] == true, "Install the network helper first (Settings → Network).");
+    #[cfg(target_os = "macos")]
+    {
+        let (ok, err) = output(Command::new("/bin/launchctl").args(["kickstart", "-k", &format!("gui/{}/{LABEL}", uid())]));
+        ensure!(ok, "Could not restart the helper: {err}");
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let (ok, err) = output(Command::new("pkexec").args(["systemctl", "restart", "ns2bench-netd"]));
+        ensure!(ok, "Could not restart the helper (an administrator password is needed): {err}");
+    }
+    std::thread::sleep(Duration::from_secs(2));
+    Ok(json!({ "message": "Network helper restarted with the new settings.", "status": netd_status() }))
+}
+
 fn netd_uninstall() -> Result<Value> {
     #[cfg(target_os = "macos")]
     {
@@ -409,6 +428,7 @@ pub async fn component_action(component: String, action: String, host: Option<St
         ("board", "install") => board_install(host.unwrap_or_default().trim().to_string()).await,
         ("netd", "status") => tokio::task::spawn_blocking(netd_status).await.map_err(anyhow::Error::from),
         ("netd", "install") => netd_install().await,
+        ("netd", "restart") => tokio::task::spawn_blocking(netd_restart).await.map_err(anyhow::Error::from).and_then(|r| r),
         ("netd", "uninstall") => tokio::task::spawn_blocking(netd_uninstall).await.map_err(anyhow::Error::from).and_then(|r| r),
         _ => Err(anyhow::anyhow!("Unknown action")),
     };

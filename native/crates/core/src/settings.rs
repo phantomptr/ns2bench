@@ -181,14 +181,15 @@ pub async fn get_network(State(b): State<S>) -> Json<Value> {
         .unwrap_or(json!({}));
     let age = status["time"].as_f64().map(|t| crate::logs::now() - t);
     let controls = read_network_controls();
+    let settings = crate::shared_net::network_settings(&b);
     let leases: Value = std::fs::read(state_dir().join("leases.json"))
         .ok()
         .and_then(|d| serde_json::from_slice(&d).ok())
         .unwrap_or(json!({}));
     Json(
-        json!({"settings": b.cfg.raw["network"], "controls": controls,
+        json!({"settings": settings, "controls": controls,
         "daemon": status, "online": age.is_some_and(|s| (0.0..5.0).contains(&s)),
-        "leases": leases, "blocking": blocking}),
+        "leases": leases, "blocking": blocking, "shared": crate::shared_net::report(&b)}),
     )
 }
 pub fn read_network_controls() -> Value {
