@@ -27,6 +27,18 @@ Le persone usano la pagina di NS2Bench in un browser oppure l'app desktop. Gli a
 
 Non sei sicuro? Inizia con la **sola visualizzazione**, poi aggiungi un dispositivo di input in seguito. Le impostazioni di input si cambiano senza riavviare l'app.
 
+### Come si collega un dispositivo di input
+
+Un dispositivo di input ha bisogno di due collegamenti: **USB verso la console** (dove fa da controller) e **un collegamento con questo computer** (così NS2Bench può dirgli cosa premere).
+
+| Dispositivo | Verso la console | Verso questo computer | Note |
+|---|---|---|---|
+| **Scheda Linux** (Luckfox Pico Pro/Max, Raspberry Pi Zero 2 W, Pi 4/5) · **consigliata** | la sua porta USB dispositivo | Ethernet o Wi-Fi, integrati | Una scheda fa entrambe le cose. Tutti i pulsanti, compresi C, GL e GR in modalità Pro. Si installa e si aggiorna dall'app via SSH |
+| **Raspberry Pi Pico** (RP2040) | la sua unica porta USB | i suoi pin seriali (GP0, GP1, GND) tramite un **adattatore USB-UART a 3.3 V** | La porta USB è occupata dalla console, quindi al computer serve l'adattatore. Un altro Pico con il firmware *debugprobe* di Raspberry Pi funziona come adattatore. Il firmware del Pico non è ancora stato provato su una console |
+| **CH9329** | il suo lato USB | il suo lato seriale, tramite un adattatore USB-UART | Solo tastiera e mouse, niente pulsanti del controller |
+
+Se puoi, scegli una **scheda Linux come la Luckfox**: non serve altro, è la configurazione provata su console vere e offre la modalità Switch 2 Pro Controller. Alcune schede RP2040 economiche con porta USB-C non vengono viste da un Mac con un cavo USB-C a USB-C; per programmarle usa un cavo USB-A a USB-C.
+
 Se vuoi tutti i pulsanti del controller, compresi C, GL e GR, usa una scheda Linux. La sua modalità **Pro** presenta alla console un Controller Pro per Switch 2. Il Pico e la modalità standard della scheda coprono tutti i pulsanti tranne C, GL e GR. CH9329 non ha alcun controller.
 
 ## Prima di iniziare: il tuo computer
@@ -250,7 +262,7 @@ Un banco può gestire più console insieme. Ognuna ha la propria **scheda di acq
 1. Collega il dock di ogni console alla propria scheda di acquisizione, e entrambe le schede al computer.
 2. Apri **Impostazioni → Console**. La tua prima console c'è già: dalle un nome e un modello.
 3. In **Aggiungi una console**, scrivi un nome (per esempio *Switch 1*), scegli il modello, la scheda di acquisizione (quelle usate da un'altra console non si possono scegliere) e, se è sulla rete di casa condivisa, il suo indirizzo. Fai clic su **Aggiungi console**.
-4. Sopra l'immagine compare una **barra delle console**: una scheda per console con il suo colore, il modello e se l'immagine è in diretta. Fai clic su una scheda per guardare quella console. Screenshot, clip, lettura dello schermo e test lavorano poi su di essa.
+4. Sotto la console compare una fila di **piccole immagini in diretta**: una per console, con nome, colore e se l'immagine è in diretta. Fai clic su una per guardare quella console in grande. Screenshot, clip, lettura dello schermo e test lavorano poi su di essa. **+ Aggiungi console** apre **Impostazioni → Console**.
 
 **Il controller**
 

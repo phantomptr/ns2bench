@@ -27,6 +27,18 @@ Las personas usan la página de NS2Bench en un navegador o la app de escritorio.
 
 ¿No estás seguro? Empieza con **solo visualización** y añade un dispositivo de entrada más tarde. Los ajustes de entrada cambian sin reiniciar la app.
 
+### Cómo se conecta un dispositivo de entrada
+
+Un dispositivo de entrada necesita dos conexiones: **USB a la consola** (donde hace de mando) y **un enlace con este ordenador** (para que NS2Bench le diga qué pulsar).
+
+| Dispositivo | A la consola | A este ordenador | Notas |
+|---|---|---|---|
+| **Placa Linux** (Luckfox Pico Pro/Max, Raspberry Pi Zero 2 W, Pi 4/5) · **recomendada** | su puerto USB de dispositivo | Ethernet o Wi-Fi, integrados | Una placa hace las dos cosas. Todos los botones, incluidos C, GL y GR en modo Pro. Se instala y actualiza desde la app por SSH |
+| **Raspberry Pi Pico** (RP2040) | su único puerto USB | sus pines serie (GP0, GP1, GND) con un **adaptador USB a UART de 3.3 V** | La consola ocupa el puerto USB, así que el ordenador necesita el adaptador. Otra Pico con el firmware *debugprobe* de Raspberry Pi sirve como adaptador. El firmware de la Pico aún no se ha probado en una consola |
+| **CH9329** | su lado USB | su lado serie, con un adaptador USB a UART | Solo teclado y ratón, sin botones de mando |
+
+Si puedes, elige una **placa Linux como la Luckfox**: no necesita nada más, es la configuración probada en consolas reales y ofrece el modo Switch 2 Pro Controller. Algunas placas RP2040 baratas con puerto USB-C no las ve un Mac con un cable USB-C a USB-C; usa un cable USB-A a USB-C para flashearlas.
+
 Si quieres todos los botones del mando, incluidos C, GL y GR, usa una placa Linux. Su modo **Pro** le muestra a la consola un Mando Pro de Switch 2. La Pico y el modo estándar de la placa cubren todos los botones excepto C, GL y GR. CH9329 no tiene mando.
 
 ## Antes de empezar: tu ordenador
@@ -250,7 +262,7 @@ Un mismo banco puede manejar varias consolas a la vez. Cada una tiene su propia 
 1. Conecta el dock de cada consola a su propia capturadora, y las dos capturadoras al ordenador.
 2. Abre **Ajustes → Consolas**. Tu primera consola ya está ahí: ponle un nombre y un modelo.
 3. En **Añadir una consola**, escribe un nombre (por ejemplo *Switch 1*), elige su modelo, su capturadora (no se pueden elegir las que usa otra consola) y, si está en la red de casa compartida, su dirección. Haz clic en **Añadir consola**.
-4. Encima de la imagen aparece una **barra de consolas**: una pestaña por consola con su color, su modelo y si su imagen está en directo. Haz clic en una pestaña para ver esa consola. Las capturas, los clips, la lectura de pantalla y las pruebas funcionan entonces con ella.
+4. Debajo de la consola aparece una fila de **imágenes pequeñas en directo**: una por consola, con su nombre, su color y si su imagen está en directo. Haz clic en una para ver esa consola en grande. Las capturas, los clips, la lectura de pantalla y las pruebas funcionan entonces con ella. **+ Añadir consola** abre **Ajustes → Consolas**.
 
 **El mando**
 

@@ -27,6 +27,18 @@ Les personnes utilisent la page NS2Bench dans un navigateur ou l’application d
 
 Vous hésitez ? Commencez par la **visualisation seule**, puis ajoutez un appareil d’entrée plus tard. Les réglages d’entrée se changent sans redémarrer l’application.
 
+### Comment se branche un appareil d’entrée
+
+Un appareil d’entrée a besoin de deux connexions : **l’USB vers la console** (où il joue le rôle de manette) et **un lien avec cet ordinateur** (pour que NS2Bench lui dise quoi appuyer).
+
+| Appareil | Vers la console | Vers cet ordinateur | Remarques |
+|---|---|---|---|
+| **Carte Linux** (Luckfox Pico Pro/Max, Raspberry Pi Zero 2 W, Pi 4/5) · **recommandée** | son port USB périphérique | Ethernet ou Wi-Fi, intégré | Une seule carte fait les deux. Tous les boutons, y compris C, GL et GR en mode Pro. S’installe et se met à jour depuis l’application par SSH |
+| **Raspberry Pi Pico** (RP2040) | son unique port USB | ses broches série (GP0, GP1, GND) via un **adaptateur USB-UART 3.3 V** | Le port USB est pris par la console, donc l’ordinateur a besoin de l’adaptateur. Un autre Pico flashé avec le firmware *debugprobe* de Raspberry Pi sert d’adaptateur. Le firmware du Pico n’a pas encore été essayé sur une console |
+| **CH9329** | son côté USB | son côté série, via un adaptateur USB-UART | Clavier et souris uniquement, pas de boutons de manette |
+
+Choisissez si possible une **carte Linux comme la Luckfox** : elle n’a besoin de rien d’autre, c’est l’installation testée sur de vraies consoles, et elle propose le mode Switch 2 Pro Controller. Certaines cartes RP2040 bon marché avec un port USB-C ne sont pas vues par un Mac avec un câble USB-C vers USB-C ; utilisez un câble USB-A vers USB-C pour les flasher.
+
 Si vous voulez tous les boutons de la manette, y compris C, GL et GR, utilisez une carte Linux. Son mode **Pro** présente à la console une manette Pro Switch 2. Le Pico et le mode standard de la carte couvrent tous les boutons sauf C, GL et GR. Le CH9329 n’a aucune manette.
 
 ## Avant de commencer : votre ordinateur
@@ -250,7 +262,7 @@ Un même banc peut faire tourner plusieurs consoles à la fois. Chacune a sa pro
 1. Reliez le dock de chaque console à sa propre carte de capture, et les deux cartes à l’ordinateur.
 2. Ouvrez **Réglages → Consoles**. Votre première console y est déjà : donnez-lui un nom et un modèle.
 3. Sous **Ajouter une console**, saisissez un nom (par exemple *Switch 1*), choisissez son modèle, sa carte de capture (celles utilisées par une autre console ne peuvent pas être choisies) et, si elle est sur le réseau domestique partagé, son adresse. Cliquez sur **Ajouter la console**.
-4. Une **barre des consoles** apparaît au-dessus de l’image : un onglet par console avec sa couleur, son modèle et si son image est en direct. Cliquez sur un onglet pour regarder cette console. Les captures d’écran, les clips, la lecture de l’écran et les tests s’appliquent alors à elle.
+4. Une rangée de **petites images en direct** apparaît sous la console : une par console, avec son nom, sa couleur et si son image est en direct. Cliquez sur l’une d’elles pour regarder cette console en grand. Les captures d’écran, les clips, la lecture de l’écran et les tests s’appliquent alors à elle. **+ Ajouter la console** ouvre **Réglages → Consoles**.
 
 **La manette**
 

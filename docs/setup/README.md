@@ -27,6 +27,18 @@ People use the NS2Bench page in a browser or the desktop app. Agents use the HTT
 
 Not sure? Start with **view only**, then add an input device later. Input settings change without restarting the app.
 
+### How an input device connects
+
+An input device needs two connections: **USB to the console** (where it acts as the controller) and **a link to this computer** (so NS2Bench can tell it what to press).
+
+| Device | To the console | To this computer | Notes |
+|---|---|---|---|
+| **Linux board** (Luckfox Pico Pro/Max, Raspberry Pi Zero 2 W, Pi 4/5) · **recommended** | its USB device port | Ethernet or Wi-Fi, built in | One board does both. Every button, including C, GL and GR in Pro mode. Installs and updates from the app over SSH |
+| **Raspberry Pi Pico** (RP2040) | its only USB port | its serial pins (GP0, GP1, GND) through a **3.3 V USB-to-UART adapter** | The USB port is taken by the console, so the computer needs the adapter. Another Pico flashed with Raspberry Pi's *debugprobe* firmware works as the adapter. The Pico firmware hasn't been tried on a console yet |
+| **CH9329** | its USB side | its serial side, through a USB-to-UART adapter | Keyboard and mouse only, no controller buttons |
+
+Pick a **Linux board like the Luckfox** if you can: it needs nothing else, it is the setup tested on real consoles, and it offers the Switch 2 Pro Controller mode. Some cheap RP2040 boards with a USB-C port aren't seen by a Mac over a USB-C-to-USB-C cable; use a USB-A to USB-C cable to flash them.
+
 If you want every controller button, including C, GL and GR, use a Linux board. Its **Pro** mode shows the console a Switch 2 Pro Controller. The Pico and the board's standard mode cover all buttons except C, GL and GR. CH9329 has no controller at all.
 
 ## Before you start: your computer
@@ -250,7 +262,7 @@ One bench can run several consoles at once. Each has its own **capture card** (p
 1. Connect each console's dock to its own capture card, and both cards to the computer.
 2. Open **Settings → Consoles**. Your first console is already there: give it a name and model.
 3. Under **Add a console**, enter a name (for example *Switch 1*), pick its model, its capture card (cards another console uses can't be picked) and, if it's on the shared home network, its address. Click **Add console**.
-4. A **console bar** appears above the picture: one tab per console with its colour, model and whether its picture is live. Click a tab to watch that console. Screenshots, clips, screen reading and tests then work on it.
+4. A strip of **small live pictures** appears under the console: one per console, with its name, colour and whether its picture is live. Click one to watch that console big. Screenshots, clips, screen reading and tests then work on it. **+ Add console** opens Settings → Consoles.
 
 **The controller**
 

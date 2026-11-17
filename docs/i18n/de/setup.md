@@ -27,6 +27,18 @@ Menschen nutzen die NS2Bench-Seite im Browser oder die Desktop-App. Agenten nutz
 
 Unsicher? Fang mit **Nur Anzeige** an und ergänze später ein Eingabegerät. Eingabeeinstellungen ändern sich ohne Neustart der App.
 
+### Wie ein Eingabegerät angeschlossen wird
+
+Ein Eingabegerät braucht zwei Verbindungen: **USB zur Konsole** (dort tritt es als Controller auf) und **eine Verbindung zu diesem Computer** (damit NS2Bench ihm sagen kann, was es drücken soll).
+
+| Gerät | Zur Konsole | Zu diesem Computer | Hinweise |
+|---|---|---|---|
+| **Linux-Board** (Luckfox Pico Pro/Max, Raspberry Pi Zero 2 W, Pi 4/5) · **empfohlen** | sein USB-Device-Port | Ethernet oder WLAN, eingebaut | Ein Board erledigt beides. Jede Taste, auch C, GL und GR im Pro-Modus. Installation und Updates aus der App über SSH |
+| **Raspberry Pi Pico** (RP2040) | sein einziger USB-Port | seine seriellen Pins (GP0, GP1, GND) über einen **3.3 V USB-UART-Adapter** | Der USB-Port gehört der Konsole, also braucht der Computer den Adapter. Ein zweiter Pico mit der *debugprobe*-Firmware von Raspberry Pi funktioniert als Adapter. Die Pico-Firmware wurde noch nicht an einer Konsole getestet |
+| **CH9329** | seine USB-Seite | seine serielle Seite, über einen USB-UART-Adapter | Nur Tastatur und Maus, keine Controllertasten |
+
+Nimm wenn möglich ein **Linux-Board wie das Luckfox**: Es braucht nichts weiter, dieser Aufbau ist an echten Konsolen getestet, und es bietet den Modus Switch 2 Pro Controller. Manche günstigen RP2040-Boards mit USB-C-Port erkennt ein Mac über ein USB-C-auf-USB-C-Kabel nicht; nimm zum Flashen ein USB-A-auf-USB-C-Kabel.
+
 Wenn du jede Controllertaste willst, auch C, GL und GR, nimm ein Linux-Board. Sein **Pro**-Modus zeigt der Konsole einen Switch 2 Pro Controller. Der Pico und der Standardmodus des Boards decken alle Tasten außer C, GL und GR ab. CH9329 hat gar keinen Controller.
 
 ## Bevor du anfängst: dein Computer
@@ -250,7 +262,7 @@ Ein Arbeitsplatz kann mehrere Konsolen gleichzeitig betreiben. Jede hat ihre eig
 1. Verbinde das Dock jeder Konsole mit einer eigenen Capture-Karte und beide Karten mit dem Computer.
 2. Öffne **Einstellungen → Konsolen**. Deine erste Konsole ist schon da: Gib ihr einen Namen und ein Modell.
 3. Gib unter **Konsole hinzufügen** einen Namen ein (zum Beispiel *Switch 1*), wähle ihr Modell, ihre Capture-Karte (Karten, die eine andere Konsole nutzt, sind nicht wählbar) und, wenn sie im gemeinsamen Heimnetz ist, ihre Adresse. Klicke auf **Konsole hinzufügen**.
-4. Über dem Bild erscheint eine **Konsolenleiste**: ein Tab pro Konsole mit ihrer Farbe, ihrem Modell und ob ihr Bild live ist. Klicke auf einen Tab, um diese Konsole anzusehen. Screenshots, Clips, Bildschirmerkennung und Tests arbeiten dann mit ihr.
+4. Unter der Konsole erscheint eine Reihe **kleiner Live-Bilder**: eins pro Konsole, mit Name, Farbe und ob ihr Bild live ist. Klicke auf eins, um diese Konsole groß anzusehen. Screenshots, Clips, Bildschirmerkennung und Tests arbeiten dann mit ihr. **+ Konsole hinzufügen** öffnet **Einstellungen → Konsolen**.
 
 **Der Controller**
 

@@ -27,6 +27,18 @@ Pessoas usam a página do NS2Bench no navegador ou o aplicativo para desktop. Ag
 
 Não tem certeza? Comece com **Só visualização** e adicione um dispositivo de entrada depois. As configurações de entrada mudam sem reiniciar o aplicativo.
 
+### Como um dispositivo de entrada se conecta
+
+Um dispositivo de entrada precisa de duas conexões: **USB para o console** (onde ele age como controle) e **um link com este computador** (para o NS2Bench dizer o que apertar).
+
+| Dispositivo | Para o console | Para este computador | Observações |
+|---|---|---|---|
+| **Placa Linux** (Luckfox Pico Pro/Max, Raspberry Pi Zero 2 W, Pi 4/5) · **recomendada** | a porta USB de dispositivo | Ethernet ou Wi-Fi, embutidos | Uma placa faz as duas coisas. Todos os botões, incluindo C, GL e GR no modo Pro. Instala e atualiza pelo aplicativo via SSH |
+| **Raspberry Pi Pico** (RP2040) | a única porta USB | os pinos seriais (GP0, GP1, GND) por um **adaptador USB-UART de 3.3 V** | A porta USB fica com o console, então o computador precisa do adaptador. Outro Pico gravado com o firmware *debugprobe* da Raspberry Pi funciona como adaptador. O firmware do Pico ainda não foi testado em um console |
+| **CH9329** | o lado USB | o lado serial, por um adaptador USB-UART | Só teclado e mouse, sem botões de controle |
+
+Se puder, escolha uma **placa Linux como a Luckfox**: ela não precisa de mais nada, é a montagem testada em consoles reais e oferece o modo Switch 2 Pro Controller. Algumas placas RP2040 baratas com porta USB-C não são vistas por um Mac com cabo USB-C para USB-C; use um cabo USB-A para USB-C para gravá-las.
+
 Se você quer todos os botões do controle, incluindo C, GL e GR, use uma placa Linux. O modo **Pro** dela mostra ao console um Switch 2 Pro Controller. O Pico e o modo padrão da placa cobrem todos os botões, exceto C, GL e GR. O CH9329 não tem controle nenhum.
 
 ## Antes de começar: seu computador
@@ -250,7 +262,7 @@ Uma bancada pode rodar vários consoles ao mesmo tempo. Cada um tem sua própria
 1. Ligue o dock de cada console na própria placa de captura, e as duas placas no computador.
 2. Abra **Configurações → Consoles**. Seu primeiro console já está lá: dê a ele um nome e um modelo.
 3. Em **Adicionar um console**, digite um nome (por exemplo *Switch 1*), escolha o modelo, a placa de captura (placas usadas por outro console não podem ser escolhidas) e, se ele estiver na rede doméstica compartilhada, o endereço. Clique em **Adicionar console**.
-4. Uma **barra de consoles** aparece acima da imagem: uma aba por console com a cor, o modelo e se a imagem está ao vivo. Clique em uma aba para ver aquele console. Capturas de tela, clipes, leitura de tela e testes passam a funcionar nele.
+4. Uma fileira de **pequenas imagens ao vivo** aparece abaixo do console: uma por console, com o nome, a cor e se a imagem está ao vivo. Clique em uma para ver aquele console em tamanho grande. Capturas de tela, clipes, leitura de tela e testes passam a funcionar nele. **+ Adicionar console** abre **Configurações → Consoles**.
 
 **O controle**
 

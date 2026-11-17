@@ -161,9 +161,11 @@ console is added.
 
 ## Interface
 
-- **Console bar** at the top: one tab per console with its name, colour and a small live
-  picture; click to view it big. A controller badge sits on the console that has it.
-- **"Controller is on …"** chooser next to the controller status, and the prompt after a replug.
+- **Console strip** under the console: a small live picture per console (a screenshot about once
+  a second) with its name, colour and live state; click one to view it big. 🎮 sits on the
+  console that has the controller; **+ Add console** opens Settings → Consoles.
+- A note above the strip when you watch a console the controller isn't on, with one button to say
+  the cable moved, and the prompt after a replug.
 - **Settings → Consoles:** add a console (pick its capture card from the cards not in use),
   rename, choose the profile and colour, set its network address, remove.
 - The shared-network leak watch and setup use the console names.
