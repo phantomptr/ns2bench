@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.18
+
 - **Several consoles, now as live pictures.** Under the console, each console has a small live picture with its name and colour, and 🎮 on the one the controller is plugged into. Click one to watch it big, or **+ Add console**.
 - **New top buttons.** ZL, L, R and ZR are spread evenly along the top and reach halfway over the screen. Prefer them meeting in the middle? **Settings → Appearance → Top buttons → Full span**. Nothing covers the screen any more.
 - **Setup guide: how input devices connect.** What a Linux board, a Pico and a CH9329 each need to reach the console and the computer, and why a Linux board like the Luckfox is the recommended one.

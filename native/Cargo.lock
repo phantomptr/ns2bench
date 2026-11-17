@@ -2605,7 +2605,7 @@ dependencies = [
 
 [[package]]
 name = "ns2bench"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "anyhow",
  "clap",
@@ -2616,7 +2616,7 @@ dependencies = [
 
 [[package]]
 name = "ns2bench-app"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -2640,7 +2640,7 @@ dependencies = [
 
 [[package]]
 name = "ns2bench-board"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "libc",
  "serde_json",
@@ -2648,7 +2648,7 @@ dependencies = [
 
 [[package]]
 name = "ns2bench-core"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "anyhow",
  "axum",
@@ -2674,7 +2674,7 @@ dependencies = [
 
 [[package]]
 name = "ns2bench-netd"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "libc",
  "serde_json",
@@ -2682,7 +2682,7 @@ dependencies = [
 
 [[package]]
 name = "ns2bench-tools"
-version = "0.0.17"
+version = "0.0.18"
 
 [[package]]
 name = "num-conv"
