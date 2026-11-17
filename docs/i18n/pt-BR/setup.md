@@ -232,7 +232,7 @@ Um módulo CH9329 transforma comandos seriais em um teclado e mouse USB. Ele é 
 
 ![Três formas de dar ao console uma rede offline](network.svg)
 
-Você só precisa disto para ferramentas de rede local, como carregadores homebrew. Captura e entrada nunca precisam disso.
+Você só precisa disto para ferramentas de rede local, como carregadores homebrew. Captura e entrada nunca precisam disso. As variantes A–C usam uma rede separada para o console. A variante D mantém o console no Wi-Fi da sua casa.
 
 Seja qual for a variante escolhida, o console fica **sem internet**. O NS2Bench nunca encaminha tráfego, nunca ativa compartilhamento de internet, NAT ou proxy, e nunca consulta um servidor DNS externo. O DNS local dele responde só ao teste de conectividade do console; qualquer outro nome é recusado. Toda consulta que o console tenta aparece no log de **rede**.
 
@@ -284,6 +284,52 @@ O Windows não consegue rodar o serviço de rede localmente. Rode-o em uma placa
 5. Mantenha o link de gerenciamento privado: um cabo direto ou a rede USB da placa. O tráfego dele é HTTP simples.
 
 A aba **Rede** no Windows passa a mostrar o status e os controles do auxiliar. Ou dispense o auxiliar e use a variante B.
+
+### D · Rede doméstica compartilhada (Wi-Fi, sem hardware extra)
+
+![Consoles no Wi-Fi de casa sem internet: o gateway deles é o próprio endereço, e o computador responde só ao teste de conexão deles](shared-network.svg)
+
+Os consoles ficam no Wi-Fi normal da sua casa, junto com o seu computador. Nada mais para comprar ou ligar. Cada console usa **configurações manuais** que não deixam nenhum lugar para onde mandar tráfego, e o NS2Bench no seu computador responde só ao teste de conexão dele, então o console continua dizendo que está conectado.
+
+**Como a internet é bloqueada**
+
+| Caminho de saída | O que o bloqueia |
+|---|---|
+| Consultar um nome da Nintendo (eShop, atualizações, contas, telemetria) | O DNS do NS2Bench recusa todos os nomes, exceto o teste de conexão. Cada tentativa aparece no vigia de vazamentos e no log de **rede**. |
+| Conectar a um servidor pelo endereço IP | O gateway do console é **o próprio endereço dele**, então nada do que ele envia sai da sua rede doméstica, seja qual for o endereço. |
+| IPv6 | Seu roteador não pode distribuir IPv6, ou desligue o IPv6. |
+| Seu computador repassar o tráfego | O console nunca manda tráfego para o seu computador como gateway, e o auxiliar para se o encaminhamento ou o compartilhamento de internet for ligado. |
+| O console voltar às configurações automáticas (uma redefinição, uma atualização, alguém mudar as configurações) | O **vigia de vazamentos** avisa você em cerca de 10 minutos. Adicione também uma pausa no roteador (passo 7). |
+
+A última linha é a única coisa que uma rede compartilhada não consegue descartar: ali, a trava são as próprias configurações do console. Se você precisa de "offline mesmo depois de restaurar as configurações de fábrica", use a variante A ou B, em que não existe nenhum caminho para a internet.
+
+**Você precisa de:** NS2Bench no macOS ou Linux com o auxiliar de rede instalado, seu computador e os consoles na mesma rede doméstica, e um roteador que não distribua IPv6 (ou com o IPv6 desligado).
+
+1. **Reserve endereços no seu roteador** (Google Home, o app do roteador ou a página web dele): um para o seu computador e um para cada console. Anote-os, por exemplo computador `192.168.86.199`, consoles `192.168.86.251` e `192.168.86.252`.
+2. **Instale o auxiliar de rede**, se ainda não instalou: **Configurações → Instalar → Auxiliar de rede**.
+3. Abra **Configurações → Rede** e escolha **Rede doméstica compartilhada**.
+4. **Escolha o adaptador de rede** que está na rede dos consoles. A lista mostra cada adaptador com o endereço, por exemplo `en10 · Belkin USB-C LAN · 192.168.86.199/24`.
+5. Digite os **endereços dos consoles**, marque as três confirmações (sem IPv6, endereço do computador reservado, nenhum outro Wi-Fi salvo nos consoles) e clique em **Salvar e usar esta rede**. O NS2Bench guarda um backup do seu arquivo de configurações. Depois clique em **Reiniciar auxiliar de rede**.
+6. **Em cada console:** Configurações do sistema → Internet → seu Wi-Fi → **Alterar configurações**:
+   - Configurações de endereço IP: **Manual**. Endereço IP: o endereço reservado do console. Máscara de sub-rede: `255.255.255.0`. **Gateway: o próprio endereço do console.**
+   - Configurações de DNS: **Manual**. DNS primário e secundário: **o endereço do seu computador**.
+   - Salve e rode o teste de conexão. Ele passa, e o console diz que está conectado.
+   O NS2Bench mostra esses valores exatos para cada console em **Digite isto em cada console**.
+7. **Segunda trava recomendada:** no app do seu roteador, pause ou bloqueie a internet para os consoles (Google Home: Wi-Fi → Family Wi-Fi → pausar). Confira se o teste de conexão continua passando com a pausa ligada.
+8. Apague todas as outras redes Wi-Fi salvas em cada console e evite jogar no modo sem fio local com um console de firmware mais novo (os consoles podem passar atualizações do sistema uns para os outros desse jeito).
+
+**Como ler o vigia de vazamentos** (Configurações → Rede, verificado a cada 30 segundos):
+
+- **Protegido:** o console consultou o NS2Bench há pouco. Mostra quando, o último teste de conexão e quantos nomes foram recusados.
+- **Na sua rede mas sem usar o NS2Bench:** ele não consulta há 10 minutos, mesmo estando na rede. Pode ter voltado às configurações automáticas e estar online. Confira as configurações dele. O NS2Bench também envia uma notificação na área de trabalho.
+- **Fora da rede no momento:** desligado, em repouso ou longe. Nada a fazer.
+
+**Problemas comuns**
+
+- *O console não conecta:* confira se o DNS dele é o endereço do seu computador, se o auxiliar está rodando (Configurações → Instalar) e se o adaptador escolhido no passo 4 está na rede dos consoles. Só os endereços da lista recebem respostas, então confira também o IP do console.
+- *O console recusa o próprio endereço como gateway:* use no lugar um endereço livre fora da faixa DHCP do roteador, por exemplo `192.168.86.254`. Garanta que nada use esse endereço, nem agora nem depois.
+- *O endereço do seu computador mudou:* os consoles não conseguem conectar (ficam offline). Reserve o endereço no roteador e faça a configuração de novo.
+- *Só uma rede por vez:* o auxiliar atende ou esta rede compartilhada ou um cabo direto (variante A), não as duas.
 
 **Problemas comuns**
 

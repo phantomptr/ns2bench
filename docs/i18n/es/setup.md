@@ -232,7 +232,7 @@ Un módulo CH9329 convierte órdenes serie en un teclado y un ratón USB. Es bar
 
 ![Tres formas de dar a la consola una red sin conexión](network.svg)
 
-Solo lo necesitas para herramientas de red local, como cargadores homebrew. La captura y la entrada nunca lo necesitan.
+Solo lo necesitas para herramientas de red local, como cargadores homebrew. La captura y la entrada nunca lo necesitan. Las variantes A–C usan una red aparte para la consola. La variante D la mantiene en tu Wi-Fi de casa.
 
 Elijas la variante que elijas, la consola **no tiene internet**. NS2Bench nunca reenvía tráfico, nunca activa la compartición de internet, NAT ni un proxy, y nunca consulta un servidor DNS externo. Su DNS local solo responde a la prueba de conexión de la consola; cualquier otro nombre se rechaza. Cada consulta que intenta la consola aparece en el registro de **red**.
 
@@ -284,6 +284,52 @@ Windows no puede ejecutar el servicio de red localmente. Ejecútalo en una placa
 5. Mantén privado el enlace de gestión: un cable directo o la red USB de la placa. Su tráfico es HTTP sin cifrar.
 
 La pestaña **Red** en Windows muestra entonces el estado y los controles del ayudante. O sáltate el ayudante y usa la variante B.
+
+### D · Red doméstica compartida (Wi-Fi, sin hardware extra)
+
+![Consolas en el Wi-Fi de casa sin internet: su puerta de enlace es su propia dirección y el ordenador solo responde a su prueba de conexión](shared-network.svg)
+
+Las consolas siguen en tu Wi-Fi de casa de siempre, junto a tu ordenador. No hay que comprar ni conectar nada más. Cada consola usa **ajustes manuales** que no le dejan ningún sitio al que enviar tráfico, y NS2Bench en tu ordenador solo responde a su prueba de conexión, así que la consola sigue diciendo que está conectada.
+
+**Cómo se bloquea internet**
+
+| Vía de salida | Qué la bloquea |
+|---|---|
+| Buscar un nombre de Nintendo (eShop, actualizaciones, cuentas, telemetría) | El DNS de NS2Bench rechaza todos los nombres excepto la prueba de conexión. Cada intento aparece en la vigilancia de fugas y en el registro de **red**. |
+| Conectarse a un servidor por dirección IP | La puerta de enlace de la consola es **su propia dirección**, así que nada de lo que envía sale de tu red de casa, sea cual sea la dirección. |
+| IPv6 | Tu router no debe repartir IPv6, o desactívalo. |
+| Tu ordenador reenvía el tráfico | La consola nunca envía tráfico a tu ordenador como puerta de enlace, y el asistente se detiene si se activa el reenvío o la compartición de internet. |
+| La consola vuelve a los ajustes automáticos (un restablecimiento, una actualización, alguien los cambia) | La **vigilancia de fugas** te avisa en unos 10 minutos. Añade también una pausa en el router (paso 7). |
+
+La última fila es lo único que una red compartida no puede descartar: ahí, los propios ajustes de la consola son el candado. Si necesitas "sin conexión incluso tras restablecer los valores de fábrica", usa la variante A o B, donde no existe ninguna ruta a internet.
+
+**Necesitas:** NS2Bench en macOS o Linux con el asistente de red instalado, tu ordenador y las consolas en la misma red de casa, y un router que no reparta IPv6 (o con IPv6 desactivado).
+
+1. **Reserva direcciones en tu router** (Google Home, la app de tu router o su página web): una para tu ordenador y una para cada consola. Anótalas, por ejemplo ordenador `192.168.86.199`, consolas `192.168.86.251` y `192.168.86.252`.
+2. **Instala el asistente de red** si aún no lo has hecho: **Ajustes → Instalar → Asistente de red**.
+3. Abre **Ajustes → Red** y elige **Red doméstica compartida**.
+4. **Elige el adaptador de red** que está en la red de las consolas. La lista muestra cada adaptador con su dirección, por ejemplo `en10 · Belkin USB-C LAN · 192.168.86.199/24`.
+5. Escribe las **direcciones de las consolas**, marca las tres casillas (sin IPv6, dirección del ordenador reservada, ningún otro Wi-Fi guardado en las consolas) y haz clic en **Guardar y usar esta red**. NS2Bench guarda una copia de seguridad de tu archivo de ajustes. Después haz clic en **Reiniciar asistente de red**.
+6. **En cada consola:** Configuración de la consola → Internet → tu Wi-Fi → **Cambiar configuración**:
+   - Configuración de dirección IP: **Manual**. Dirección IP: la dirección reservada de la consola. Máscara de subred: `255.255.255.0`. **Puerta de enlace: la propia dirección de la consola.**
+   - Configuración de DNS: **Manual**. DNS primario y secundario: **la dirección de tu ordenador**.
+   - Guarda y haz la prueba de conexión. Se supera y la consola dice que está conectada.
+   NS2Bench muestra estos valores exactos para cada consola en **Escribe esto en cada consola**.
+7. **Segundo candado recomendado:** en la app de tu router, pausa o bloquea internet para las consolas (Google Home: Wi-Fi → Family Wi-Fi → pausar). Comprueba que la prueba de conexión se sigue superando con la pausa activada.
+8. Borra todas las demás redes Wi-Fi guardadas en cada consola y evita el juego inalámbrico local con una consola con un firmware más nuevo (las consolas pueden pasarse actualizaciones del sistema entre sí de esa forma).
+
+**Cómo leer la vigilancia de fugas** (Ajustes → Red, se comprueba cada 30 segundos):
+
+- **Protegida:** la consola ha preguntado a NS2Bench hace poco. Se muestra cuándo, su última prueba de conexión y cuántos nombres se rechazaron.
+- **En tu red pero sin usar NS2Bench:** lleva 10 minutos sin preguntar mientras está en la red. Puede haber vuelto a los ajustes automáticos y estar en línea. Revisa sus ajustes. NS2Bench también envía una notificación de escritorio.
+- **No está en la red ahora mismo:** apagada, en reposo o fuera. No hay nada que hacer.
+
+**Problemas habituales**
+
+- *La consola no se conecta:* comprueba que su DNS es la dirección de tu ordenador, que el asistente está en marcha (Ajustes → Instalar) y que el adaptador elegido en el paso 4 está en la red de las consolas. Solo reciben respuesta las direcciones de la lista, así que revisa también la IP de la consola.
+- *La consola rechaza su propia dirección como puerta de enlace:* usa en su lugar una dirección libre fuera del rango DHCP del router, por ejemplo `192.168.86.254`. Asegúrate de que nada la use, ni ahora ni más adelante.
+- *La dirección de tu ordenador ha cambiado:* las consolas no pueden conectarse (se quedan sin conexión). Resérvala en el router y vuelve a hacer la configuración.
+- *Solo una red a la vez:* el asistente sirve esta red compartida o un cable directo (variante A), no las dos.
 
 **Problemas habituales**
 

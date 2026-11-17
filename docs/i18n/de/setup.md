@@ -232,7 +232,7 @@ Ein CH9329-Modul macht aus seriellen Befehlen eine USB-Tastatur und -Maus. Es is
 
 ![Drei Wege, der Konsole ein Offline-Netzwerk zu geben](network.svg)
 
-Das brauchst du nur für lokale Netzwerktools wie Homebrew-Loader. Capture und Eingabe brauchen es nie.
+Das brauchst du nur für lokale Netzwerktools wie Homebrew-Loader. Capture und Eingabe brauchen es nie. Die Varianten A–C nutzen ein eigenes Netzwerk für die Konsole. Variante D lässt sie in deinem Heim-Wi-Fi.
 
 Egal welche Variante du wählst, die Konsole bekommt **kein Internet**. NS2Bench leitet nie Datenverkehr weiter, schaltet nie Internetfreigabe, NAT oder einen Proxy ein und fragt nie einen externen DNS-Server. Sein lokales DNS beantwortet nur den Verbindungstest der Konsole; jeder andere Name wird abgelehnt. Jede Anfrage, die die Konsole versucht, erscheint im **Netzwerk**-Log.
 
@@ -284,6 +284,52 @@ Windows kann den Netzwerkdienst nicht lokal ausführen. Lass ihn stattdessen auf
 5. Halte die Verwaltungsverbindung privat: ein direktes Kabel oder das USB-Netzwerk des Boards. Ihr Datenverkehr ist unverschlüsseltes HTTP.
 
 Der Tab **Netzwerk** unter Windows zeigt dann Status und Steuerung des Helfers. Oder lass den Helfer weg und nutze Variante B.
+
+### D · Geteiltes Heimnetz (Wi-Fi, keine zusätzliche Hardware)
+
+![Konsolen im Heim-Wi-Fi ohne Internet: Ihr Gateway ist ihre eigene Adresse, und der Computer beantwortet nur ihren Verbindungstest](shared-network.svg)
+
+Die Konsolen bleiben in deinem normalen Heim-Wi-Fi, neben deinem Computer. Nichts zu kaufen oder anzuschließen. Jede Konsole nutzt **manuelle Einstellungen**, mit denen sie ihren Datenverkehr nirgendwohin schicken kann, und NS2Bench auf deinem Computer beantwortet nur ihren Verbindungstest. So meldet die Konsole trotzdem, dass sie verbunden ist.
+
+**So wird das Internet blockiert**
+
+| Weg nach draußen | Was ihn stoppt |
+|---|---|
+| Einen Nintendo-Namen nachschlagen (eShop, Updates, Konten, Telemetrie) | Das DNS von NS2Bench lehnt jeden Namen außer dem Verbindungstest ab. Jeder Versuch erscheint im Leck-Wächter und im **Netzwerk**-Log. |
+| Per IP-Adresse zu einem Server verbinden | Das Gateway der Konsole ist **ihre eigene Adresse**, also verlässt nichts, was sie sendet, dein Heimnetz, egal an welche Adresse. |
+| IPv6 | Dein Router darf kein IPv6 vergeben, oder schalte es aus. |
+| Dein Computer leitet Datenverkehr weiter | Die Konsole schickt deinem Computer nie Datenverkehr als Gateway, und der Helfer stoppt, wenn Weiterleitung oder Internetfreigabe eingeschaltet wird. |
+| Die Konsole geht zurück auf automatische Einstellungen (Zurücksetzen, Update, jemand ändert sie) | Der **Leck-Wächter** warnt dich innerhalb von etwa 10 Minuten. Richte zusätzlich eine Pause am Router ein (Schritt 7). |
+
+Die letzte Zeile ist das Einzige, was ein geteiltes Netz nicht ausschließen kann: Dort sind die Einstellungen der Konsole selbst das Schloss. Wenn du „offline auch nach dem Zurücksetzen auf Werkseinstellungen“ brauchst, nimm Variante A oder B. Dort gibt es gar keinen Weg ins Internet.
+
+**Du brauchst:** NS2Bench unter macOS oder Linux mit installiertem Netzwerk-Helfer, deinen Computer und die Konsolen im selben Heimnetz und einen Router, der kein IPv6 vergibt (oder mit ausgeschaltetem IPv6).
+
+1. **Reserviere Adressen in deinem Router** (Google Home, die App deines Routers oder seine Webseite): eine für deinen Computer und eine für jede Konsole. Notiere sie, zum Beispiel Computer `192.168.86.199`, Konsolen `192.168.86.251` und `192.168.86.252`.
+2. **Installiere den Netzwerk-Helfer**, falls noch nicht geschehen: **Einstellungen → Installieren → Netzwerk-Helfer**.
+3. Öffne **Einstellungen → Netzwerk** und wähle **Geteiltes Heimnetz**.
+4. **Wähle den Netzwerkadapter**, der im Netz der Konsolen ist. Die Liste zeigt jeden Adapter mit seiner Adresse, zum Beispiel `en10 · Belkin USB-C LAN · 192.168.86.199/24`.
+5. Gib die **Konsolenadressen** ein, setze die drei Häkchen (kein IPv6, Computeradresse reserviert, kein anderes gespeichertes Wi-Fi auf den Konsolen) und klicke auf **Speichern und dieses Netzwerk verwenden**. NS2Bench legt eine Sicherung deiner Einstellungsdatei an. Klicke danach auf **Netzwerk-Helfer neu starten**.
+6. **Auf jeder Konsole:** Systemeinstellungen → Internet → dein Wi-Fi → **Einstellungen ändern**:
+   - IP-Adresseinstellungen: **Manuell**. IP-Adresse: die reservierte Adresse der Konsole. Subnetzmaske: `255.255.255.0`. **Gateway: die eigene Adresse der Konsole.**
+   - DNS-Einstellungen: **Manuell**. Primäres und sekundäres DNS: **die Adresse deines Computers**.
+   - Speichern und den Verbindungstest ausführen. Er klappt, und die Konsole meldet, dass sie verbunden ist.
+   NS2Bench zeigt genau diese Werte für jede Konsole unter **Gib das auf jeder Konsole ein**.
+7. **Empfohlenes zweites Schloss:** Pausiere oder sperre in der App deines Routers das Internet für die Konsolen (Google Home: Wi-Fi → Family Wi-Fi → Pausieren). Prüfe, ob der Verbindungstest mit aktiver Pause weiterhin klappt.
+8. Lösche jedes andere gespeicherte Wi-Fi-Netz auf jeder Konsole und vermeide lokales Drahtlosspiel mit einer Konsole mit neuerer Firmware (Konsolen können sich so gegenseitig Systemupdates weitergeben).
+
+**Den Leck-Wächter lesen** (Einstellungen → Netzwerk, Prüfung alle 30 Sekunden):
+
+- **Geschützt:** Die Konsole hat NS2Bench vor Kurzem gefragt. Angezeigt werden wann, ihr letzter Verbindungstest und wie viele Namen abgelehnt wurden.
+- **In deinem Netzwerk, nutzt NS2Bench aber nicht:** Sie hat seit 10 Minuten nicht gefragt, obwohl sie im Netzwerk ist. Sie ist vielleicht wieder auf automatischen Einstellungen und online. Prüfe ihre Einstellungen. NS2Bench schickt außerdem eine Desktop-Benachrichtigung.
+- **Gerade nicht im Netzwerk:** aus, im Ruhemodus oder unterwegs. Nichts zu tun.
+
+**Häufige Probleme**
+
+- *Die Konsole verbindet sich nicht:* Prüfe, ob ihr DNS die Adresse deines Computers ist, ob der Helfer läuft (Einstellungen → Installieren) und ob der in Schritt 4 gewählte Adapter im Netz der Konsolen ist. Nur eingetragene Adressen bekommen Antworten, prüfe also auch die IP der Konsole.
+- *Die Konsole lehnt ihre eigene Adresse als Gateway ab:* Nimm stattdessen eine unbenutzte Adresse außerhalb des DHCP-Bereichs des Routers, zum Beispiel `192.168.86.254`. Achte darauf, dass sie niemand nutzt, weder jetzt noch später.
+- *Die Adresse deines Computers hat sich geändert:* Die Konsolen können sich nicht verbinden (sie bleiben offline). Reserviere sie im Router und führe die Einrichtung erneut aus.
+- *Nur ein Netzwerk gleichzeitig:* Der Helfer bedient entweder dieses geteilte Netz oder ein direktes Kabel (Variante A), nicht beides.
 
 **Häufige Probleme**
 

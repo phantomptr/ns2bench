@@ -232,7 +232,7 @@ Un modulo CH9329 trasforma comandi seriali in una tastiera e un mouse USB. È ec
 
 ![Tre modi per dare alla console una rete offline](network.svg)
 
-Ti serve solo per strumenti di rete locale, come i loader homebrew. Acquisizione e input non ne hanno mai bisogno.
+Ti serve solo per strumenti di rete locale, come i loader homebrew. Acquisizione e input non ne hanno mai bisogno. Le varianti A–C usano una rete separata per la console. La variante D la lascia sulla tua Wi-Fi di casa.
 
 Qualunque variante tu scelga, la console **non ha internet**. NS2Bench non inoltra mai il traffico, non attiva mai la condivisione internet, NAT o un proxy, e non interroga mai un server DNS esterno. Il suo DNS locale risponde solo al test di connessione della console; ogni altro nome viene rifiutato. Ogni ricerca che la console tenta compare nel log **network**.
 
@@ -284,6 +284,52 @@ Windows non può eseguire il servizio di rete in locale. Eseguilo invece su una 
 5. Mantieni privato il collegamento di gestione: un cavo diretto o la rete USB della scheda. Il suo traffico è HTTP in chiaro.
 
 La scheda **Rete** su Windows mostra quindi lo stato e i controlli dell'helper. Oppure salta l'helper e usa la variante B.
+
+### D · Rete di casa condivisa (Wi-Fi, nessun hardware aggiuntivo)
+
+![Console sulla Wi-Fi di casa senza internet: il loro gateway è il loro stesso indirizzo e il computer risponde solo al loro test di connessione](shared-network.svg)
+
+Le console restano sulla tua normale Wi-Fi di casa, accanto al computer. Niente altro da comprare o collegare. Ogni console usa **impostazioni manuali** che non le lasciano nessun posto dove mandare traffico, e NS2Bench sul tuo computer risponde solo al suo test di connessione, così la console dice comunque di essere connessa.
+
+**Come viene bloccato internet**
+
+| Via d'uscita | Cosa la blocca |
+|---|---|
+| Cercare un nome Nintendo (eShop, aggiornamenti, account, telemetria) | Il DNS di NS2Bench rifiuta ogni nome tranne il test di connessione. Ogni tentativo compare nel controllo perdite e nel log **network**. |
+| Connettersi a un server tramite indirizzo IP | Il gateway della console è **il suo stesso indirizzo**, quindi niente di ciò che invia esce dalla tua rete di casa, qualunque sia l'indirizzo. |
+| IPv6 | Il router non deve distribuire IPv6, altrimenti disattivalo. |
+| Il computer inoltra il traffico | La console non manda mai traffico al computer come gateway, e l'helper si ferma se l'inoltro o la condivisione internet vengono attivati. |
+| La console torna alle impostazioni automatiche (un ripristino, un aggiornamento, qualcuno che le cambia) | Il **controllo perdite** ti avvisa entro circa 10 minuti. Aggiungi anche una pausa dal router (passo 7). |
+
+L'ultima riga è l'unica cosa che una rete condivisa non può escludere: lì il lucchetto sono le impostazioni della console stessa. Se ti serve "offline anche dopo un ripristino di fabbrica", usa la variante A o B, dove non esiste proprio una strada verso internet.
+
+**Ti serve:** NS2Bench su macOS o Linux con l'helper di rete installato, il computer e le console sulla stessa rete di casa, e un router che non distribuisce IPv6 (o con IPv6 disattivato).
+
+1. **Riserva gli indirizzi nel router** (Google Home, l'app del router o la sua pagina web): uno per il computer e uno per ogni console. Annotali, per esempio computer `192.168.86.199`, console `192.168.86.251` e `192.168.86.252`.
+2. **Installa l'helper di rete** se non l'hai già fatto: **Impostazioni → Installa → Helper di rete**.
+3. Apri **Impostazioni → Rete** e scegli **Rete di casa condivisa**.
+4. **Scegli la scheda di rete** che si trova sulla rete delle console. L'elenco mostra ogni scheda con il suo indirizzo, per esempio `en10 · Belkin USB-C LAN · 192.168.86.199/24`.
+5. Inserisci gli **indirizzi delle console**, spunta le tre caselle (niente IPv6, indirizzo del computer riservato, nessun'altra Wi-Fi salvata sulle console) e fai clic su **Salva e usa questa rete**. NS2Bench conserva un backup del tuo file di impostazioni. Poi fai clic su **Riavvia helper di rete**.
+6. **Su ogni console:** Impostazioni di sistema → Internet → la tua Wi-Fi → **Modifica impostazioni**:
+   - Impostazioni indirizzo IP: **Manuale**. Indirizzo IP: l'indirizzo riservato della console. Subnet mask: `255.255.255.0`. **Gateway: l'indirizzo della console stessa.**
+   - Impostazioni DNS: **Manuale**. DNS primario e secondario: **l'indirizzo del tuo computer**.
+   - Salva ed esegui il test di connessione. Passa, e la console dice di essere connessa.
+   NS2Bench mostra questi valori esatti per ogni console sotto **Inserisci questo su ogni console**.
+7. **Secondo lucchetto consigliato:** nell'app del router, metti in pausa o blocca internet per le console (Google Home: Wi-Fi → Family Wi-Fi → pausa). Controlla che il test di connessione passi ancora con la pausa attiva.
+8. Elimina tutte le altre reti Wi-Fi salvate su ogni console ed evita il gioco wireless locale con una console con firmware più recente (le console possono passarsi aggiornamenti di sistema in quel modo).
+
+**Leggere il controllo perdite** (Impostazioni → Rete, controllato ogni 30 secondi):
+
+- **Protetta:** la console ha interrogato NS2Bench di recente. Mostra quando, il suo ultimo test di connessione e quanti nomi sono stati rifiutati.
+- **Sulla tua rete ma non usa NS2Bench:** non chiede nulla da 10 minuti pur essendo sulla rete. Potrebbe essere tornata alle impostazioni automatiche ed essere online. Controlla le sue impostazioni. NS2Bench invia anche una notifica sul desktop.
+- **Non è sulla rete al momento:** spenta, in standby o lontana. Niente da fare.
+
+**Problemi comuni**
+
+- *La console non si connette:* controlla che il suo DNS sia l'indirizzo del computer, che l'helper sia in esecuzione (Impostazioni → Installa) e che la scheda scelta al passo 4 sia sulla rete delle console. Ricevono risposta solo gli indirizzi in elenco, quindi controlla anche l'IP della console.
+- *La console rifiuta il proprio indirizzo come gateway:* usa invece un indirizzo libero fuori dall'intervallo DHCP del router, per esempio `192.168.86.254`. Assicurati che niente lo usi, né ora né in futuro.
+- *L'indirizzo del computer è cambiato:* le console non riescono a connettersi (restano offline). Riservalo nel router e ripeti la configurazione.
+- *Una rete alla volta:* l'helper serve o questa rete condivisa o un cavo diretto (variante A), non entrambi.
 
 **Problemi comuni**
 

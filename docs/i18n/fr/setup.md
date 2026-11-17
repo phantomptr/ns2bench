@@ -232,7 +232,7 @@ Un module CH9329 transforme des commandes série en clavier et souris USB. Il es
 
 ![Trois façons de donner à la console un réseau hors ligne](network.svg)
 
-Vous n’en avez besoin que pour des outils réseau locaux, comme les lanceurs homebrew. La capture et l’entrée n’en ont jamais besoin.
+Vous n’en avez besoin que pour des outils réseau locaux, comme les lanceurs homebrew. La capture et l’entrée n’en ont jamais besoin. Les variantes A–C utilisent un réseau séparé pour la console. La variante D la garde sur votre Wi-Fi domestique.
 
 Quelle que soit la variante choisie, la console n’a **aucun accès à Internet**. NS2Bench ne transfère jamais de trafic, n’active jamais le partage de connexion, le NAT ou un proxy, et n’interroge jamais de serveur DNS externe. Son DNS local ne répond qu’au test de connectivité de la console ; tous les autres noms sont refusés. Chaque requête de la console apparaît dans le journal **réseau**.
 
@@ -284,6 +284,52 @@ Windows ne peut pas exécuter le service réseau localement. Faites-le tourner s
 5. Gardez la liaison de gestion privée : un câble direct ou le réseau USB de la carte. Son trafic est en HTTP non chiffré.
 
 L’onglet **Réseau** sous Windows affiche alors l’état et les commandes de l’assistant. Ou bien passez-vous de l’assistant et utilisez la variante B.
+
+### D · Réseau domestique partagé (Wi-Fi, sans matériel supplémentaire)
+
+![Consoles sur le Wi-Fi domestique sans Internet : leur passerelle est leur propre adresse, et l’ordinateur ne répond qu’à leur test de connexion](shared-network.svg)
+
+Les consoles restent sur votre Wi-Fi domestique habituel, à côté de votre ordinateur. Rien d’autre à acheter ni à brancher. Chaque console utilise des **réglages manuels** qui ne lui laissent aucun endroit où envoyer du trafic, et NS2Bench sur votre ordinateur ne répond qu’à son test de connexion : la console indique donc toujours qu’elle est connectée.
+
+**Comment Internet est bloqué**
+
+| Voie de sortie | Ce qui la bloque |
+|---|---|
+| Chercher un nom Nintendo (eShop, mises à jour, comptes, télémétrie) | Le DNS de NS2Bench refuse tous les noms sauf le test de connexion. Chaque tentative apparaît dans la surveillance des fuites et dans le journal **réseau**. |
+| Se connecter à un serveur par adresse IP | La passerelle de la console est **sa propre adresse** : rien de ce qu’elle envoie ne quitte votre réseau domestique, quelle que soit l’adresse. |
+| IPv6 | Votre routeur ne doit pas distribuer d’IPv6, sinon désactivez-le. |
+| Votre ordinateur fait suivre le trafic | La console n’envoie jamais de trafic à votre ordinateur comme passerelle, et l’assistant s’arrête si le transfert IP ou le partage de connexion est activé. |
+| La console revient aux réglages automatiques (une réinitialisation, une mise à jour, quelqu’un qui les change) | La **surveillance des fuites** vous avertit en 10 minutes environ. Ajoutez aussi une pause côté routeur (étape 7). |
+
+La dernière ligne est la seule chose qu’un réseau partagé ne peut pas exclure : là, ce sont les réglages de la console qui servent de verrou. S’il vous faut « hors ligne même après une réinitialisation d’usine », utilisez la variante A ou B, où aucune route vers Internet n’existe.
+
+**Il vous faut :** NS2Bench sous macOS ou Linux avec l’assistant réseau installé, votre ordinateur et les consoles sur le même réseau domestique, et un routeur qui ne distribue pas d’IPv6 (ou avec IPv6 désactivé).
+
+1. **Réservez des adresses dans votre routeur** (Google Home, l’app de votre routeur ou sa page web) : une pour votre ordinateur et une pour chaque console. Notez-les, par exemple ordinateur `192.168.86.199`, consoles `192.168.86.251` et `192.168.86.252`.
+2. **Installez l’assistant réseau** si ce n’est pas déjà fait : **Réglages → Installer → Assistant réseau**.
+3. Ouvrez **Réglages → Réseau** et choisissez **Réseau domestique partagé**.
+4. **Choisissez la carte réseau** qui est sur le réseau des consoles. La liste affiche chaque carte avec son adresse, par exemple `en10 · Belkin USB-C LAN · 192.168.86.199/24`.
+5. Saisissez les **adresses des consoles**, cochez les trois cases (pas d’IPv6, adresse de l’ordinateur réservée, aucun autre Wi-Fi enregistré sur les consoles) et cliquez sur **Enregistrer et utiliser ce réseau**. NS2Bench garde une sauvegarde de votre fichier de réglages. Cliquez ensuite sur **Redémarrer l’assistant réseau**.
+6. **Sur chaque console :** Paramètres de la console → Internet → votre Wi-Fi → **Modifier les paramètres** :
+   - Paramètres d’adresse IP : **Manuel**. Adresse IP : l’adresse réservée de la console. Masque de sous-réseau : `255.255.255.0`. **Passerelle : la propre adresse de la console.**
+   - Paramètres DNS : **Manuel**. DNS primaire et secondaire : **l’adresse de votre ordinateur**.
+   - Enregistrez et lancez le test de connexion. Il réussit, et la console indique qu’elle est connectée.
+   NS2Bench affiche ces valeurs exactes pour chaque console sous **Saisissez ceci sur chaque console**.
+7. **Deuxième verrou recommandé :** dans l’app de votre routeur, mettez en pause ou bloquez Internet pour les consoles (Google Home : Wi-Fi → Family Wi-Fi → pause). Vérifiez que le test de connexion réussit toujours avec la pause active.
+8. Supprimez tous les autres réseaux Wi-Fi enregistrés sur chaque console, et évitez le jeu sans fil local avec une console au firmware plus récent (les consoles peuvent se transmettre des mises à jour du système de cette façon).
+
+**Lire la surveillance des fuites** (Réglages → Réseau, vérifiée toutes les 30 secondes) :
+
+- **Protégée :** la console a interrogé NS2Bench récemment. Vous voyez quand, son dernier test de connexion et combien de noms ont été refusés.
+- **Sur votre réseau mais n’utilise pas NS2Bench :** elle n’a rien demandé depuis 10 minutes alors qu’elle est sur le réseau. Elle est peut-être revenue aux réglages automatiques et en ligne. Vérifiez ses réglages. NS2Bench envoie aussi une notification sur le bureau.
+- **Pas sur le réseau pour le moment :** éteinte, en veille ou absente. Rien à faire.
+
+**Problèmes courants**
+
+- *La console ne se connecte pas :* vérifiez que son DNS est l’adresse de votre ordinateur, que l’assistant tourne (Réglages → Installer) et que la carte choisie à l’étape 4 est sur le réseau des consoles. Seules les adresses de la liste reçoivent des réponses : vérifiez donc aussi l’IP de la console.
+- *La console refuse sa propre adresse comme passerelle :* utilisez plutôt une adresse libre hors de la plage DHCP du routeur, par exemple `192.168.86.254`. Assurez-vous que rien ne l’utilise, ni maintenant ni plus tard.
+- *L’adresse de votre ordinateur a changé :* les consoles ne peuvent pas se connecter (elles restent hors ligne). Réservez-la dans le routeur et relancez la configuration.
+- *Un seul réseau à la fois :* l’assistant sert soit ce réseau partagé, soit un câble direct (variante A), pas les deux.
 
 **Problèmes courants**
 
