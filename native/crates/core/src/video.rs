@@ -462,7 +462,8 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
 }
 
 /// Run the configured source forever, restarting with backoff. `cfg` is re-read on each start.
-pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub) {
+/// `save`: keeps a capture card picked automatically (the console's settings).
+pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub, save: Option<Arc<dyn Fn() + Send + Sync>>) {
     let mut delay = Duration::from_secs(1);
     let mut h264_failures = 0u32;
     loop {
@@ -486,10 +487,7 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub)
                 Some(d) => {
                     logs.add("bench", format!("video: no capture card was chosen; using {d}"));
                     cfg.lock().unwrap()["device"] = d.clone().into();
-                    let saved = cfg.lock().unwrap().clone();
-                    let keep: serde_json::Map<String, Value> = ["device", "width", "height", "fps", "quality", "backend", "codec", "audio_device"]
-                        .iter().filter_map(|k| saved.get(*k).map(|x| (k.to_string(), x.clone()))).collect();
-                    let _ = crate::config::write_json(&crate::config::state_dir().join("video.json"), &Value::Object(keep));
+                    if let Some(save) = &save { save(); }
                     continue;
                 }
                 None => {

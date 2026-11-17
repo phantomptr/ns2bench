@@ -33,7 +33,7 @@ pub async fn run(b: &Bench, probe: bool) -> Value {
         Some(age) if age > 2.0 => out.push(check("video", "fail", format!("last frame {age} s ago ({err})"),
             "The capture stream stalled: replug the card or re-apply the Video settings.")),
         _ => {
-            let want = b.video_cfg.lock().unwrap()["fps"].as_f64().unwrap_or(30.0);
+            let want = b.target().map(|c| c.video_cfg.lock().unwrap()["fps"].as_f64().unwrap_or(30.0)).unwrap_or(30.0);
             let fps = v["fps"].as_f64().unwrap_or(0.0);
             let ok = fps >= want * 0.75;
             out.push(check("video", if ok { "ok" } else { "warn" }, format!("{} {fps} fps (asked {want})", v["source"].as_str().unwrap_or("?")),

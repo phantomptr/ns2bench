@@ -302,8 +302,17 @@ pub fn report(b: &S) -> Value {
         .filter_map(|c| c.as_str().and_then(|s| s.parse().ok())).collect();
     let prefix = net["subnet"].as_str().and_then(|s| s.split_once('/')).and_then(|(_, p)| p.parse::<u32>().ok()).unwrap_or(24).min(32);
     let dns = net["address"].as_str().and_then(|s| s.parse().ok()).unwrap_or(Ipv4Addr::UNSPECIFIED);
+    // each address with the console that has it (Settings → Consoles), so lists show names
+    let names: std::collections::HashMap<String, String> = b.list().iter()
+        .filter_map(|c| c.network_ip.lock().unwrap().clone().map(|ip| (ip, c.name()))).collect();
+    let mut settings = console_settings(&consoles, dns, prefix);
+    for s in &mut settings { s["name"] = json!(names.get(s["console"].as_str().unwrap_or(""))); }
+    let mut watch = WATCH.lock().unwrap().clone();
+    if let Some(rows) = watch.as_mut().and_then(|w| w["consoles"].as_array_mut()) {
+        for r in rows { r["name"] = json!(names.get(r["console"].as_str().unwrap_or(""))); }
+    }
     json!({"interface": net["interface"], "address": net["address"], "consoles": consoles.iter().map(|c| c.to_string()).collect::<Vec<_>>(),
-        "settings": console_settings(&consoles, dns, prefix), "watch": WATCH.lock().unwrap().clone()})
+        "settings": settings, "watch": watch})
 }
 
 #[cfg(test)]

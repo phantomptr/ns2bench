@@ -1,0 +1,199 @@
+//! Several consoles on one bench (docs/design/multi-console.md).
+//!
+//! A console has a profile (name, model, colour, network address) and its own capture card, with
+//! its own picture, sound and clip recorder running all the time. The controller is shared: it is
+//! plugged into one console at a time, and only the person knows which, so the bench keeps that
+//! location and sends input only to that console.
+//!
+//! A request picks its console with `?console=<id or name>` or the `X-NS2Bench-Console` header;
+//! without one it is the console the controller is on (so single-console calls work as before).
+
+use crate::audio::AudioHub;
+use crate::config::{state_dir, write_json};
+use crate::dvr::Dvr;
+use crate::logs::LogHub;
+use crate::video::FrameHub;
+use serde_json::{json, Value};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tokio::task::JoinHandle;
+
+/// Models and what they set: the menu profile and the controller mode that works on them.
+pub const MODELS: &[(&str, &str, &str)] = &[
+    // (id, name, controller mode)
+    ("switch2", "Switch 2", "pro"),
+    ("switch1", "Switch 1", "standard"),
+];
+
+pub fn model_mode(model: &str) -> &'static str {
+    MODELS.iter().find(|m| m.0 == model).map(|m| m.2).unwrap_or("standard")
+}
+
+/// The video settings a console keeps (the same keys as video.json).
+pub const VIDEO_KEYS: [&str; 8] = ["device", "width", "height", "fps", "quality", "backend", "codec", "audio_device"];
+
+pub struct Console {
+    pub id: String,
+    pub name: Mutex<String>,
+    pub model: Mutex<String>,
+    pub color: Mutex<String>,
+    pub network_ip: Mutex<Option<String>>,
+    /// The menu routes and screen names for this console's model.
+    pub profile: Mutex<Value>,
+    pub frames: Arc<FrameHub>,
+    pub video_cfg: Arc<Mutex<Value>>,
+    video_task: Mutex<Option<JoinHandle<()>>>,
+    pub audio: Arc<AudioHub>,
+    pub dvr: Arc<Dvr>,
+}
+
+impl Console {
+    /// `entry`: one console from consoles.json. `base`: the bench's own video settings (each
+    /// console starts from them; its own entries win).
+    pub fn new(entry: &Value, base_video: &Value, raw: &Value) -> Arc<Console> {
+        let model = entry["model"].as_str().unwrap_or("switch2").to_string();
+        let mut video = base_video.clone();
+        if let (Some(v), Some(own)) = (video.as_object_mut(), entry["video"].as_object()) {
+            for (k, x) in own { v.insert(k.clone(), x.clone()); }
+        }
+        let dvr = Dvr::new(raw.get("dvr"));
+        Arc::new(Console {
+            id: entry["id"].as_str().unwrap_or("console").to_string(),
+            name: Mutex::new(entry["name"].as_str().unwrap_or("Console").to_string()),
+            profile: Mutex::new(crate::nav::load_profile(&model)),
+            model: Mutex::new(model),
+            color: Mutex::new(entry["color"].as_str().unwrap_or("#e60012").to_string()),
+            network_ip: Mutex::new(entry["network_ip"].as_str().map(str::to_string)),
+            frames: FrameHub::new(),
+            video_cfg: Arc::new(Mutex::new(video)),
+            video_task: Mutex::new(None),
+            audio: AudioHub::new(raw.get("audio"), dvr.seconds + 2.0),
+            dvr,
+        })
+    }
+
+    pub fn name(&self) -> String {
+        self.name.lock().unwrap().clone()
+    }
+
+    /// What consoles.json keeps for this console.
+    pub fn entry(&self) -> Value {
+        let v = self.video_cfg.lock().unwrap().clone();
+        let video: serde_json::Map<String, Value> = VIDEO_KEYS.iter().filter_map(|k| v.get(*k).filter(|x| !x.is_null()).map(|x| (k.to_string(), x.clone()))).collect();
+        json!({"id": self.id, "name": self.name(), "model": *self.model.lock().unwrap(), "color": *self.color.lock().unwrap(),
+            "network_ip": *self.network_ip.lock().unwrap(), "video": video})
+    }
+
+    /// For status and the page: the entry plus the live picture's state.
+    pub fn info(&self, controller_here: bool) -> Value {
+        let mut e = self.entry();
+        e["controller_here"] = json!(controller_here);
+        e["video_status"] = self.frames.status();
+        e["model_name"] = json!(MODELS.iter().find(|m| Some(m.0) == e["model"].as_str()).map(|m| m.1).unwrap_or("?"));
+        e
+    }
+
+    /// Start (or restart) this console's capture. `save` keeps a card picked automatically.
+    pub fn restart_video(self: &Arc<Self>, logs: &LogHub, save: Arc<dyn Fn() + Send + Sync>) {
+        {
+            // one lock across stop and start: two restarts at once must not leave two captures
+            let mut task = self.video_task.lock().unwrap();
+            let restarting = task.take().map(|t| t.abort()).is_some();
+            let (cfg, frames, logs) = (self.video_cfg.clone(), self.frames.clone(), logs.clone());
+            *task = Some(tokio::spawn(async move {
+                // the old ffmpeg is being killed, not yet gone: give it a moment to let go of the
+                // card (Windows refuses a second open with "I/O error" meanwhile)
+                if restarting { tokio::time::sleep(Duration::from_millis(500)).await; }
+                crate::video::supervise(cfg, frames, logs, Some(save)).await
+            }));
+        }
+        self.audio.restart();
+    }
+
+    /// Stop everything this console runs (it is being removed).
+    pub fn stop(&self) {
+        if let Some(t) = self.video_task.lock().unwrap().take() { t.abort(); }
+    }
+}
+
+/// A short id from a name: "Switch 1 OLED" -> "switch-1-oled".
+pub fn slug(name: &str) -> String {
+    let s: String = name.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+    let s = s.split('-').filter(|p| !p.is_empty()).collect::<Vec<_>>().join("-");
+    if s.is_empty() { "console".into() } else { s.chars().take(32).collect() }
+}
+
+pub fn file() -> std::path::PathBuf {
+    state_dir().join("consoles.json")
+}
+
+/// consoles.json, or the single console this bench had before (its video settings, the
+/// configured menu profile), holding the controller.
+pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
+    if let Some(v) = std::fs::read(file()).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok()) {
+        let list: Vec<Value> = v["consoles"].as_array().cloned().unwrap_or_default().into_iter()
+            .filter(|c| c["id"].as_str().is_some_and(|s| !s.is_empty())).collect();
+        if !list.is_empty() {
+            return (list, v["controller_on"].as_str().map(str::to_string));
+        }
+    }
+    let model = raw["profile"].as_str().unwrap_or("switch2");
+    let name = MODELS.iter().find(|m| m.0 == model).map(|m| m.1).unwrap_or("Switch");
+    let id = slug(name);
+    (vec![json!({"id": id, "name": name, "model": model, "color": "#e60012"})], Some(id))
+}
+
+pub fn save(consoles: &[Arc<Console>], controller_on: Option<&str>) -> std::io::Result<()> {
+    // unit tests never write the person's consoles.json
+    if cfg!(test) { return Ok(()); }
+    write_json(&file(), &json!({"consoles": consoles.iter().map(|c| c.entry()).collect::<Vec<_>>(), "controller_on": controller_on}))
+}
+
+tokio::task_local! {
+    /// The console a request names (`?console=` or the X-NS2Bench-Console header), if any.
+    pub static SELECTED: Option<String>;
+}
+
+/// The console a request is about, as named by it (None: it named none).
+pub fn selected() -> Option<String> {
+    SELECTED.try_with(|s| s.clone()).ok().flatten()
+}
+
+/// The console a request names: `?console=` or the X-NS2Bench-Console header.
+pub fn requested(req: &axum::extract::Request) -> Option<String> {
+    let from_query = req.uri().query().and_then(|q| {
+        q.split('&').filter_map(|kv| kv.split_once('=')).find(|(k, _)| *k == "console")
+            .map(|(_, v)| percent_decode(v))
+    });
+    let from_header = req.headers().get("x-ns2bench-console").and_then(|v| v.to_str().ok()).map(str::to_string);
+    from_query.or(from_header).filter(|s| !s.trim().is_empty())
+}
+
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let hex = |c: u8| (c as char).to_digit(16);
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        match (b[i], b.get(i + 1).copied().and_then(hex), b.get(i + 2).copied().and_then(hex)) {
+            (b'+', _, _) => { out.push(b' '); i += 1; }
+            (b'%', Some(h), Some(l)) => { out.push((h * 16 + l) as u8); i += 3; }
+            (c, _, _) => { out.push(c); i += 1; }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn slugs_and_names() {
+        assert_eq!(slug("Switch 1 OLED"), "switch-1-oled");
+        assert_eq!(slug("  ??  "), "console");
+        assert_eq!(percent_decode("Switch%201"), "Switch 1");
+        assert_eq!(percent_decode("a+b%2"), "a b%2");
+        assert_eq!(model_mode("switch2"), "pro");
+        assert_eq!(model_mode("switch1"), "standard");
+    }
+}

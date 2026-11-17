@@ -23,8 +23,9 @@ fn strings(v: &Value) -> Vec<String> {
 
 impl Bench {
     pub async fn read_screen(&self, region: Option<[f64; 4]>, fast: bool) -> Result<Vec<Line>> {
-        let f = self.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(5)).ok_or_else(|| {
-            anyhow!("no live video ({})", self.frames.error.lock().unwrap().clone().unwrap_or("waiting".into()))
+        let c = self.target()?;
+        let f = c.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(5)).ok_or_else(|| {
+            anyhow!("no live video ({})", c.frames.error.lock().unwrap().clone().unwrap_or("waiting".into()))
         })?;
         ocr::read(self.ext.ocr, &f.jpeg, region, fast).await
     }
@@ -32,7 +33,8 @@ impl Bench {
     pub fn classify(&self, lines: &[Line]) -> Vec<String> {
         let text = ocr::join(lines, " ").to_lowercase();
         let mut found = vec![];
-        if let Some(screens) = self.ext.profile["screens"].as_object() {
+        let profile = self.target().map(|c| c.profile.lock().unwrap().clone()).unwrap_or_default();
+        if let Some(screens) = profile["screens"].as_object() {
             for (name, rule) in screens {
                 let all = strings(&rule["all"]);
                 let any = strings(&rule["any"]);
@@ -88,7 +90,7 @@ impl Bench {
     }
 
     pub fn routes(&self) -> Value {
-        let p = &self.ext.profile;
+        let p = &self.target().map(|c| c.profile.lock().unwrap().clone()).unwrap_or_default();
         let routes: serde_json::Map<String, Value> = p["routes"].as_object().map(|m| m.iter()
             .map(|(k, v)| (k.clone(), json!({"expect": v["expect"], "note": v["note"]}))).collect()).unwrap_or_default();
         let screens: Vec<&String> = p["screens"].as_object().map(|m| m.keys().collect()).unwrap_or_default();
@@ -96,8 +98,9 @@ impl Bench {
     }
 
     pub async fn navigate(&self, route: &str, source: &str) -> Result<Value> {
-        let r = self.ext.profile["routes"].get(route).cloned().ok_or_else(|| {
-            let known: Vec<String> = self.ext.profile["routes"].as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
+        let profile = self.target()?.profile.lock().unwrap().clone();
+        let r = profile["routes"].get(route).cloned().ok_or_else(|| {
+            let known: Vec<String> = profile["routes"].as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
             anyhow!("unknown route {route:?}; known: {}", known.join(", "))
         })?;
         self.logs.add("bench", format!("{source}: navigate {route}"));

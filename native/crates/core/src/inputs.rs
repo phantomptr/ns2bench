@@ -392,6 +392,9 @@ pub struct InputHub {
     /// The page (socket number) that last left something held: only that page going silent or
     /// closing releases the person's input, not another, idle page.
     pub ui_owner: std::sync::atomic::AtomicU64,
+    /// Set while nothing may be pressed (several consoles, and which one the controller is
+    /// plugged into isn't known). Letting go still goes through.
+    pub paused: Mutex<Option<String>>,
 }
 
 impl InputHub {
@@ -410,6 +413,7 @@ impl InputHub {
             agent_lock: tokio::sync::Mutex::new(()),
             logs,
             ui_owner: 0.into(),
+            paused: Mutex::new(None),
         })
     }
 
@@ -444,6 +448,11 @@ impl InputHub {
             st.last_kbd = kbd;
             (pad, kbd, changed, [st.agent.buttons, st.agent.dpad as u32])
         };
+        if let Some(why) = self.paused.lock().unwrap().clone() {
+            if pad != NEUTRAL_PAD || kbd != NEUTRAL_KBD {
+                bail!(Conflict(why));
+            }
+        }
         if changed {
             let _ = self.tx.send(Push::Pad { pad, agent });
         }
@@ -694,6 +703,11 @@ impl InputHub {
         if !self.backend.devices().iter().any(|d| d == "mouse") {
             bail!("NS2Bench Bridge has no USB mouse in this mode");
         }
+        if let Some(why) = self.paused.lock().unwrap().clone() {
+            if dx != 0 || dy != 0 || wheel != 0 || buttons.is_some_and(|(m, v)| v & m != 0) {
+                bail!(Conflict(why));
+            }
+        }
         let (b, before) = {
             let mut st = self.st.lock().unwrap();
             let mine = if source == "ui" { &mut st.ui_mouse } else { &mut st.agent_mouse };
@@ -788,6 +802,15 @@ impl std::fmt::Display for Locked {
     }
 }
 impl std::error::Error for Locked {}
+
+/// Input refused for a reason the person can fix (the controller is on another console, or
+/// where it is isn't known): HTTP 409 with this text.
+#[derive(Debug)]
+pub struct Conflict(pub String);
+impl std::fmt::Display for Conflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str(&self.0) }
+}
+impl std::error::Error for Conflict {}
 
 #[cfg(test)]
 pub(crate) mod tests {

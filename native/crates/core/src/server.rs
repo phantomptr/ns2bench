@@ -2,7 +2,7 @@
 //! Shared routes and JSON contracts for the UI, MCP and scripts.
 
 use crate::bench::Bench;
-use crate::inputs::{key_code, Locked, Push};
+use crate::inputs::{key_code, Conflict, Locked, Push};
 use anyhow::Result;
 use axum::body::{Body, Bytes};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -32,6 +32,9 @@ impl IntoResponse for ApiError {
 }
 impl From<anyhow::Error> for ApiError {
     fn from(e: anyhow::Error) -> Self {
+        if let Some(c) = e.downcast_ref::<Conflict>() {
+            return ApiError(StatusCode::CONFLICT, c.0.clone());
+        }
         if e.downcast_ref::<Locked>().is_some() {
             return ApiError(StatusCode::CONFLICT, e.to_string());
         }
@@ -143,8 +146,12 @@ pub fn router(bench: S) -> Router {
         .route("/api/mouse", post(mouse))
         .route("/api/click", post(click))
         .route("/api/sequence", post(sequence))
-        .route("/api/video", get(get_video).post(post_video));
+        .route("/api/video", get(get_video).post(post_video))
+        .route("/api/consoles", get(get_consoles).post(post_consoles));
     r = crate::features::routes(r);
+    // Innermost: which console a request is about, and whether input may go there. (Inside the
+    // activity layer below, so it also holds for input run to completion in its own task.)
+    let r = r.layer(axum::middleware::from_fn_with_state(bench.clone(), console_layer));
     let activity = bench.clone();
     let r = r.with_state(bench).layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
         let bench = activity.clone();
@@ -305,9 +312,10 @@ pub fn encode_image(jpeg: &[u8], fmt: &str, max_width: Option<u32>) -> Result<(V
 }
 
 async fn screenshot(State(b): State<S>, Query(q): Query<HashMap<String, String>>) -> R<Response> {
-    let f = b.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(5))
+    let c = b.target()?;
+    let f = c.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(5))
         .ok_or_else(|| ApiError(StatusCode::SERVICE_UNAVAILABLE, format!("no live video ({})",
-            b.frames.error.lock().unwrap().clone().unwrap_or("waiting".into()))))?;
+            c.frames.error.lock().unwrap().clone().unwrap_or("waiting".into()))))?;
     let fmt = q.get("format").map(|s| s.to_lowercase()).unwrap_or("jpeg".into());
     if !["jpeg", "jpg", "png"].contains(&fmt.as_str()) {
         return Err(bad("format must be jpeg or png"));
@@ -329,7 +337,8 @@ async fn screenshot(State(b): State<S>, Query(q): Query<HashMap<String, String>>
 }
 
 async fn stream(State(b): State<S>) -> Response {
-    let rx = b.frames.latest.subscribe();
+    let c = match b.target() { Ok(c) => c, Err(e) => return (StatusCode::NOT_FOUND, e.to_string()).into_response() };
+    let rx = c.frames.latest.subscribe();
     let s = futures::stream::unfold(rx, |mut rx| async move {
         rx.changed().await.ok()?;
         let f = rx.borrow_and_update().clone()?;
@@ -466,12 +475,16 @@ async fn sequence(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<J
     Ok(done(&b))
 }
 
-async fn get_video(State(b): State<S>) -> Json<Value> {
-    let c = b.video_cfg.lock().unwrap().clone();
-    Json(json!({"settings": {"backend": c["backend"], "device": c["device"], "width": c["width"], "height": c["height"],
+async fn get_video(State(b): State<S>) -> R<Json<Value>> {
+    let con = b.target()?;
+    let c = con.video_cfg.lock().unwrap().clone();
+    // cards other consoles use (each console needs its own)
+    let in_use: Vec<Value> = b.list().iter().filter(|o| o.id != con.id)
+        .filter_map(|o| o.video_cfg.lock().unwrap()["device"].as_str().map(|d| json!({"device": d, "console": o.name()}))).collect();
+    Ok(Json(json!({"console": con.id, "in_use": in_use, "settings": {"backend": c["backend"], "device": c["device"], "width": c["width"], "height": c["height"],
         "fps": c["fps"], "quality": c["quality"], "codec": c["codec"], "audio_device": c["audio_device"]},
         // Listing can be slow the first time (macOS builds its capture helper): never hang the caller.
-        "devices": tokio::time::timeout(Duration::from_secs(8), crate::video::list_devices()).await.unwrap_or_else(|_| json!([]))}))
+        "devices": tokio::time::timeout(Duration::from_secs(8), crate::video::list_devices()).await.unwrap_or_else(|_| json!([]))})))
 }
 
 async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
@@ -480,8 +493,48 @@ async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R
     }
     let mut v = v;
     if let Some(o) = v.as_object_mut() { o.remove("source"); }
-    b.set_video(v).await?;
+    let c = b.target()?;
+    b.set_video(&c, v).await?;
     Ok(Json(json!({"ok": true})))
+}
+
+/// Input that only makes sense on the console the controller is plugged into.
+const INPUT_PATHS: &[&str] = &["/api/press", "/api/hold", "/api/stick", "/api/key", "/api/type", "/api/mouse", "/api/click",
+    "/api/sequence", "/api/probe", "/api/calibrate", "/api/navigate", "/api/test"];
+
+async fn console_layer(State(b): State<S>, req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    let sel = crate::console::requested(&req);
+    crate::console::SELECTED.scope(sel, async move {
+        if req.method() == axum::http::Method::POST && INPUT_PATHS.contains(&req.uri().path()) {
+            if let Err(e) = b.check_input_target() {
+                return ApiError::from(e).into_response();
+            }
+        }
+        next.run(req).await
+    }).await
+}
+
+async fn get_consoles(State(b): State<S>) -> Json<Value> {
+    let on = b.controller_on.lock().unwrap().clone();
+    Json(json!({"consoles": b.list().iter().map(|c| c.info(on.as_deref() == Some(c.id.as_str()))).collect::<Vec<_>>(),
+        "controller_on": on, "models": crate::console::MODELS.iter().map(|m| json!({"id": m.0, "name": m.1, "mode": m.2})).collect::<Vec<_>>()}))
+}
+
+/// {"action": "add"|"update"|"remove"|"controller", ...}. The page only: agents can read the
+/// consoles, but where the controller is plugged in (and what the bench is) is the person's call.
+async fn post_consoles(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
+    crate::settings::agents_blocked(&b, &h, &v)?;
+    if !from_browser(&h) {
+        return Err(ApiError(StatusCode::FORBIDDEN, "only the person at the NS2Bench page can change the consoles or say where the controller is".into()));
+    }
+    let id = v["id"].as_str().unwrap_or("");
+    match v["action"].as_str().unwrap_or("") {
+        "add" => { let c = b.add_console(&v)?; Ok(Json(json!({"ok": true, "id": c.id}))) }
+        "update" => { b.update_console(id, &v)?; Ok(Json(json!({"ok": true}))) }
+        "remove" => { b.remove_console(id)?; Ok(Json(json!({"ok": true}))) }
+        "controller" => { b.set_controller_on(if id.is_empty() { None } else { Some(id) })?; Ok(Json(json!({"ok": true}))) }
+        other => Err(bad(format!("unknown action {other:?}: add, update, remove or controller"))),
+    }
 }
 
 async fn ws_ui(State(b): State<S>, Query(q): Query<HashMap<String, String>>, ws: WebSocketUpgrade) -> Response {
@@ -623,7 +676,7 @@ mod tests {
         Arc::get_mut(&mut bench).unwrap().hub = hub;
         let mut jpeg=Vec::new();
         image::codecs::jpeg::JpegEncoder::new(&mut jpeg).encode(&[32,64,96], 1, 1, image::ExtendedColorType::Rgb8).unwrap();
-        bench.frames.push(Bytes::from(jpeg.clone()));
+        bench.list()[0].frames.push(Bytes::from(jpeg.clone()));
         let app=router(bench.clone());
         let call = |method: &str, path: &str, body: Value, auth: bool| {
             let mut req=Request::builder().method(method).uri(path).header("content-type","application/json");

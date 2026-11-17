@@ -11,6 +11,8 @@ pub struct Client {
     pub base: String, // http://host:port
     pub token: Option<String>,
     pub source: &'static str,
+    /// The console every request is about (several consoles on one bench), or the default.
+    pub console: Option<String>,
 }
 
 pub struct Resp {
@@ -41,7 +43,7 @@ pub fn query(params: &[(&str, String)]) -> String {
 
 impl Client {
     pub fn from_config(cfg: &crate::Config, source: &'static str) -> Client {
-        Client { base: cfg.url(), token: cfg.token(), source }
+        Client { base: cfg.url(), token: cfg.token(), source, console: None }
     }
 
     pub async fn get(&self, path: &str) -> Result<Resp> {
@@ -70,6 +72,10 @@ impl Client {
         let mut req = format!("{method} {path} HTTP/1.1\r\nHost: {hostport}\r\nConnection: close\r\nX-NS2Bench-Source: {}\r\n", self.source);
         if let Some(t) = &self.token {
             req += &format!("Authorization: Bearer {t}\r\n");
+        }
+        // (a header can't carry a line break: names with one are dropped)
+        if let Some(c) = self.console.as_deref().filter(|c| !c.contains(['\r', '\n'])) {
+            req += &format!("X-NS2Bench-Console: {c}\r\n");
         }
         if body.is_some() {
             req += &format!("Content-Type: application/json\r\nContent-Length: {}\r\n", data.len());

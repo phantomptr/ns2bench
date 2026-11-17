@@ -57,12 +57,16 @@ pub fn push(hub: &crate::video::FrameHub, au: Bytes) {
 
 /// Non-macOS sources start their own H.264 output here (see video.rs); nothing to do on macOS.
 pub async fn ws_video(State(b): State<S>, ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(move |sock| video_socket(b, sock))
+    // which console: decided now, while the request still names it
+    match b.target() {
+        Ok(c) => ws.on_upgrade(move |sock| video_socket(c, sock)),
+        Err(e) => axum::response::IntoResponse::into_response((axum::http::StatusCode::NOT_FOUND, e.to_string())),
+    }
 }
 
-async fn video_socket(b: S, sock: WebSocket) {
+async fn video_socket(c: std::sync::Arc<crate::console::Console>, sock: WebSocket) {
     let (mut tx, mut rx) = sock.split();
-    let mut aus = b.frames.h264.subscribe();
+    let mut aus = c.frames.h264.subscribe();
     // drain client messages (close/pings)
     let reader = tokio::spawn(async move { while let Some(Ok(_)) = rx.next().await {} });
     let mut started = false;
@@ -80,7 +84,7 @@ async fn video_socket(b: S, sock: WebSocket) {
                 continue;
             }
             let codec = codec_string(&au).unwrap_or_else(|| "avc1.640028".into());
-            let c = b.video_cfg.lock().unwrap().clone();
+            let c = c.video_cfg.lock().unwrap().clone();
             let init = json!({"t": "init", "codec": codec, "width": c["width"], "height": c["height"], "format": "annexb"});
             if tx.send(Message::Text(init.to_string().into())).await.is_err() {
                 break;

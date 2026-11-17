@@ -41,7 +41,20 @@ fn tool(name: &str, desc: &str, props: Value, required: &[&str]) -> Value {
     json!({"name": name, "description": desc, "inputSchema": {"type": "object", "properties": props, "required": required}})
 }
 
+/// Every tool, each with an optional `console` (several consoles on one bench).
 pub fn tools() -> Vec<Value> {
+    let mut all = base_tools();
+    all.push(tool("list_consoles", "The consoles on this bench: id, name, model, picture state, and which one the controller is plugged into. Pass a console's id or name as `console` to any tool to work on it (default: the one with the controller). Input only reaches the console the controller is plugged into; the person moves its cable and says where it is.",
+        json!({}), &[]));
+    for t in &mut all {
+        if t["name"] != "list_consoles" {
+            t["inputSchema"]["properties"]["console"] = json!({"type": "string", "description": "console id or name (default: the one the controller is plugged into)"});
+        }
+    }
+    all
+}
+
+fn base_tools() -> Vec<Value> {
     vec![
         tool("screenshot", "See the console screen now. max_width downsizes (full is 1920); png for lossless; region crops to part of the screen (zoom in on small text or an icon).",
             json!({"max_width": int("default 1280"), "png": boolean("lossless PNG instead of JPEG"), "region": region()}), &[]),
@@ -147,6 +160,7 @@ impl Mcp {
         let look = a["look_after_ms"].as_u64();
         let u = |k: &str, d: u64| a[k].as_u64().unwrap_or(d);
         Ok(match name {
+            "list_consoles" => Out::Text(serde_json::to_string_pretty(&self.json("GET", "/api/consoles", None).await?)?),
             "screenshot" => self.grab_region(u("max_width", 1280), a["png"].as_bool().unwrap_or(false), a.get("region")).await?,
             "press" => self.act("/api/press", json!({"buttons": a["buttons"], "hold_ms": u("hold_ms", 100)}), look).await?,
             "hold" => {
@@ -371,6 +385,8 @@ async fn handle(m: &Mcp, msg: &Value) -> Option<Value> {
         "tools/call" => {
             let name = msg["params"]["name"].as_str().unwrap_or("");
             let args = msg["params"].get("arguments").cloned().unwrap_or(json!({}));
+            // this call's console: every request it makes names it
+            let m = Mcp { c: crate::client::Client { console: args["console"].as_str().map(str::to_string), ..m.c.clone() } };
             Ok(match m.run(name, &args).await {
                 Ok(Out::Text(t)) => json!({"content": [{"type": "text", "text": t}], "isError": false}),
                 Ok(Out::Image(b, mime)) => json!({"content": [{"type": "image", "data": base64::engine::general_purpose::STANDARD.encode(b), "mimeType": mime}], "isError": false}),
@@ -460,11 +476,11 @@ mod tests {
     #[test]
     fn tool_schemas_are_valid() {
         let t = super::tools();
-        assert_eq!(t.len(), 35);
+        assert_eq!(t.len(), 36);
         let mut names: Vec<&str> = t.iter().map(|x| x["name"].as_str().unwrap()).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), 35);
+        assert_eq!(names.len(), 36);
         assert!(t.iter().all(|x| x["inputSchema"]["type"] == "object"));
     }
 }

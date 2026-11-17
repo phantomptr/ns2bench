@@ -1,8 +1,7 @@
 //! Everything built on video + input: OCR, screen log, probe/calibration, routes, tests,
 //! recorder + clips, audio, doctor, diagnostics and the report bundle.
 
-use crate::audio::AudioHub;
-use crate::dvr::{self, Dvr};
+use crate::dvr;
 use crate::ocr::{self, Engine};
 use crate::server::{bad, source_of, strs, ApiError, R, S};
 use axum::extract::{Path, Query, State};
@@ -16,79 +15,109 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// What the consoles share: the OCR engine. (Each console has its own recorder, sound and
+/// menu profile: crate::console::Console.)
 pub struct Ext {
     pub ocr: Option<Engine>,
-    pub profile: Value,
-    pub dvr: Arc<Dvr>,
-    pub audio: Arc<AudioHub>,
 }
 
 impl Ext {
     pub fn new(cfg: &crate::Config) -> Ext {
-        let dvr = Dvr::new(cfg.raw.get("dvr"));
-        Ext {
-            ocr: ocr::make_engine(cfg.raw.get("ocr")),
-            profile: crate::nav::load_profile(cfg.raw["profile"].as_str().unwrap_or("switch2")),
-            audio: AudioHub::new(cfg.raw.get("audio"), dvr.seconds + 2.0),
-            dvr,
-        }
+        Ext { ocr: ocr::make_engine(cfg.raw.get("ocr")) }
     }
 }
 
 pub fn start(b: Arc<crate::Bench>) {
-    tokio::spawn(b.ext.dvr.clone().run(b.frames.clone()));
-    tokio::spawn(b.ext.audio.clone().run(b.video_cfg.clone(), b.logs.clone()));
-    tokio::spawn(watch_health(b.clone()));
     tokio::spawn(crate::shared_net::watch(b.clone()));
-    tokio::spawn(watch_screen(b));
+    tokio::spawn(watch_controller(b));
+}
+
+/// One console's background work: its recorder, its sound, its picture's health, its screen log.
+/// Each runs with that console selected, so everything it calls works on that console.
+pub fn start_console(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
+    tokio::spawn(c.dvr.clone().run(c.frames.clone()));
+    tokio::spawn(c.audio.clone().run(c.video_cfg.clone(), b.logs.clone()));
+    tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_health(b.clone(), c.clone())));
+    tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_screen(b, c)));
+}
+
+/// The controller's USB cable moved: the board saw its link go and come back. With several
+/// consoles, which one it's on now isn't known: pause input and ask.
+async fn watch_controller(b: Arc<crate::Bench>) {
+    let mut was_attached: Option<bool> = None;
+    let mut dropped = false;
+    loop {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let st = b.hub.status();
+        if st["connected"] != true { was_attached = None; dropped = false; continue; }
+        let attached = st["usb"].as_str().map(|u| u == "configured" || u.starts_with("configured"));
+        let Some(now) = attached else { continue };
+        match (was_attached, now) {
+            (Some(true), false) => dropped = true,
+            (Some(false), true) if dropped => {
+                dropped = false;
+                if b.list().len() > 1 {
+                    let _ = b.set_controller_on(None);
+                    b.logs.notify("bench", "warn", "Which console is the controller on?",
+                        "controller: its USB cable was unplugged and plugged in again. Input is paused: pick the console it's plugged into now (console bar)");
+                }
+            }
+            _ => {}
+        }
+        was_attached = Some(now);
+    }
 }
 
 /// Watch the picture and say when it stops, comes back or runs slow, in plain words.
-async fn watch_health(b: Arc<crate::Bench>) {
+async fn watch_health(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
     let mut stalled = false;
     let mut slow_since: Option<std::time::Instant> = None;
     let mut slow_logged = false;
     let mut seen_frame = false;
     loop {
         tokio::time::sleep(Duration::from_secs(2)).await;
-        let v = b.frames.status();
+        // with several consoles, say which one
+        let who = if b.list().len() > 1 { format!("{}: ", c.name()) } else { String::new() };
+        let v = c.frames.status();
         let Some(age) = v["age_s"].as_f64() else { continue };
-        if !seen_frame { seen_frame = true; b.logs.add("bench", "video: first picture received"); }
+        if !seen_frame { seen_frame = true; b.logs.add("bench", format!("{who}video: first picture received")); }
         if age > 5.0 && !stalled {
             stalled = true;
-            b.logs.notify("bench", "warn", "No picture", format!("video: no new picture for {age:.0} s. The console may be asleep, or the HDMI cable or capture card was unplugged; it comes back by itself"));
+            b.logs.notify("bench", "warn", "No picture", format!("{who}video: no new picture for {age:.0} s. The console may be asleep, or the HDMI cable or capture card was unplugged; it comes back by itself"));
         } else if age < 1.0 && stalled {
             stalled = false;
-            b.logs.notify("bench", "info", "Picture is back", "video: the picture is back");
+            b.logs.notify("bench", "info", "Picture is back", format!("{who}video: the picture is back"));
         }
-        let want = b.video_cfg.lock().unwrap()["fps"].as_f64().unwrap_or(30.0);
+        let want = c.video_cfg.lock().unwrap()["fps"].as_f64().unwrap_or(30.0);
         let fps = v["fps"].as_f64().unwrap_or(0.0);
         if !stalled && fps > 0.0 && fps < want * 0.5 {
             let since = *slow_since.get_or_insert_with(std::time::Instant::now);
             if since.elapsed() > Duration::from_secs(10) && !slow_logged {
                 slow_logged = true;
-                b.logs.warn("bench", format!("video is slow: {fps:.0} of {want:.0} fps. Close other apps using the capture card or CPU, or pick a lower resolution or FPS in the Video panel"));
+                b.logs.warn("bench", format!("{who}video is slow: {fps:.0} of {want:.0} fps. Close other apps using the capture card or CPU, or pick a lower resolution or FPS in the Video panel"));
             }
         } else {
-            if slow_logged { b.logs.add("bench", format!("video speed is back to normal ({fps:.0} fps)")); }
+            if slow_logged { b.logs.add("bench", format!("{who}video speed is back to normal ({fps:.0} fps)")); }
             slow_since = None;
             slow_logged = false;
         }
     }
 }
 
-pub fn status(b: &crate::Bench, s: &mut Value) {
+pub fn status(b: &crate::Bench, target: Option<&crate::console::Console>, s: &mut Value) {
     s["ocr"] = json!({"engine": b.ext.ocr.map(|e| e.name()), "screen_log": b.screen_log.load(Ordering::Relaxed)});
-    s["dvr"] = b.ext.dvr.status();
-    s["audio"] = b.ext.audio.status();
+    if let Some(c) = target {
+        s["dvr"] = c.dvr.status();
+        s["audio"] = c.audio.status();
+    }
 }
 
 /// Screen as a log source: text that newly appears on screen becomes a 'screen' log line.
-async fn watch_screen(b: Arc<crate::Bench>) {
+async fn watch_screen(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
     let mut recent: Vec<HashSet<String>> = vec![];
     loop {
         tokio::time::sleep(Duration::from_secs(1)).await;
-        if !b.screen_log.load(Ordering::Relaxed) || b.ext.ocr.is_none() || b.frames.latest().is_none() {
+        if !b.screen_log.load(Ordering::Relaxed) || b.ext.ocr.is_none() || c.frames.latest().is_none() {
             recent.clear();
             continue;
         }
@@ -108,7 +137,7 @@ async fn watch_screen(b: Arc<crate::Bench>) {
         for l in &lines {
             let t = norm(&l.text);
             if now.contains(&t) && !seen.contains(&t) && emitted.insert(t.clone()) {
-                b.logs.add("screen", t);
+                b.logs.add("screen", if b.list().len() > 1 { format!("{}: {t}", c.name()) } else { t });
             }
         }
         recent.push(now);
@@ -150,7 +179,7 @@ async fn post_wait_screen(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Va
     let timeout = Duration::from_millis(v["timeout_ms"].as_u64().unwrap_or(5000).clamp(100, 120_000));
     let stable_ms = v["stable_ms"].as_u64().unwrap_or(500).clamp(100, 10_000);
     let region = ocr::parse_region(&v["region"])?;
-    Ok(Json(crate::calib::wait_screen(&b.frames, until, timeout, stable_ms, region).await
+    Ok(Json(crate::calib::wait_screen(&b.target()?.frames, until, timeout, stable_ms, region).await
         .map_err(|e| if e.to_string().contains("no live video") { unavailable(e) } else { bad(e.to_string()) })?))
 }
 
@@ -388,7 +417,9 @@ async fn post_test(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<
 async fn post_clip(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R<Json<Value>> {
     crate::settings::agents_blocked(&b, &h, &v)?;
     let label = crate::testrun::slug(v["label"].as_str().unwrap_or("clip"));
-    let (path, span) = b.ext.dvr.save(v["seconds"].as_f64(), None, &label, Some(&b.ext.audio)).await.map_err(unavailable)?;
+    let c = b.target()?;
+    let label = if b.list().len() > 1 { format!("{}-{label}", c.id) } else { label };
+    let (path, span) = c.dvr.save(v["seconds"].as_f64(), None, &label, Some(&c.audio)).await.map_err(unavailable)?;
     b.logs.notify("bench", "info", "Clip saved", format!("clip saved ({span} s): {}", path.display()));
     let name = path.file_name().unwrap().to_string_lossy().to_string();
     Ok(Json(json!({"path": path, "seconds": span, "url": format!("/clips/{name}")})))
@@ -426,7 +457,7 @@ fn local(t: f64, f: &str) -> String {
 pub fn diagnostics_md(b: &crate::Bench, lines: usize) -> String {
     let st = b.status();
     let (v, i, cal) = (&st["video"], &st["input"], &st["calibration"]);
-    let vc = b.video_cfg.lock().unwrap().clone();
+    let vc = b.target().map(|c| c.video_cfg.lock().unwrap().clone()).unwrap_or_default();
     let all = b.logs.all();
     let errors: Vec<_> = all.iter().filter(|e| e.level == "error").collect();
     let errors = &errors[errors.len().saturating_sub(15)..];
@@ -506,8 +537,10 @@ async fn get_bundle(State(b): State<S>) -> R<Response> {
         files.push(("check.json".into(), serde_json::to_vec_pretty(&check).unwrap()));
     }
     files.extend(crate::report::offline_files().await);
-    if let Some(f) = b.frames.latest() {
-        files.push(("screenshot.jpg".into(), f.jpeg.to_vec()));
+    for c in b.list() {
+        if let Some(f) = c.frames.latest() {
+            files.push((format!("screenshot-{}.jpg", c.id), f.jpeg.to_vec()));
+        }
     }
     let data = tokio::task::spawn_blocking(move || crate::report::zip(files)).await.map_err(|e| bad(e.to_string()))?.map_err(|e| bad(e.to_string()))?;
     let name = format!("ns2bench-report-{}.zip", chrono::Local::now().format("%Y%m%d-%H%M%S"));

@@ -221,7 +221,7 @@ enum Seen {
 }
 
 async fn seen(b: &S) -> Seen {
-    let Some(f) = b.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(3)) else { return Seen::NoCapture };
+    let Some(f) = b.target().ok().and_then(|c| c.frames.latest()).filter(|f| f.at.elapsed() < Duration::from_secs(3)) else { return Seen::NoCapture };
     if let Ok(img) = crate::calib::small(&f).await {
         let px: Vec<f64> = img.pixels().map(|p| p.0[0] as f64).collect();
         let mean = px.iter().sum::<f64>() / px.len().max(1) as f64;

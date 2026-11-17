@@ -60,4 +60,5 @@ pub async fn serve(cfg: Config) -> anyhow::Result<()> {
 }
 
 pub mod settings;
+pub mod console;
 pub mod shared_net;

@@ -172,7 +172,8 @@ pub async fn settle(hub: &FrameHub) -> Result<Frame> {
 }
 
 pub async fn probe(b: &Bench, buttons: &[String], hold_ms: u64, timeout_ms: u64, source: &str) -> Result<Value> {
-    let hub = &b.frames;
+    let c = b.target()?;
+    let hub = &c.frames;
     let mut f = settle(hub).await?;
     let base = small(&f).await?;
     let mut floor = 0.0f64;

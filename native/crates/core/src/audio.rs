@@ -229,12 +229,16 @@ pub fn pair(video_id: &str, devs: &[Dev]) -> Option<String> {
 
 /// Console audio for the browser: a JSON header, then binary 20 ms chunks of s16le PCM.
 pub async fn ws_audio(State(b): State<S>, ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(move |sock| audio_socket(b, sock))
+    // which console: decided now, while the request still names it
+    match b.target() {
+        Ok(c) => ws.on_upgrade(move |sock| audio_socket(c, sock)),
+        Err(e) => axum::response::IntoResponse::into_response((axum::http::StatusCode::NOT_FOUND, e.to_string())),
+    }
 }
 
-async fn audio_socket(b: S, sock: WebSocket) {
+async fn audio_socket(c: std::sync::Arc<crate::console::Console>, sock: WebSocket) {
     let (mut tx, mut rx) = sock.split();
-    let mut chunks = b.ext.audio.tx.subscribe();
+    let mut chunks = c.audio.tx.subscribe();
     let reader = tokio::spawn(async move { while let Some(Ok(_)) = rx.next().await {} });
     let hello = json!({"rate": RATE, "channels": CHANNELS, "format": "s16le"});
     if tx.send(Message::Text(hello.to_string().into())).await.is_ok() {

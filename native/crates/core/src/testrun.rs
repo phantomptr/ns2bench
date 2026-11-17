@@ -67,7 +67,7 @@ async fn run_step(b: &Bench, step: &Value, dir: &Path, shots: &mut Vec<String>, 
         return Ok((ok, if ok { format!("{text:?} gone") } else { format!("{text:?}: still visible") }));
     }
     if step.get("screenshot").is_some() {
-        let Some(f) = b.frames.latest() else { return Ok((false, "no video".into())) };
+        let Some(f) = b.target()?.frames.latest() else { return Ok((false, "no video".into())) };
         let label = step["screenshot"].as_str().map(str::to_string).unwrap_or_else(|| step["screenshot"].to_string());
         let name = format!("{:02}-{}.jpg", shots.len() + 1, slug(&label));
         std::fs::write(dir.join(&name), &f.jpeg)?;
@@ -129,15 +129,15 @@ pub async fn run_test(b: &Bench, test: &Value, source: &str, stop_on_fail: bool)
         results.push(json!({"n": n, "step": shown, "ok": ok, "detail": detail, "ms": s0.elapsed().as_millis() as u64}));
         if !ok {
             passed = false;
-            if let Some(f) = b.frames.latest() {
+            if let Some(f) = b.target().ok().and_then(|c| c.frames.latest()) {
                 let fname = format!("{:02}-failed-step-{n}.jpg", shots.len() + 1);
                 let _ = std::fs::write(dir.join(&fname), &f.jpeg);
                 shots.push(fname);
             }
             // One clip per run (the first failure): each one is a video encode.
-            if !std::mem::replace(&mut clip_saved, true) { if let Ok((clip, _)) = b.ext.dvr.save(Some(20.0), Some(dir.join(format!("failed-step-{n}.mp4"))), "failure", Some(&b.ext.audio)).await {
+            if !std::mem::replace(&mut clip_saved, true) { if let Ok(c) = b.target() { if let Ok((clip, _)) = c.dvr.save(Some(20.0), Some(dir.join(format!("failed-step-{n}.mp4"))), "failure", Some(&c.audio)).await {
                 shots.push(clip.file_name().unwrap().to_string_lossy().into());
-            } }
+            } } }
             if let Ok(lines) = b.read_screen(None, false).await {
                 let _ = std::fs::write(dir.join(format!("failed-step-{n}-screen.txt")), ocr::join(&lines, "\n"));
             }

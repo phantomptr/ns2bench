@@ -147,6 +147,7 @@ fn helper(b: &S) -> Option<crate::client::Client> {
         base: url,
         token: crate::config::read_secret(h["token_file"].as_str()),
         source: "engine",
+        console: None,
     })
 }
 async fn helper_call(c: &crate::client::Client, method: &str, path: &str, body: Option<&Value>)
