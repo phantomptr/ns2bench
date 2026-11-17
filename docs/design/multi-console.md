@@ -33,10 +33,20 @@ Each console has a **profile**: everything that console uses, in one place.
 | Network | How the console reaches this computer | Shared home network at 192.168.86.251, a direct cable, or none |
 | Controller | Which input device drives it | Luckfox Bridge at 192.168.79.2, a Pico on a serial port, a CH9329, or none (view only) |
 
-**Controllers are a list of their own** (Settings → Devices), and a console profile points at
-one. Two profiles can point at the same controller: that is your bench, one Luckfox whose cable
-you move. Only a controller shared like that needs the "which console is it on?" tracking below;
-a console with a controller of its own never asks.
+**Capture cards and controllers are lists of their own**, and a console profile points at one of
+each. Two profiles can point at the same one: today your two Switches share the Luckfox (you move
+its USB cable), and a capture card can be shared the same way (you move the HDMI cable, or use an
+HDMI switch). Only a shared device needs the "which console is it on?" tracking below; a console
+with devices of its own never asks.
+
+**Names used everywhere** (app, docs, API):
+
+| Name | What it is |
+|---|---|
+| **Console** | One Switch, with its profile |
+| **Capture card** | HDMI-to-USB card that gives the picture and sound |
+| **Controller** | The device that presses buttons on the console: a Luckfox or Raspberry Pi board, a Pico, or a CH9329. The NS2Bench software on a board or Pico is the **NS2Bench Bridge** |
+| **Network** | How the console reaches this computer: shared home network, direct cable, or none |
 
 ```mermaid
 flowchart LR
@@ -74,6 +84,10 @@ stateDiagram-v2
 
 - **Input is sent only when the location is known**, and only to that console. A press aimed at
   another console is refused with a clear message (the controller can't reach it).
+- **A shared capture card works the same way:** NS2Bench keeps which console it shows. When its
+  picture drops and comes back (the HDMI cable moved, or an HDMI switch flipped), it asks which
+  console it shows now; until you answer, screenshots, clips and screen reading on it are paused
+  so nothing is saved under the wrong console.
 - **Moving the cable is noticed:** the board reports its USB link (attached / not attached).
   Unplugged, then attached again: the location becomes *unknown*, inputs are released and the
   page asks "Which console is the controller on now?". A single console needs no question.
