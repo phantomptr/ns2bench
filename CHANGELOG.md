@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.20
+
 - **Several consoles, safer:**
   - When NS2Bench starts with several consoles, it asks which one the controller is plugged into, since the cable may have moved while it was closed.
   - Every action that can press a button (power, the health check, tests, sequences) only goes to the console the controller is on.
