@@ -73,7 +73,7 @@ wait_nodes() {
 release() {
     # Stop the Pro Controller daemon and unbind the UDC before anything else touches USB:
     # vendor helpers stopping a FunctionFS gadget otherwise wait forever in functionfs_unbind.
-    if [ -f "$PRO_PID" ] && kill -0 "$(cat "$PRO_PID")" 2>/dev/null; then kill "$(cat "$PRO_PID")"; sleep 0.5; fi
+    if p=$(pro_pid); then kill "$p"; sleep 0.5; fi
     rm -f "$PRO_PID"
     # one UDC can be owned by one gadget: unbind whichever gadget holds it
     for u in "$CONFIGFS"/*/UDC; do
@@ -104,7 +104,16 @@ device() {             # vid pid bcdDevice class subclass protocol manufacturer 
     echo "$7" > "$G/strings/0x409/manufacturer"; echo "$8" > "$G/strings/0x409/product"
 }
 
-bind() { echo "$UDC" > "$G/UDC"; }
+# Bind the gadget to the UDC and check it took (EBUSY when another gadget still holds it).
+# Callers sit in `build_x || fallback` lists, where set -e is off: every step returns its status.
+bind() { echo "$UDC" > "$G/UDC" && [ "$(cat "$G/UDC" 2>/dev/null)" = "$UDC" ]; }
+
+# Our Pro Controller daemon's pid from the pidfile, only if that process really is it (a pid in
+# /run outlives a crash and can be reused by anything, an SSH session included).
+pro_pid() {
+    p=$(cat "$PRO_PID" 2>/dev/null) || return 1
+    [ -n "$p" ] && [ -r "/proc/$p/cmdline" ] && tr '\000' ' ' < "/proc/$p/cmdline" | grep -q "ns2bench-board pro2" && echo "$p"
+}
 
 build_hori() {         # with_mouse(0|1)
     device 0x0F0D 0x0092 0x0100 0x00 0x00 0x00 "PICO SWITCH PRO." "J24 CONTROLLER"
@@ -113,15 +122,15 @@ build_hori() {         # with_mouse(0|1)
     hid_function usb0 0 0 64 0 hid_report_pad
     # keyboard LED SET_REPORT arrives on ep0; an OUT endpoint here made f_hid stall it
     hid_function usb1 1 1 8 1 hid_report_kbd
-    ln -s "$G/functions/hid.usb0" "$G/configs/b.1/f1"
-    ln -s "$G/functions/hid.usb1" "$G/configs/b.1/f2"
+    ln -s "$G/functions/hid.usb0" "$G/configs/b.1/f1" || return 1
+    ln -s "$G/functions/hid.usb1" "$G/configs/b.1/f2" || return 1
     local nodes="hidg0 hidg1"
     if [ "$1" = 1 ]; then
         hid_function usb2 2 1 4 1 hid_report_mouse
-        ln -s "$G/functions/hid.usb2" "$G/configs/b.1/f3"
+        ln -s "$G/functions/hid.usb2" "$G/configs/b.1/f3" || return 1
         nodes="$nodes hidg2"
     fi
-    bind
+    bind || { echo "could not bind the gadget to $UDC" >&2; return 1; }
     # shellcheck disable=SC2086
     wait_nodes $nodes || { echo "HID nodes did not appear: $nodes" >&2; return 1; }
 }
@@ -136,14 +145,14 @@ build_pro() {
         echo full-speed > "$G/max_speed"             # the real controller is a full-speed device
     fi
     mkdir -p "$G/functions/ffs.pro2" "$FFS"
-    mountpoint -q "$FFS" || mount -t functionfs pro2 "$FFS"
+    mountpoint -q "$FFS" || mount -t functionfs pro2 "$FFS" || return 1
     : > /tmp/ns2bench-pro2.log
     "$DIR/ns2bench-board" pro2 "$FFS" >> /tmp/ns2bench-pro2.log 2>&1 &
     echo $! > "$PRO_PID"
     for _ in $(seq 1 50); do [ -e "$FFS/ep4" ] && break; sleep 0.1; done
     [ -e "$FFS/ep4" ] || { echo "pro: FunctionFS rejected the descriptors" >&2; tail -5 /tmp/ns2bench-pro2.log >&2; return 1; }
-    ln -s "$G/functions/ffs.pro2" "$G/configs/b.1/f1"
-    bind
+    ln -s "$G/functions/ffs.pro2" "$G/configs/b.1/f1" || return 1
+    bind || { echo "pro: could not bind the gadget to $UDC" >&2; return 1; }
     for _ in $(seq 1 60); do grep -q 'console initialised USB' /tmp/ns2bench-pro2.log && return 0; sleep 0.1; done
     # The controller is up; the console just hasn't talked to it yet (asleep, off, slow to wake).
     # Stay a Pro Controller: it starts the handshake when it wakes.

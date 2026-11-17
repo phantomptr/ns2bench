@@ -15,6 +15,11 @@ under_adbd() {
     done
     return 1
 }
+if [ -z "${NS2BENCH_DETACHED:-}" ] && under_adbd && ! command -v setsid >/dev/null 2>&1; then
+    # stopping adbd would end this script halfway, with no gadget and no ADB left
+    echo "Run this over SSH or the serial console: from adb shell it would cut its own session off (no setsid here to detach)." >&2
+    exit 1
+fi
 if [ -z "${NS2BENCH_DETACHED:-}" ] && command -v setsid >/dev/null 2>&1 && under_adbd; then
     NS2BENCH_DETACHED=1 setsid "$0" "$@" < /dev/null > /tmp/ns2bench-restore.log 2>&1 &
     echo "Restoring in the background (this ADB session will drop). Log: /tmp/ns2bench-restore.log"
@@ -57,14 +62,14 @@ fi
 
 # The gadget quirks may have lowered the console log level while the console
 # repeatedly reconfigured the gadget. Restore the saved value.
-for saved in /run/ns2bench.printk; do
-    [ -f "$saved" ] || continue
+saved=/run/ns2bench.printk
+if [ -f "$saved" ]; then
     saved_printk=$(cat "$saved" 2>/dev/null || true)
     if [ -n "$saved_printk" ]; then
         echo "$saved_printk" > /proc/sys/kernel/printk 2>/dev/null || true
     fi
     rm -f "$saved"
-done
+fi
 
 # A UDC can own only one gadget. Release ours before asking the vendor
 # init script to recreate its RNDIS+ADB gadget.
