@@ -588,5 +588,8 @@
   "The network helper runs on macOS and Linux": "網路輔助程式可在 macOS 和 Linux 上執行",
   "Then enter the settings below on each console and run its connection test.": "然後在每台主機上輸入下方設定並進行連線測試。",
   "This computer’s address is reserved in the router": "這台電腦的位址已在路由器中保留",
-  "Type this on each console": "在每台主機上輸入以下內容"
+  "Type this on each console": "在每台主機上輸入以下內容",
+  "not on the network of the adapter you picked": "不在所選網路卡的網路中",
+  "Pick this adapter instead:": "請改選這張網路卡：",
+  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "這台電腦沒有任何網路卡在那個網路中。請先把它連到主機所在的網路。"
 }

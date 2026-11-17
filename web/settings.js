@@ -116,25 +116,48 @@ async function network(loadForm = true) {
 
 // ---------------------------------------------------------------- shared home network
 // docs/design/shared-network.md. Every value from the engine goes in as text, never as HTML.
-let sharedEdited = false;
-$('#shared-consoles').addEventListener('input', () => { sharedEdited = true; sharedReady(); });
+let sharedEdited = false, ifacePicked = false, adapters = [];
+$('#shared-consoles').addEventListener('input', () => { sharedEdited = true; autoAdapter(); sharedReady(); });
 for (const c of document.querySelectorAll('.shared-check')) c.addEventListener('change', sharedReady);
-$('#shared-iface').addEventListener('change', sharedReady);
+$('#shared-iface').addEventListener('change', () => { ifacePicked = true; sharedReady(); });
 const sharedList = () => $('#shared-consoles').value.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+// IPv4 text -> number (null if not an address); is `ip` on adapter `a`'s network?
+const ipNum = (s) => { const p = s.split('.').map(Number); return p.length === 4 && p.every((n) => Number.isInteger(n) && n >= 0 && n < 256) ? ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0 : null; };
+const onAdapter = (ip, a) => { const n = ipNum(ip), m = a.prefix ? (0xffffffff << (32 - a.prefix)) >>> 0 : 0; return n !== null && ((n & m) >>> 0) === ((ipNum(a.address) & m) >>> 0); };
+const adapterLabel = (a) => `${a.name}${a.label ? ` · ${a.label}` : ''} · ${a.address}/${a.prefix}`;
+// Until the person picks one, the adapter follows the consoles: the one on their network.
+function autoAdapter() {
+  if (ifacePicked) return;
+  const first = sharedList()[0], match = first && adapters.find((a) => onAdapter(first, a));
+  if (match) $('#shared-iface').value = match.name;
+}
 function sharedReady() {
   const checked = [...document.querySelectorAll('.shared-check')].every((c) => c.checked);
-  $('#shared-save').disabled = !checked || !$('#shared-iface').value || !sharedList().length;
+  const a = adapters.find((x) => x.name === $('#shared-iface').value);
+  const off = a ? sharedList().filter((ip) => !onAdapter(ip, a)) : [];
+  const right = off[0] && adapters.find((x) => onAdapter(off[0], x));
+  const box = $('#shared-mismatch');
+  box.hidden = !off.length;
+  if (off.length) {
+    box.textContent = `${off.join(', ')}: ${t('not on the network of the adapter you picked')} (${a.name}, ${a.address}/${a.prefix}). `
+      + (right ? `${t('Pick this adapter instead:')} ${adapterLabel(right)}` : t('None of this computer’s adapters is on that network. Connect it to the consoles’ network first.'));
+  }
+  $('#shared-save').disabled = !checked || !$('#shared-iface').value || !sharedList().length || off.length > 0;
 }
 async function loadInterfaces(saved) {
   const r = await api('/api/network/interfaces');
-  const sel = $('#shared-iface'), keep = sel.value || saved || '';
+  adapters = r.interfaces || [];
+  const sel = $('#shared-iface');
+  // the person's own pick, else the saved adapter, else the one on the consoles' network
+  const keep = (ifacePicked && sel.value) || saved || '';
   sel.replaceChildren();
   if (!r.supported) { sel.append(new Option(t('The network helper runs on macOS and Linux'), '')); sel.disabled = true; return sharedReady(); }
   if (!r.interfaces.length) sel.append(new Option(t('No network adapter with a private address'), ''));
   for (const i of r.interfaces) {
-    sel.append(new Option(`${i.name}${i.label ? ` · ${i.label}` : ''} · ${i.address}/${i.prefix}`, i.name));
+    sel.append(new Option(adapterLabel(i), i.name));
   }
   sel.value = r.interfaces.some((i) => i.name === keep) ? keep : (r.interfaces[0]?.name || '');
+  if (!keep) autoAdapter();
   sharedReady();
 }
 const ago = (t0) => {

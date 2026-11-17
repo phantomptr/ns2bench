@@ -10,6 +10,21 @@ const TONES = { info: 5000, ok: 4000, warn: 8000, error: 0 };
 // The container leaves the top layer when its last toast goes.
 const boxEl = document.querySelector('#toasts');
 if (boxEl) new MutationObserver(() => { if (!boxEl.children.length) try { boxEl.hidePopover(); } catch { /* fine */ } }).observe(boxEl, { childList: true });
+// A modal dialog (Settings, a confirm) makes everything outside it inert, toasts included: shown
+// on top, but their × and buttons ignored clicks. So the toasts live inside the topmost modal
+// dialog while one is open, and go back to the page when it closes.
+function placeToasts(box) {
+  const modal = [...document.querySelectorAll('dialog[open]')].filter((d) => d.matches(':modal')).pop();
+  const home = modal || document.body;
+  if (box.parentElement === home) return;
+  home.append(box);                           // moving it closes the popover: show it again
+  if (box.children.length) try { box.showPopover(); } catch { /* no popover support */ }
+}
+if (boxEl) {
+  document.addEventListener('close', (e) => {
+    if (e.target instanceof HTMLDialogElement && e.target.contains(boxEl)) setTimeout(() => placeToasts(boxEl), 0);
+  }, true);
+}
 export function toast(text, tone = 'info', action = null) {
   const box = $('#toasts');
   if (!box || !text) return;
@@ -29,6 +44,7 @@ export function toast(text, tone = 'info', action = null) {
   el.append(close);
   box.append(el);
   while (box.children.length > 3) box.firstElementChild.remove();
+  placeToasts(box);
   // Above whatever dialog is open (dialogs sit in the top layer, and make the rest inert).
   try { if (box.matches(':popover-open')) box.hidePopover(); box.showPopover(); } catch { /* no popover support */ }
   const ms = TONES[tone] ?? 5000;

@@ -326,3 +326,48 @@ test('shared home network: pick an adapter, add consoles, get the console settin
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('a message shown over Settings can be closed with its ×', async () => {
+  const { p, errors, ctx } = await page();
+  await p.evaluate(() => {
+    const d = document.querySelector('#whatsnew');
+    new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+    if (d.open) d.close();
+  });
+  await p.click('#btn-settings');
+  await p.evaluate(async () => (await import('/static/ui.js')).toast('test message', 'error'));
+  await p.waitForSelector('.toast.error');
+  await p.click('.toast.error .x');
+  await p.waitForSelector('.toast.error', { state: 'detached', timeout: 3000 });
+  // and once Settings is closed, a new one still shows and closes on the page
+  await p.click('#settings-close');
+  await p.evaluate(async () => (await import('/static/ui.js')).toast('second', 'error'));
+  await p.click('.toast.error .x');
+  await p.waitForSelector('.toast.error', { state: 'detached', timeout: 3000 });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test('shared home network: a console that is not on the picked adapter’s network is flagged before saving', async (t) => {
+  if (process.platform === 'win32') { t.skip('the network helper runs on macOS and Linux'); return; }
+  const list = await (await fetch(`${BASE}/api/network/interfaces`)).json();
+  if (!list.interfaces[0]) { t.skip('no adapter with a private address on this machine'); return; }
+  const { p, errors, ctx } = await page();
+  await p.evaluate(() => {
+    const d = document.querySelector('#whatsnew');
+    new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+    if (d.open) d.close();
+  });
+  await p.click('#btn-settings');
+  await p.click('[data-tab="network"]');
+  await p.selectOption('#network-topology', 'shared');
+  await p.waitForFunction(() => document.querySelector('#shared-iface').options.length > 0);
+  await p.selectOption('#shared-iface', list.interfaces[0].name);
+  await p.fill('#shared-consoles', '203.0.113.5');      // a documentation address: on no adapter
+  for (const box of await p.$$('.shared-check')) await box.check();
+  await p.waitForSelector('#shared-mismatch:not([hidden])');
+  assert.match(await p.textContent('#shared-mismatch'), /203\.0\.113\.5/);
+  assert.equal(await p.isDisabled('#shared-save'), true);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

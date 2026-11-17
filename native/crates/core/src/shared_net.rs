@@ -127,6 +127,19 @@ pub async fn set_shared(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) 
     if consoles.is_empty() {
         return Err(bad("add at least one console address"));
     }
+    // A console on another network than the adapter: say which adapter is on its network.
+    let on = |ip: Ipv4Addr, a: &Value| {
+        let p = a["prefix"].as_u64().unwrap_or(32) as u32;
+        a["address"].as_str().and_then(|s| s.parse::<Ipv4Addr>().ok())
+            .is_some_and(|x| u32::from(x) & u32::from(mask(p)) == u32::from(ip) & u32::from(mask(p)))
+    };
+    if let Some(&off) = consoles.iter().find(|&&c| !on(c, iface)) {
+        let hint = match list.iter().find(|a| on(off, a)) {
+            Some(a) => format!("pick {} ({}) instead", a["name"].as_str().unwrap_or("?"), a["address"].as_str().unwrap_or("?")),
+            None => "none of this computer's adapters is on that network: connect one to the consoles' network first".into(),
+        };
+        return Err(bad(format!("console {off} isn't on the network of {name} ({address}/{prefix}): {hint}")));
+    }
     if !forwarding_off() {
         return Err(bad("IP forwarding or internet sharing is on, or can't be checked: turn it off first (it would let consoles through this computer)"));
     }

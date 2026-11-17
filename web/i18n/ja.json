@@ -588,5 +588,8 @@
   "The network helper runs on macOS and Linux": "ネットワークヘルパーは macOS と Linux で動作します",
   "Then enter the settings below on each console and run its connection test.": "次に、各本体で下の設定を入力して接続テストを行ってください。",
   "This computer’s address is reserved in the router": "このコンピューターのアドレスはルーターで予約済み",
-  "Type this on each console": "各本体でこれを入力"
+  "Type this on each console": "各本体でこれを入力",
+  "not on the network of the adapter you picked": "選んだアダプターのネットワーク上にありません",
+  "Pick this adapter instead:": "代わりにこのアダプターを選んでください：",
+  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "このコンピューターのどのアダプターもそのネットワークにありません。先に本体のネットワークにつないでください。"
 }

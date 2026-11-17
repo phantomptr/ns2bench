@@ -588,5 +588,8 @@
   "The network helper runs on macOS and Linux": "L’assistant réseau fonctionne sous macOS et Linux",
   "Then enter the settings below on each console and run its connection test.": "Saisissez ensuite les réglages ci-dessous sur chaque console et lancez son test de connexion.",
   "This computer’s address is reserved in the router": "L’adresse de cet ordinateur est réservée dans le routeur",
-  "Type this on each console": "Saisissez ceci sur chaque console"
+  "Type this on each console": "Saisissez ceci sur chaque console",
+  "not on the network of the adapter you picked": "pas sur le réseau de l’adaptateur choisi",
+  "Pick this adapter instead:": "Choisissez plutôt cet adaptateur :",
+  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "Aucun adaptateur de cet ordinateur n’est sur ce réseau. Connectez-le d’abord au réseau des consoles."
 }

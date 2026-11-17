@@ -588,5 +588,8 @@
   "The network helper runs on macOS and Linux": "Сетевой помощник работает в macOS и Linux",
   "Then enter the settings below on each console and run its connection test.": "Затем введите настройки ниже на каждой консоли и запустите проверку подключения.",
   "This computer’s address is reserved in the router": "Адрес этого компьютера зарезервирован в роутере",
-  "Type this on each console": "Введите это на каждой консоли"
+  "Type this on each console": "Введите это на каждой консоли",
+  "not on the network of the adapter you picked": "не в сети выбранного адаптера",
+  "Pick this adapter instead:": "Выберите вместо него этот адаптер:",
+  "None of this computer’s adapters is on that network. Connect it to the consoles’ network first.": "Ни один адаптер этого компьютера не подключён к этой сети. Сначала подключите его к сети консолей."
 }
