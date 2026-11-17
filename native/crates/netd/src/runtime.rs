@@ -223,31 +223,35 @@ unsafe fn sockaddr_v4(sa: *const libc::sockaddr, need_inet: bool) -> Option<Ipv4
 /// Every interface row, copied out before the list is freed.
 fn if_rows() -> Vec<IfRow> {
     let mut out = vec![];
-    let mut head: *mut libc::ifaddrs = std::ptr::null_mut();
-    // SAFETY: getifaddrs fills `head` (freed below); each node is read field by field through raw
-    // pointers checked for null, and nothing read outlives freeifaddrs (names and addresses are
-    // copied).
+    let mut list = std::mem::MaybeUninit::<*mut libc::ifaddrs>::uninit();
+    // SAFETY: getifaddrs initialises `list` when it returns 0 (and only then is it read). The list
+    // is walked through NonNull (a null node is never read), each node field by field through raw
+    // pointers, and everything is copied out before freeifaddrs.
     unsafe {
-        if libc::getifaddrs(&mut head) != 0 {
+        if libc::getifaddrs(list.as_mut_ptr()) != 0 {
             return out;
         }
-        let mut next = head;
-        while !next.is_null() {
-            let name_ptr = std::ptr::addr_of!((*next).ifa_name).read();
-            let addr = std::ptr::addr_of!((*next).ifa_addr).read();
-            let mask = std::ptr::addr_of!((*next).ifa_netmask).read();
-            let flags = std::ptr::addr_of!((*next).ifa_flags).read() as u32;
-            if !name_ptr.is_null() {
+        let head = list.assume_init();
+        let mut node = std::ptr::NonNull::new(head);
+        while let Some(n) = node {
+            let p = n.as_ptr();
+            let name_ptr = std::ptr::addr_of!((*p).ifa_name).read();
+            let addr = std::ptr::addr_of!((*p).ifa_addr).read();
+            let mask = std::ptr::addr_of!((*p).ifa_netmask).read();
+            let flags: u32 = std::ptr::addr_of!((*p).ifa_flags).read();
+            if let Some(name) = std::ptr::NonNull::new(name_ptr) {
                 out.push(IfRow {
-                    name: CStr::from_ptr(name_ptr).to_bytes().to_vec(),
+                    name: CStr::from_ptr(name.as_ptr()).to_bytes().to_vec(),
                     flags,
                     addr: sockaddr_v4(addr, true),
                     mask: sockaddr_v4(mask, false),
                 });
             }
-            next = std::ptr::addr_of!((*next).ifa_next).read();
+            node = std::ptr::NonNull::new(std::ptr::addr_of!((*p).ifa_next).read());
         }
-        libc::freeifaddrs(head);
+        if !head.is_null() {
+            libc::freeifaddrs(head);
+        }
     }
     out
 }
