@@ -122,7 +122,7 @@ for (const c of document.querySelectorAll('.shared-check')) c.addEventListener('
 $('#shared-iface').addEventListener('change', () => { ifacePicked = true; sharedReady(); });
 const sharedList = () => $('#shared-consoles').value.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
 // IPv4 text -> number (null if not an address); is `ip` on adapter `a`'s network?
-const ipNum = (s) => { const p = s.split('.').map(Number); return p.length === 4 && p.every((n) => Number.isInteger(n) && n >= 0 && n < 256) ? ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0 : null; };
+const ipNum = (s) => { const p = s.split('.'); return p.length === 4 && p.every((x) => /^\d{1,3}$/.test(x) && +x < 256) ? ((+p[0] << 24) | (+p[1] << 16) | (+p[2] << 8) | +p[3]) >>> 0 : null; };
 const onAdapter = (ip, a) => { const n = ipNum(ip), m = a.prefix ? (0xffffffff << (32 - a.prefix)) >>> 0 : 0; return n !== null && ((n & m) >>> 0) === ((ipNum(a.address) & m) >>> 0); };
 const adapterLabel = (a) => `${a.name}${a.label ? ` · ${a.label}` : ''} · ${a.address}/${a.prefix}`;
 // Until the person picks one, the adapter follows the consoles: the one on their network.
@@ -330,7 +330,9 @@ function renderUpdate() {
   $('#update-install').disabled = busy || !update?.downloaded;
   for (const id of ['#update-auto-check', '#update-auto-download', '#update-auto-quit', '#update-auto-install']) $(id).disabled = !invoke;
 }
-async function updateAction(action) {
+// quiet: a background check or download (at start, every 6 h). Its error stays in the Updates
+// pane instead of a toast that sticks (an offline start, a .deb install).
+async function updateAction(action, quiet = false) {
   if (busy || !invoke) return;
   if (action === 'check') { lastAttempt = Date.now(); failedDownload = false; }
   busy = true; renderUpdate(); $('#update-status').textContent = `${action === 'download' ? 'Downloading and verifying update…' : action === 'install' ? 'Preparing installation…' : 'Checking update…'}`;
@@ -347,7 +349,7 @@ async function updateAction(action) {
     }, 400);
   }
   try { update = await invoke('update_action', { action }); if (action === 'check') ls.set('ns2bench.update.lastCheck', String(Date.now())); }
-  catch (e) { if (action === 'download') failedDownload = true; message(String(e), 'error'); if (update) update.message = String(e); }
+  catch (e) { if (action === 'download') failedDownload = true; if (!quiet) message(String(e), 'error'); if (update) update.message = String(e); }
   finally {
     clearInterval(poll);
     $('#update-progress').hidden = true;
@@ -365,7 +367,7 @@ async function automaticUpdates() {
   if (!invoke || busy) return;
   await prefsReady;
   // Once at start, then every 6 hours (a result is not kept across restarts, so start always asks).
-  if ($('#update-auto-check').checked && (!lastAttempt || Date.now() - lastAttempt > 6 * 3600000)) await updateAction('check');
+  if ($('#update-auto-check').checked && (!lastAttempt || Date.now() - lastAttempt > 6 * 3600000)) await updateAction('check', true);
   $('#btn-settings').classList.toggle('badge', !!update?.available);
   $('#btn-update').classList.toggle('badge', !!update?.available);
   $('#btn-update').title = update?.available ? t('Update available') : t('Updates');
@@ -375,7 +377,8 @@ async function automaticUpdates() {
     notify('Update available', `NS2Bench ${update.latest_version} ${t('is ready to install from Settings → Updates.')}`);
   }
   $('#btn-settings').title = update?.available ? 'Update available' : 'Connections, appearance, API, MCP and updates';
-  if (update?.available && !update.downloaded && !failedDownload && $('#update-auto-download').checked) await updateAction('download');
+  // (a system package, like a Linux .deb, isn't downloaded: it shows where to get the new one)
+  if (update?.available && !update.manual && !update.downloaded && !failedDownload && $('#update-auto-download').checked) await updateAction('download', true);
   if (update?.downloaded && $('#update-auto-install').checked && !failedAutoInstall && Date.now() - lastActivity > 60000 && !dialog.open) {
     const s = await api('/api/status');
     const gpActive = [...(navigator.getGamepads?.() || [])].some((p) => p && (p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.12)));
@@ -385,7 +388,9 @@ async function automaticUpdates() {
 renderUpdate();
 if (invoke) updateAction('status').then(automaticUpdates).catch((e) => message(String(e)));
 setInterval(() => automaticUpdates().catch((e) => message(e.message)), 60000);
-setInterval(() => { if (dialog.open && !$('[data-pane="network"]').hidden) network(false).catch((e) => message(e.message)); }, 5000);
+// (one message when the engine goes away, not one every 5 s)
+let networkFailing = false;
+setInterval(() => { if (dialog.open && !$('[data-pane="network"]').hidden) network(false).then(() => { networkFailing = false; }).catch((e) => { if (!networkFailing) message(e.message); networkFailing = true; }); }, 5000);
 
 // Command line tool: put the ns2bench CLI that ships in the app on the PATH.
 let cli = null;

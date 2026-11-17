@@ -52,14 +52,20 @@ export function startLive(img, onMode = () => {}) {
   function connect() {
     if (!('VideoDecoder' in window)) return mjpeg('browser has no WebCodecs');
     let configured = false;
-    ws = new WebSocket(authURL('/video').replace(/^http/, 'ws'));
-    ws.binaryType = 'arraybuffer';
-    ws.onmessage = async (ev) => {
+    const sock = new WebSocket(authURL('/video').replace(/^http/, 'ws'));
+    ws = sock;
+    sock.binaryType = 'arraybuffer';
+    sock.onmessage = async (ev) => {
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data);
         if (m.t !== 'init') return;
         try { await configure(m); configured = true; needKey = true; }
-        catch (e) { ws.onclose = null; ws.close(); ws = null; release(); return mjpeg(String(e)); }
+        catch (e) {
+          if (sock !== ws) return;                          // closed meanwhile: a retry is on its way
+          sock.onclose = null; sock.close(); ws = null; release(); return mjpeg(String(e));
+        }
+        // the socket closed while the decoder was set up: leave it to the retry
+        if (sock !== ws) { release(); return; }
         failures = 0;
         mode = 'h264'; img.hidden = true; canvas.hidden = false;
         img.removeAttribute('src');                         // stop the MJPEG download
@@ -80,8 +86,8 @@ export function startLive(img, onMode = () => {}) {
       try { dec.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: (ts += 16667), data })); }
       catch { needKey = true; }
     };
-    ws.onclose = () => {
-      ws = null;
+    sock.onclose = () => {
+      if (ws === sock) ws = null;
       release();
       mjpeg('socket closed');
       // Keep trying (slower each time, at most every 15 s): the engine may be restarting.

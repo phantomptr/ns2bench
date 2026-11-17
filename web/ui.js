@@ -66,7 +66,9 @@ export function ask({ title, body = '', confirm = t('Continue'), destructive = f
     ok.onclick = () => done(true);
     cancel.onclick = () => done(false);
     d.oncancel = (e) => { e.preventDefault(); done(false); };
-    d.showModal();
+    if (!d.open) d.showModal();
+    // toasts already on screen move into this dialog, or they'd sit behind it, unclickable
+    if (boxEl) placeToasts(boxEl);
     (destructive ? cancel : ok).focus();
   });
 }
