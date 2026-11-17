@@ -56,24 +56,52 @@ impl Log {
 }
 
 /// Invalid controls disable every local service. Isolation is never a control.
+/// Shared network: DHCP is off whatever the file says.
 pub fn service_controls(value: &Value) -> [bool; 3] {
-    if value["topology"] != "direct" { return [false; 3]; }
-    ["dhcp", "dns", "connectivity"].map(|key| value[key].as_bool().unwrap_or(false))
-}
-fn read_controls(state: &Path) -> [bool; 3] {
-    match fs::read(state.join("network-controls.json")) {
-        Ok(bytes) => service_controls(&serde_json::from_slice::<Value>(&bytes).unwrap_or(Value::Null)),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => [true; 3],
-        Err(_) => [false; 3],
+    let on = |key: &str| value[key].as_bool().unwrap_or(false);
+    match value["topology"].as_str() {
+        Some("direct") => [on("dhcp"), on("dns"), on("connectivity")],
+        Some("shared") => [false, on("dns"), on("connectivity")],
+        _ => [false; 3],
     }
 }
-fn status_value(cfg: &Config, controls: [bool; 3]) -> Value {
+pub fn is_shared(value: &Value) -> bool {
+    value["topology"] == "shared"
+}
+/// (dhcp, dns, connectivity) and whether this is a shared network.
+fn read_controls(state: &Path) -> ([bool; 3], bool) {
+    match fs::read(state.join("network-controls.json")) {
+        Ok(bytes) => {
+            let v = serde_json::from_slice::<Value>(&bytes).unwrap_or(Value::Null);
+            (service_controls(&v), is_shared(&v))
+        }
+        Err(e) if e.kind() == io::ErrorKind::NotFound => ([true; 3], false),
+        Err(_) => ([false; 3], false),
+    }
+}
+
+/// What each listed console did last (shared network): the engine's leak watch reads it.
+#[derive(Default, Clone)]
+pub struct Seen {
+    last_dns: Option<f64>,
+    last_ctest: Option<f64>,
+    lookups: u64,
+    refused: u64,
+}
+pub type SeenMap = std::sync::Arc<std::sync::Mutex<BTreeMap<Ipv4Addr, Seen>>>;
+
+fn status_value(cfg: &Config, controls: [bool; 3], shared: bool, seen: &SeenMap) -> Value {
+    let consoles: serde_json::Map<String, Value> = cfg.consoles.iter().map(|ip| {
+        let s = seen.lock().map(|m| m.get(ip).cloned().unwrap_or_default()).unwrap_or_default();
+        (ip.to_string(), json!({"last_dns": s.last_dns, "last_ctest": s.last_ctest, "lookups": s.lookups, "refused": s.refused}))
+    }).collect();
     json!({"time": now(), "interface": cfg.interface, "address":cfg.address.to_string(),
         "forwarding_off":forwarding_off(), "interface_ready":interface_ready(cfg),
+        "topology": if shared { "shared" } else { "direct" }, "consoles": consoles,
         "dhcp":controls[0], "dns":controls[1], "connectivity":controls[2], "blocking":true})
 }
-fn publish_status(state: &Path, cfg: &Config, controls: [bool; 3]) {
-    let value = status_value(cfg, controls);
+fn publish_status(state: &Path, cfg: &Config, controls: [bool; 3], shared: bool, seen: &SeenMap) {
+    let value = status_value(cfg, controls, shared, seen);
     let tmp = state.join("network-status.tmp");
     if let Ok(mut file) = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&tmp) {
         if file.write_all(value.to_string().as_bytes()).is_ok() { let _ = fs::rename(tmp, state.join("network-status.json")); }
@@ -323,7 +351,7 @@ pub fn socket_is_bound(fd: RawFd, interface: &str) -> bool {
 /// Serves one connectivity-test request. Runs on its own thread so a client that
 /// connects and stays silent cannot stall DHCP/DNS; the isolation guard has been
 /// checked by the poll loop just before the connection was accepted.
-fn http(mut stream: TcpStream, log: &Log) -> io::Result<()> {
+fn http(mut stream: TcpStream, log: &Log, peer: Ipv4Addr, seen: &SeenMap) -> io::Result<()> {
     // accept() inherits O_NONBLOCK on BSD/macOS. Use bounded blocking reads here.
     stream.set_nonblocking(false)?;
     stream.set_write_timeout(Some(Duration::from_secs(1)))?;
@@ -346,10 +374,11 @@ fn http(mut stream: TcpStream, log: &Log) -> io::Result<()> {
         return Ok(());
     }
     let response = http_reply(&request);
-    log.event(
-        "ctest",
-        json!({"ok": response.starts_with(b"HTTP/1.1 200")}),
-    );
+    let ok = response.starts_with(b"HTTP/1.1 200");
+    log.event("ctest", json!({"ok": ok, "peer": peer.to_string()}));
+    if ok {
+        if let Ok(mut m) = seen.lock() { m.entry(peer).or_default().last_ctest = Some(now()); }
+    }
     stream.write_all(response)
 }
 
@@ -450,7 +479,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     let mut leases = load_leases(&lease_path)?;
     let mut wait_log = Instant::now() - Duration::from_secs(10);
     while !interface_ready(&cfg) {
-        publish_status(&state, &cfg, [false; 3]);
+        publish_status(&state, &cfg, [false; 3], false, &SeenMap::default());
         if !forwarding_off() {
             return Err("forwarding enabled while waiting for interface".into());
         }
@@ -481,12 +510,13 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     dhcp.set_nonblocking(true).map_err(|e| e.to_string())?;
     dns.set_nonblocking(true).map_err(|e| e.to_string())?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
-    log.event("ready", json!({"engine":"rust", "control": control.as_ref().map(|c| c.listen.to_string()), "interface": cfg.interface, "address": cfg.address.to_string(), "pool":format!("{}-{}", cfg.pool[0], cfg.pool[cfg.pool.len()-1])}));
+    log.event("ready", json!({"engine":"rust", "control": control.as_ref().map(|c| c.listen.to_string()), "interface": cfg.interface, "address": cfg.address.to_string(), "pool":cfg.pool_text(), "consoles": cfg.consoles.iter().map(|c| c.to_string()).collect::<Vec<_>>()}));
+    let console_seen: SeenMap = Default::default();
     let mut status_at = Instant::now() - Duration::from_secs(2);
     let mut seen: BTreeMap<String, Instant> = BTreeMap::new();
     loop {
-        let controls = read_controls(&state);
-        if status_at.elapsed() >= Duration::from_secs(1) { publish_status(&state, &cfg, controls); status_at = Instant::now(); }
+        let (controls, shared) = read_controls(&state);
+        if status_at.elapsed() >= Duration::from_secs(1) { publish_status(&state, &cfg, controls, shared, &console_seen); status_at = Instant::now(); }
         if !forwarding_off() {
             log.event(
                 "refuse",
@@ -552,8 +582,17 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                         let Some((n, peer)) = recv_on(&dns, &mut packet, ifindex)? else { return Ok(()) };
                         if !controls[1] { return Ok(()); }
                         if let SocketAddr::V4(peer) = peer {
-                            if cfg.contains(*peer.ip()) {
+                            if cfg.serves(*peer.ip(), shared) {
                                 if let Some((response, name)) = cfg.dns_reply(&packet[..n]) {
+                                    let local = response[3] & 15 == 0;
+                                    if shared {
+                                        if let Ok(mut m) = console_seen.lock() {
+                                            let s = m.entry(*peer.ip()).or_default();
+                                            s.last_dns = Some(now());
+                                            s.lookups += 1;
+                                            if !local { s.refused += 1; }
+                                        }
+                                    }
                                     if seen
                                         .get(&name)
                                         .is_none_or(|at| at.elapsed() > Duration::from_secs(60))
@@ -585,7 +624,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                             return Ok(()); // dropped: too many management connections
                         }
                         let (c, state, status, log) = (c.clone(), state.clone(),
-                            status_value(&cfg, controls), Log(log.0.clone()));
+                            status_value(&cfg, controls, shared, &console_seen), Log(log.0.clone()));
                         std::thread::spawn(move || {
                             match crate::control::serve(stream, peer, &c, &state, status, now()) {
                                 Ok((peer, code)) => log.event("control", json!({"peer": peer, "status": code})),
@@ -597,7 +636,9 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                     _ => {
                         let (stream, peer) = listener.accept()?;
                         if !controls[2] { return Ok(()); }
-                        if matches!(peer, SocketAddr::V4(peer) if cfg.contains(*peer.ip())) {
+                        if let SocketAddr::V4(peer) = peer {
+                            if !cfg.serves(*peer.ip(), shared) { return Ok(()); }
+                            let (ip, seen) = (*peer.ip(), console_seen.clone());
                             static ACTIVE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
                             use std::sync::atomic::Ordering::SeqCst;
                             if ACTIVE.fetch_add(1, SeqCst) >= 8 {
@@ -606,7 +647,7 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
                             }
                             let log = Log(log.0.clone());
                             std::thread::spawn(move || {
-                                if let Err(e) = http(stream, &log) {
+                                if let Err(e) = http(stream, &log, ip, &seen) {
                                     log.event("error", json!({"detail": e.to_string()}));
                                 }
                                 ACTIVE.fetch_sub(1, SeqCst);

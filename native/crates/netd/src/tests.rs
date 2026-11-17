@@ -215,3 +215,47 @@ fn datagrams_from_other_interfaces_are_dropped() {
     send();
     assert!(runtime::recv_on(&sock, &mut buf, lo_index + 1000).unwrap().is_none(), "from another interface: dropped");
 }
+
+// ------------------------------------------------------------------ shared home network
+
+fn shared_config(extra: Value) -> Result<Config, String> {
+    let mut n = json!({"interface": "en10", "address": "192.168.86.199", "subnet": "192.168.86.0/24"});
+    for (k, v) in extra.as_object().unwrap() { n[k] = v.clone(); }
+    Config::from_value(&json!({ "network": n }))
+}
+
+#[test]
+fn shared_network_never_hands_out_addresses() {
+    assert!(validate_controls(&json!({"topology":"shared","dhcp":false,"dns":true,"connectivity":true})).is_ok());
+    assert!(validate_controls(&json!({"topology":"shared","dhcp":true,"dns":true,"connectivity":true})).is_err());
+    // a file edited by hand: DHCP stays off anyway
+    #[cfg(unix)]
+    assert_eq!(runtime::service_controls(&json!({"topology":"shared","dhcp":true,"dns":true,"connectivity":true})), [false, true, true]);
+    #[cfg(unix)]
+    assert_eq!(runtime::service_controls(&json!({"topology":"router","dhcp":true,"dns":true,"connectivity":true})), [false; 3]);
+}
+
+#[test]
+fn shared_network_answers_only_listed_consoles() {
+    let cfg = shared_config(json!({"consoles": ["192.168.86.251", "192.168.86.252"]})).unwrap();
+    let ip = |s: &str| s.parse::<Ipv4Addr>().unwrap();
+    assert!(cfg.serves(ip("192.168.86.251"), true));
+    assert!(!cfg.serves(ip("192.168.86.30"), true), "another device on the home network");
+    assert!(!cfg.serves(ip("10.0.0.5"), true));
+    // a direct link serves everyone on it, as before
+    assert!(cfg.serves(ip("192.168.86.30"), false));
+    // no consoles listed: a shared network serves no one
+    let none = shared_config(json!({})).unwrap();
+    assert!(!none.serves(ip("192.168.86.251"), true));
+    assert_eq!(none.pool_text(), "");
+}
+
+#[test]
+fn console_addresses_are_checked() {
+    assert!(shared_config(json!({"consoles": ["192.168.0.5"]})).is_err(), "other network");
+    assert!(shared_config(json!({"consoles": ["192.168.86.199"]})).is_err(), "the computer itself");
+    assert!(shared_config(json!({"consoles": ["192.168.86.251", "192.168.86.251"]})).is_err(), "twice");
+    assert!(shared_config(json!({"consoles": ["nope"]})).is_err());
+    // a pool is all-or-nothing
+    assert!(shared_config(json!({"pool_start": "192.168.86.20"})).is_err());
+}

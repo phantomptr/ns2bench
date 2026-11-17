@@ -23,10 +23,15 @@ pub fn validate_controls(v: &Value) -> Result<(), String> {
             return Err(format!("{key} must be boolean"));
         }
     }
-    if !matches!(v["topology"].as_str(), Some("direct" | "router" | "none")) {
+    if !matches!(v["topology"].as_str(), Some("direct" | "shared" | "router" | "none")) {
         return Err("unknown network topology".into());
     }
-    if v["topology"] != "direct" && ["dhcp", "dns", "connectivity"].iter().any(|k| v[*k] == true) {
+    // shared: a home network that already has a router and its own DHCP. Only DNS and the
+    // test page, only for the listed consoles; handing out addresses there is never allowed.
+    if v["topology"] == "shared" && v["dhcp"] == true {
+        return Err("DHCP stays off on a shared network: the router hands out addresses there".into());
+    }
+    if matches!(v["topology"].as_str(), Some("router" | "none")) && ["dhcp", "dns", "connectivity"].iter().any(|k| v[*k] == true) {
         return Err("local services must be off for an external router or unmanaged network".into());
     }
     Ok(())
@@ -39,6 +44,8 @@ pub struct Config {
     network: u32,
     broadcast: Ipv4Addr,
     pool: Vec<Ipv4Addr>,
+    /// Shared network: the only addresses DNS and the test page answer.
+    pub consoles: Vec<Ipv4Addr>,
     lease_s: u32,
     domain: String,
     reservations: BTreeMap<String, Ipv4Addr>,
@@ -84,11 +91,16 @@ impl Config {
         if !valid(address) {
             return Err("interface address must be a private subnet host".into());
         }
-        let (start, end) = (u32::from(ip("pool_start")?), u32::from(ip("pool_end")?));
-        if start > end || end - start >= 65536 {
-            return Err("invalid or oversized DHCP pool".into());
-        }
-        let pool: Vec<_> = (start..=end).map(Ipv4Addr::from).collect();
+        // The DHCP pool is optional: a shared network has none (the router hands out addresses).
+        let pool: Vec<Ipv4Addr> = if n.get("pool_start").is_none() && n.get("pool_end").is_none() {
+            vec![]
+        } else {
+            let (start, end) = (u32::from(ip("pool_start")?), u32::from(ip("pool_end")?));
+            if start > end || end - start >= 65536 {
+                return Err("invalid or oversized DHCP pool".into());
+            }
+            (start..=end).map(Ipv4Addr::from).collect()
+        };
         if pool.iter().any(|&ip| !valid(ip) || ip == address) {
             return Err("invalid DHCP pool address".into());
         }
@@ -120,6 +132,19 @@ impl Config {
                 }
             }
         }
+        let mut consoles = vec![];
+        if let Some(v) = n.get("consoles") {
+            for c in v.as_array().ok_or("consoles must be a list of addresses")? {
+                let ip = c.as_str().and_then(|s| s.parse::<Ipv4Addr>().ok()).ok_or("invalid console address")?;
+                if !valid(ip) || ip == address || consoles.contains(&ip) {
+                    return Err(format!("console {ip} must be another address on {}/{prefix}", Ipv4Addr::from(network)));
+                }
+                consoles.push(ip);
+            }
+            if consoles.len() > 16 {
+                return Err("at most 16 consoles".into());
+            }
+        }
         let domain = n
             .get("domain")
             .and_then(Value::as_str)
@@ -148,6 +173,7 @@ impl Config {
             mask: mask.into(),
             broadcast: broadcast.into(),
             pool,
+            consoles,
             lease_s: lease_s as u32,
             domain,
             reservations,
@@ -156,6 +182,20 @@ impl Config {
 
     pub fn contains(&self, ip: Ipv4Addr) -> bool {
         u32::from(ip) & u32::from(self.mask) == self.network
+    }
+
+    /// May this peer use DNS and the test page? Direct link: anyone on it. Shared network: only
+    /// the listed consoles (none listed: no one).
+    pub fn serves(&self, ip: Ipv4Addr, shared: bool) -> bool {
+        self.contains(ip) && (!shared || self.consoles.contains(&ip))
+    }
+
+    /// The pool as text for the log ("" without one).
+    pub fn pool_text(&self) -> String {
+        match (self.pool.first(), self.pool.last()) {
+            (Some(a), Some(b)) => format!("{a}-{b}"),
+            _ => String::new(),
+        }
     }
 
     pub fn dhcp_reply(&self, req: &Dhcp, kind: u8, yiaddr: Option<Ipv4Addr>) -> Vec<u8> {
