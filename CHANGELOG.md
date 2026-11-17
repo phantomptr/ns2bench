@@ -6,6 +6,13 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Keep consoles offline on your home Wi-Fi, with no extra hardware.** New in Settings → Network: **Shared home network**.
+  - Pick your computer's network adapter from a list, enter the consoles' addresses, and NS2Bench shows exactly what to type on each console.
+  - Each console's gateway is its own address, so nothing leaves your network, by name or by IP address.
+  - NS2Bench answers only the connection test, so consoles say they're connected. Every other name is refused, Nintendo's included, and only the consoles you list get any answer.
+  - **Leak watch:** if a console is on your network but stops using NS2Bench (for example after a reset put it back on automatic settings), NS2Bench warns you.
+  - Step-by-step guide with a diagram: setup guide, section D.
+
 ## 0.0.15
 
 - **Windows: NS2Bench closing by itself.** Some people saw NS2Bench find the capture card and then close with no message.
