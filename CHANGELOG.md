@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.19
+
 - **Security fix:** the network helper reads the computer's network adapters more carefully (a macOS netmask record can be shorter than a full address; it was read past its end). Flagged by GitHub code scanning.
 
 ## 0.0.18
