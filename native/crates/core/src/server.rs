@@ -498,19 +498,25 @@ async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R
     Ok(Json(json!({"ok": true})))
 }
 
-/// Input that only makes sense on the console the controller is plugged into.
-const INPUT_PATHS: &[&str] = &["/api/press", "/api/hold", "/api/stick", "/api/key", "/api/type", "/api/mouse", "/api/click",
-    "/api/sequence", "/api/probe", "/api/calibrate", "/api/navigate", "/api/test"];
+/// POST routes that can't press anything on a console. Every other POST counts as input (fails
+/// closed: a new route that presses is guarded without anyone remembering to list it), and only
+/// goes through for the console the controller is plugged into.
+const NOT_INPUT: &[&str] = &["/api/release", "/api/control", "/api/clip", "/api/wait_screen", "/api/wait_text", "/mcp",
+    "/api/network/shared", "/api/power/settings", "/api/input", "/api/network", "/api/video", "/api/consoles", "/api/prefs"];
 
 async fn console_layer(State(b): State<S>, req: axum::extract::Request, next: axum::middleware::Next) -> Response {
     let sel = crate::console::requested(&req);
     crate::console::SELECTED.scope(sel, async move {
-        if req.method() == axum::http::Method::POST && INPUT_PATHS.contains(&req.uri().path()) {
+        let input = req.method() == axum::http::Method::POST && !NOT_INPUT.contains(&req.uri().path());
+        if input {
             if let Err(e) = b.check_input_target() {
                 return ApiError::from(e).into_response();
             }
         }
-        next.run(req).await
+        // While this request runs, the controller must stay where it was: moving it (or the
+        // cable moving) stops a long sequence or test instead of it pressing on the new console.
+        let generation = b.hub.generation.load(std::sync::atomic::Ordering::SeqCst);
+        crate::inputs::RUN_GENERATION.scope(input.then_some(generation), next.run(req)).await
     }).await
 }
 

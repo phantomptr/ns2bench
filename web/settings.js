@@ -3,6 +3,7 @@ import { t } from './i18n.js';
 import { inboxAdd, notify } from './notify.js';
 import { ask, toast } from './ui.js';
 import { prefsReady, savePrefsNow } from './prefs.js';
+import { cardChanged } from './consoles.js';
 const $ = (s) => document.querySelector(s);
 const dialog = $('#settings');
 let networkRevision = 0, inputRevision = 0;
@@ -766,12 +767,18 @@ async function consolesPane() {
     const row = Object.assign(document.createElement('div'), { className: 'field-row wrap' });
     const save = Object.assign(document.createElement('button'), { type: 'button', className: 'primary', textContent: t('Save') });
     save.onclick = run(async () => {
-      await consoleApi({ action: 'update', id: c.id, name: name.value, model: model.value, color: color.value, network_ip: ip.value });
-      if ((card.value || '') !== (c.video?.device || '')) {
-        await apiFetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': c.id }, body: JSON.stringify({ device: card.value || null }) })
-          .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
+      try {
+        // the card first: if it's refused (another console uses it), nothing else changed either
+        if ((card.value || '') !== (c.video?.device || '')) {
+          await apiFetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': c.id }, body: JSON.stringify({ device: card.value || null }) })
+            .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
+          cardChanged(c.id);
+        }
+        await consoleApi({ action: 'update', id: c.id, name: name.value.trim(), model: model.value, color: color.value, network_ip: ip.value.trim() });
+        message(`${name.value.trim()}: ${t('saved')}`);
+      } finally {
+        await consolesPane();            // the form shows what was really saved
       }
-      message(`${name.value}: ${t('saved')}`); await consolesPane();
     });
     row.append(save);
     if (!c.controller_here) {

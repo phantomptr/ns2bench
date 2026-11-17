@@ -6,8 +6,21 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
-## 0.0.19
-
+- **Several consoles, safer:**
+  - When NS2Bench starts with several consoles, it asks which one the controller is plugged into, since the cable may have moved while it was closed.
+  - Every action that can press a button (power, the health check, tests, sequences) only goes to the console the controller is on.
+  - A test or sequence stops if the controller is moved while it runs.
+  - The cable-move check no longer goes off when a console just sleeps and wakes, and notices when the board itself restarts.
+  - Removing a console stops its sound and recording, so its capture card is free again.
+  - Console names with accents work from agents.
+  - Two consoles no longer share a capture-format fallback.
+  - A damaged consoles file is kept aside instead of being overwritten.
+- **Console strip and settings:**
+  - The picture follows the console you watch, also when the controller moves.
+  - Changing a console's capture card reconnects its picture.
+  - One stuck card no longer freezes all the thumbnails.
+  - A failed save in Settings → Consoles shows what was really saved.
+- **Keyboard focus** on ZL and ZR is fully visible again.
 - **Security fix:** the network helper reads the computer's network adapters more carefully (a macOS netmask record can be shorter than a full address; it was read past its end). Flagged by GitHub code scanning.
 
 ## 0.0.18

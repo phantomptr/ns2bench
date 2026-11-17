@@ -43,6 +43,10 @@ pub struct Console {
     pub frames: Arc<FrameHub>,
     pub video_cfg: Arc<Mutex<Value>>,
     video_task: Mutex<Option<JoinHandle<()>>>,
+    /// Its recorder, sound, picture watch and screen log: all stopped with the console.
+    pub tasks: Mutex<Vec<JoinHandle<()>>>,
+    /// Removed: nothing may start for it again.
+    pub stopped: std::sync::atomic::AtomicBool,
     pub audio: Arc<AudioHub>,
     pub dvr: Arc<Dvr>,
 }
@@ -67,6 +71,8 @@ impl Console {
             frames: FrameHub::new(),
             video_cfg: Arc::new(Mutex::new(video)),
             video_task: Mutex::new(None),
+            tasks: Mutex::new(vec![]),
+            stopped: false.into(),
             audio: AudioHub::new(raw.get("audio"), dvr.seconds + 2.0),
             dvr,
         })
@@ -94,17 +100,19 @@ impl Console {
     }
 
     /// Start (or restart) this console's capture. `save` keeps a card picked automatically.
-    pub fn restart_video(self: &Arc<Self>, logs: &LogHub, save: Arc<dyn Fn() + Send + Sync>) {
+    pub fn restart_video(self: &Arc<Self>, logs: &LogHub, save: Arc<dyn Fn() + Send + Sync>, taken: crate::video::Taken) {
         {
             // one lock across stop and start: two restarts at once must not leave two captures
             let mut task = self.video_task.lock().unwrap();
+            // removed meanwhile (a settings change racing the removal): start nothing
+            if self.stopped.load(std::sync::atomic::Ordering::SeqCst) { return; }
             let restarting = task.take().map(|t| t.abort()).is_some();
             let (cfg, frames, logs) = (self.video_cfg.clone(), self.frames.clone(), logs.clone());
             *task = Some(tokio::spawn(async move {
                 // the old ffmpeg is being killed, not yet gone: give it a moment to let go of the
                 // card (Windows refuses a second open with "I/O error" meanwhile)
                 if restarting { tokio::time::sleep(Duration::from_millis(500)).await; }
-                crate::video::supervise(cfg, frames, logs, Some(save)).await
+                crate::video::supervise(cfg, frames, logs, Some(save), Some(taken)).await
             }));
         }
         self.audio.restart();
@@ -112,7 +120,11 @@ impl Console {
 
     /// Stop everything this console runs (it is being removed).
     pub fn stop(&self) {
-        if let Some(t) = self.video_task.lock().unwrap().take() { t.abort(); }
+        let mut video = self.video_task.lock().unwrap();
+        self.stopped.store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some(t) = video.take() { t.abort(); }
+        // (dropping the sound task's ffmpeg kills it, so the card is free again)
+        for t in self.tasks.lock().unwrap().drain(..) { t.abort(); }
     }
 }
 
@@ -130,7 +142,14 @@ pub fn file() -> std::path::PathBuf {
 /// consoles.json, or the single console this bench had before (its video settings, the
 /// configured menu profile), holding the controller.
 pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
-    if let Some(v) = std::fs::read(file()).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok()) {
+    let bytes = std::fs::read(file()).ok();
+    let parsed = bytes.as_ref().and_then(|d| serde_json::from_slice::<Value>(d).ok());
+    if bytes.is_some() && parsed.is_none() {
+        // unreadable: keep it (its consoles would be lost at the next save) and start from one
+        let keep = file().with_extension(format!("json.broken-{}", chrono::Local::now().format("%Y%m%d-%H%M%S")));
+        let _ = std::fs::rename(file(), keep);
+    }
+    if let Some(v) = parsed {
         let list: Vec<Value> = v["consoles"].as_array().cloned().unwrap_or_default().into_iter()
             .filter(|c| c["id"].as_str().is_some_and(|s| !s.is_empty())).collect();
         if !list.is_empty() {
@@ -165,7 +184,8 @@ pub fn requested(req: &axum::extract::Request) -> Option<String> {
         q.split('&').filter_map(|kv| kv.split_once('=')).find(|(k, _)| *k == "console")
             .map(|(_, v)| percent_decode(v))
     });
-    let from_header = req.headers().get("x-ns2bench-console").and_then(|v| v.to_str().ok()).map(str::to_string);
+    // (percent-encoded by clients, so any name fits in a header)
+    let from_header = req.headers().get("x-ns2bench-console").and_then(|v| v.to_str().ok()).map(percent_decode);
     from_query.or(from_header).filter(|s| !s.trim().is_empty())
 }
 
@@ -193,6 +213,11 @@ mod tests {
         assert_eq!(slug("  ??  "), "console");
         assert_eq!(percent_decode("Switch%201"), "Switch 1");
         assert_eq!(percent_decode("a+b%2"), "a b%2");
+        // what client.rs sends for any name comes back as the same name
+        let name = "Switch 1 é\nX";
+        let enc: String = name.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
+        assert!(!enc.contains(['\n', ' ']));
+        assert_eq!(percent_decode(&enc), name);
         assert_eq!(model_mode("switch2"), "pro");
         assert_eq!(model_mode("switch1"), "standard");
     }

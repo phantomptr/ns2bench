@@ -73,9 +73,10 @@ impl Client {
         if let Some(t) = &self.token {
             req += &format!("Authorization: Bearer {t}\r\n");
         }
-        // (a header can't carry a line break: names with one are dropped)
-        if let Some(c) = self.console.as_deref().filter(|c| !c.contains(['\r', '\n'])) {
-            req += &format!("X-NS2Bench-Console: {c}\r\n");
+        // percent-encoded: any name (accents, spaces) fits in a header, and nothing can break out of it
+        if let Some(c) = self.console.as_deref() {
+            let enc: String = c.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
+            req += &format!("X-NS2Bench-Console: {enc}\r\n");
         }
         if body.is_some() {
             req += &format!("Content-Type: application/json\r\nContent-Length: {}\r\n", data.len());

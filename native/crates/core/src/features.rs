@@ -35,36 +35,42 @@ pub fn start(b: Arc<crate::Bench>) {
 /// One console's background work: its recorder, its sound, its picture's health, its screen log.
 /// Each runs with that console selected, so everything it calls works on that console.
 pub fn start_console(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
-    tokio::spawn(c.dvr.clone().run(c.frames.clone()));
-    tokio::spawn(c.audio.clone().run(c.video_cfg.clone(), b.logs.clone()));
-    tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_health(b.clone(), c.clone())));
-    tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_screen(b, c)));
+    let tasks = vec![
+        tokio::spawn(c.dvr.clone().run(c.frames.clone())),
+        tokio::spawn(c.audio.clone().run(c.video_cfg.clone(), b.logs.clone())),
+        tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_health(b.clone(), c.clone()))),
+        tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_screen(b, c.clone()))),
+    ];
+    // owned by the console: removing it stops all of them
+    c.tasks.lock().unwrap().extend(tasks);
 }
 
-/// The controller's USB cable moved: the board saw its link go and come back. With several
-/// consoles, which one it's on now isn't known: pause input and ask.
+/// The controller's USB cable moved: with several consoles, which one it's on now isn't known, so
+/// pause input and ask. Two signs: the board saw its USB cable out ("not attached", not the
+/// "suspended" of a console asleep) and then in again; or the board itself came back (moving its
+/// cable can restart a board the console powers).
 async fn watch_controller(b: Arc<crate::Bench>) {
-    let mut was_attached: Option<bool> = None;
-    let mut dropped = false;
+    let mut was_connected: Option<bool> = None;
+    let mut unplugged = false;
     loop {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let st = b.hub.status();
-        if st["connected"] != true { was_attached = None; dropped = false; continue; }
-        let attached = st["usb"].as_str().map(|u| u == "configured" || u.starts_with("configured"));
-        let Some(now) = attached else { continue };
-        match (was_attached, now) {
-            (Some(true), false) => dropped = true,
-            (Some(false), true) if dropped => {
-                dropped = false;
-                if b.list().len() > 1 {
-                    let _ = b.set_controller_on(None);
-                    b.logs.notify("bench", "warn", "Which console is the controller on?",
-                        "controller: its USB cable was unplugged and plugged in again. Input is paused: pick the console it's plugged into now (console bar)");
-                }
-            }
-            _ => {}
+        let connected = st["connected"] == true;
+        let usb = st["usb"].as_str().unwrap_or("");
+        let mut moved = false;
+        if was_connected == Some(false) && connected {
+            moved = true; // the board reconnected: anything could have happened meanwhile
         }
-        was_attached = Some(now);
+        if connected {
+            if usb == "not attached" { unplugged = true; }
+            else if unplugged && usb.starts_with("configured") { unplugged = false; moved = true; }
+        }
+        was_connected = Some(connected);
+        if moved && b.list().len() > 1 && b.controller_console().is_some() {
+            let _ = b.set_controller_on(None);
+            b.logs.notify("bench", "warn", "Which console is the controller on?",
+                "controller: its USB cable (or the board) was unplugged and came back. Input is paused: pick the console it's plugged into now (under the picture)");
+        }
     }
 }
 

@@ -395,6 +395,14 @@ pub struct InputHub {
     /// Set while nothing may be pressed (several consoles, and which one the controller is
     /// plugged into isn't known). Letting go still goes through.
     pub paused: Mutex<Option<String>>,
+    /// Bumped whenever the controller moves to another console (or its place becomes unknown).
+    pub generation: std::sync::atomic::AtomicU64,
+}
+
+tokio::task_local! {
+    /// The controller generation an input request started with: if it changes while the request
+    /// still runs (a long sequence or test), that request may press nothing more.
+    pub static RUN_GENERATION: Option<u64>;
 }
 
 impl InputHub {
@@ -414,6 +422,7 @@ impl InputHub {
             logs,
             ui_owner: 0.into(),
             paused: Mutex::new(None),
+            generation: 0.into(),
         })
     }
 
@@ -448,10 +457,11 @@ impl InputHub {
             st.last_kbd = kbd;
             (pad, kbd, changed, [st.agent.buttons, st.agent.dpad as u32])
         };
-        if let Some(why) = self.paused.lock().unwrap().clone() {
-            if pad != NEUTRAL_PAD || kbd != NEUTRAL_KBD {
+        if pad != NEUTRAL_PAD || kbd != NEUTRAL_KBD {
+            if let Some(why) = self.paused.lock().unwrap().clone() {
                 bail!(Conflict(why));
             }
+            self.check_generation()?;
         }
         if changed {
             let _ = self.tx.send(Push::Pad { pad, agent });
@@ -703,10 +713,11 @@ impl InputHub {
         if !self.backend.devices().iter().any(|d| d == "mouse") {
             bail!("NS2Bench Bridge has no USB mouse in this mode");
         }
-        if let Some(why) = self.paused.lock().unwrap().clone() {
-            if dx != 0 || dy != 0 || wheel != 0 || buttons.is_some_and(|(m, v)| v & m != 0) {
+        if dx != 0 || dy != 0 || wheel != 0 || buttons.is_some_and(|(m, v)| v & m != 0) {
+            if let Some(why) = self.paused.lock().unwrap().clone() {
                 bail!(Conflict(why));
             }
+            self.check_generation()?;
         }
         let (b, before) = {
             let mut st = self.st.lock().unwrap();
@@ -766,6 +777,16 @@ impl InputHub {
     pub fn release_ui(self: &Arc<Self>) {
         let _ = self.set_ui_state(0, 0, None, 0, vec![]);
         self.mouse_up(true, false);
+    }
+
+    /// Refuse a press from a request that started before the controller moved.
+    fn check_generation(&self) -> Result<()> {
+        if let Ok(Some(started)) = RUN_GENERATION.try_with(|g| *g) {
+            if started != self.generation.load(std::sync::atomic::Ordering::SeqCst) {
+                bail!(Conflict("the controller was moved to another console while this was running: stopped".into()));
+            }
+        }
+        Ok(())
     }
 
     pub fn release_all(&self) {

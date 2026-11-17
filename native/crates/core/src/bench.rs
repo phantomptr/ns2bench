@@ -21,6 +21,8 @@ pub struct Bench {
     pub consoles: RwLock<Vec<Arc<Console>>>,
     /// The console the controller is plugged into; None: unknown (input is paused then).
     pub controller_on: Mutex<Option<String>>,
+    /// One change to the consoles (or the controller's place) at a time, saved before the next.
+    changes: Mutex<()>,
     pub screen_log: AtomicBool,
     pub active_operations: std::sync::atomic::AtomicUsize,
     pub calibration: Mutex<Value>,
@@ -49,11 +51,13 @@ impl Bench {
             crate::console::load(&cfg.raw)
         };
         let consoles: Vec<Arc<Console>> = entries.iter().map(|e| Console::new(e, &cfg.video, &cfg.raw)).collect();
-        let controller_on = controller_on.filter(|id| consoles.iter().any(|c| &c.id == id));
+        // Several consoles: where the controller is isn't known at start (its cable may have moved
+        // while NS2Bench was closed). The page asks; one console needs no answer.
+        let controller_on = controller_on.filter(|id| consoles.iter().any(|c| &c.id == id)).filter(|_| consoles.len() < 2 || cfg!(test));
         let bench = Arc::new(Bench {
             input_cfg: Mutex::new(cfg.input.clone()), settings_lock: tokio::sync::Mutex::new(()),
             ext: crate::features::Ext::new(&cfg),
-            consoles: RwLock::new(consoles), controller_on: Mutex::new(controller_on),
+            consoles: RwLock::new(consoles), controller_on: Mutex::new(controller_on), changes: Mutex::new(()),
             cfg, logs, hub,
             active_operations: 0.into(), screen_log: screen_log.into(), calibration: Mutex::new(calibration), started: Instant::now(),
         });
@@ -139,12 +143,17 @@ impl Bench {
     /// The controller is now plugged into `id` (None: unknown). Releases everything first, then
     /// sets the board's USB mode to what the console's model needs.
     pub fn set_controller_on(self: &Arc<Self>, id: Option<&str>) -> Result<()> {
+        let _one = self.changes.lock().unwrap();
         let target = match id {
             Some(i) => Some(self.console(i).ok_or_else(|| anyhow!("no console {i:?}"))?),
             None => None,
         };
         self.hub.release_all();
-        *self.controller_on.lock().unwrap() = target.as_ref().map(|c| c.id.clone());
+        let new = target.as_ref().map(|c| c.id.clone());
+        let moved = *self.controller_on.lock().unwrap() != new;
+        *self.controller_on.lock().unwrap() = new;
+        // anything still running for the old place (a sequence, a test) stops pressing
+        if moved { self.hub.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst); }
         self.apply_pause();
         self.save_consoles()?;
         match &target {
@@ -165,7 +174,11 @@ impl Bench {
 
     /// Add a console (its capture card must not be in use by another console).
     pub fn add_console(self: &Arc<Self>, v: &Value) -> Result<Arc<Console>> {
+        let _one = self.changes.lock().unwrap();
         let name = v["name"].as_str().map(str::trim).filter(|n| !n.is_empty()).ok_or_else(|| anyhow!("a console needs a name"))?;
+        if let Some(ip) = v["network_ip"].as_str().map(str::trim).filter(|s| !s.is_empty()) {
+            ip.parse::<std::net::Ipv4Addr>().map_err(|_| anyhow!("{ip} is not an IPv4 address"))?;
+        }
         if self.list().len() >= 8 { bail!("at most 8 consoles"); }
         if self.console(name).is_some() { bail!("there is already a console called {name}"); }
         let model = v["model"].as_str().unwrap_or("switch2");
@@ -202,6 +215,7 @@ impl Bench {
 
     /// Rename, change model, colour or network address.
     pub fn update_console(&self, id: &str, v: &Value) -> Result<()> {
+        let _one = self.changes.lock().unwrap();
         let c = self.console(id).ok_or_else(|| anyhow!("no console {id:?}"))?;
         if let Some(name) = v["name"].as_str().map(str::trim) {
             if name.is_empty() { bail!("a console needs a name"); }
@@ -228,6 +242,7 @@ impl Bench {
     }
 
     pub fn remove_console(&self, id: &str) -> Result<()> {
+        let _one = self.changes.lock().unwrap();
         let c = self.console(id).ok_or_else(|| anyhow!("no console {id:?}"))?;
         if self.list().len() < 2 { bail!("the last console can't be removed (rename it instead)"); }
         c.stop();
@@ -237,6 +252,7 @@ impl Bench {
             if on.as_deref() == Some(c.id.as_str()) {
                 self.hub.release_all();
                 *on = None;
+                self.hub.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
         }
         self.apply_pause();
@@ -257,7 +273,13 @@ impl Bench {
             if let Some(b) = b.upgrade() { let _ = b.save_consoles(); }
             if first { save_video_json(&video_cfg.lock().unwrap()); }
         });
-        c.restart_video(&self.logs, save);
+        // cards the other consoles use: an automatic pick never takes one
+        let (b2, me) = (Arc::downgrade(self), c.id.clone());
+        let taken: crate::video::Taken = Arc::new(move || {
+            b2.upgrade().map(|b| b.list().iter().filter(|o| o.id != me)
+                .filter_map(|o| o.video_cfg.lock().unwrap()["device"].as_str().map(str::to_string)).collect()).unwrap_or_default()
+        });
+        c.restart_video(&self.logs, save, taken);
     }
 
     pub async fn set_video(self: &Arc<Self>, c: &Arc<Console>, changes: Value) -> Result<()> {
@@ -269,11 +291,11 @@ impl Bench {
         {
             let mut v = c.video_cfg.lock().unwrap();
             for (k, x) in obj { v[k] = x.clone(); }
+            // new settings: ask the card for them again (it may accept these)
+            if let Some(o) = v.as_object_mut() { o.remove("_device_default"); }
             if self.list().first().is_some_and(|f| f.id == c.id) { save_video_json(&v); }
         }
         self.save_consoles()?;
-        // new settings: ask the card for them again (it may accept these)
-        crate::video::USE_DEVICE_DEFAULT.store(false, std::sync::atomic::Ordering::Relaxed);
         self.logs.add("bench", format!("video settings changed ({}): {changes}", c.name()));
         self.restart_video(c);
         Ok(())
@@ -362,5 +384,27 @@ mod tests {
         // (one console left: nothing to ask, input isn't paused)
         assert!(b.check_input_target().is_ok());
         assert!(b.remove_console("switch-2").is_err(), "the last console stays");
+    }
+
+    #[tokio::test]
+    async fn a_run_started_before_the_controller_moved_presses_nothing_after() {
+        let b = bench();
+        b.add_console(&json!({"name": "Switch 1", "model": "switch1", "video": {"device": "card-2"}})).unwrap();
+        let started = b.hub.generation.load(std::sync::atomic::Ordering::SeqCst);
+        b.set_controller_on(Some("switch-1")).unwrap();
+        let r = crate::inputs::RUN_GENERATION.scope(Some(started), async { b.hub.hold(&["A".into()], "api") }).await;
+        assert!(r.unwrap_err().to_string().contains("moved to another console"));
+    }
+
+    #[tokio::test]
+    async fn a_removed_console_stops_everything_it_ran() {
+        let b = bench();
+        let c = b.add_console(&json!({"name": "Switch 1", "model": "switch1", "video": {"device": "card-2"}})).unwrap();
+        assert!(!c.tasks.lock().unwrap().is_empty(), "its recorder, sound and watchers run");
+        b.remove_console("switch-1").unwrap();
+        assert!(c.stopped.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(c.tasks.lock().unwrap().is_empty());
+        // a late settings change can't start its capture again
+        b.restart_video(&c);
     }
 }

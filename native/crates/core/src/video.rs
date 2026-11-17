@@ -271,7 +271,8 @@ pub fn ffmpeg_input_args(cfg: &Value) -> Vec<String> {
         vec!["-f".into(), "avfoundation".into(), "-framerate".into(), fps, "-video_size".into(), size, "-i".into(), format!("{}:none", dev.unwrap_or("0".into()))]
     } else if cfg!(windows) {
         let mut a: Vec<String> = vec!["-f".into(), "dshow".into(), "-rtbufsize".into(), "256M".into()];
-        if !USE_DEVICE_DEFAULT.load(std::sync::atomic::Ordering::Relaxed) {
+        // (this console's card refused the size it was asked for: let it use its own default)
+        if cfg["_device_default"] != true {
             a.extend(["-video_size".into(), size, "-framerate".into(), fps]);
         }
         a.extend(["-i".into(), format!("video={}", dev.unwrap_or_default())]);
@@ -452,8 +453,7 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
             // Only a refused format switches to the card's default; "in use" (OBS) or an unplugged
             // card is not the format's fault.
             if cfg!(windows) && (e.contains("Could not set video options") || e.contains("Could not find output pin")) {
-                USE_DEVICE_DEFAULT.store(true, std::sync::atomic::Ordering::Relaxed);
-                bail!("the capture card refused {}x{} at {} fps; trying its own default next: {}", cfg["width"], cfg["height"], cfg["fps_exact"].as_str().unwrap_or(""), e.trim());
+                bail!("{REFUSED}the capture card refused {}x{} at {} fps; trying its own default next: {}", cfg["width"], cfg["height"], cfg["fps_exact"].as_str().unwrap_or(""), e.trim());
             }
             bail!("ffmpeg exited: {}", e.trim());
         }
@@ -463,7 +463,10 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
 
 /// Run the configured source forever, restarting with backoff. `cfg` is re-read on each start.
 /// `save`: keeps a capture card picked automatically (the console's settings).
-pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub, save: Option<Arc<dyn Fn() + Send + Sync>>) {
+/// Capture cards other consoles use: an automatic pick never takes one of them.
+pub type Taken = Arc<dyn Fn() -> Vec<String> + Send + Sync>;
+
+pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub, save: Option<Arc<dyn Fn() + Send + Sync>>, taken: Option<Taken>) {
     let mut delay = Duration::from_secs(1);
     let mut h264_failures = 0u32;
     loop {
@@ -483,7 +486,13 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
                 tokio::time::sleep(Duration::from_secs(15)).await;
                 continue;
             }
-            match pick_capture_card(&list_devices().await) {
+            // never a card another console already shows
+            let mut found = list_devices().await;
+            if let (Some(taken), Some(list)) = (&taken, found.as_array_mut()) {
+                let used = taken();
+                list.retain(|d| !d["id"].as_str().is_some_and(|id| used.iter().any(|u| u == id)));
+            }
+            match pick_capture_card(&found) {
                 Some(d) => {
                     logs.add("bench", format!("video: no capture card was chosen; using {d}"));
                     cfg.lock().unwrap()["device"] = d.clone().into();
@@ -510,6 +519,7 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
         }
         let r = if name == "avf" { run_avf(&c, &hub, &logs).await } else { run_ffmpeg(&c, &hub).await };
         if let Err(e) = r {
+            if refused(&e.to_string()) { cfg.lock().unwrap()["_device_default"] = true.into(); }
             *hub.error.lock().unwrap() = Some(e.to_string());
             logs.error("bench", format!("video ({name}): {e}; retrying in {}s", delay.as_secs()));
             if !c["h264_encoder"].is_null() && started.elapsed() < Duration::from_secs(10) { h264_failures += 1; }
@@ -663,7 +673,9 @@ pub fn parse_v4l2_formats(text: &str) -> Vec<Value> {
 
 /// When a card refuses the size and frame rate (ffmpeg: "Could not set video options"), the next
 /// start lets it use its own default, as OBS does. Cleared when video settings change.
-pub static USE_DEVICE_DEFAULT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Marks the error for a card that refused the asked format (supervise then asks for its default).
+const REFUSED: &str = "";
+fn refused(e: &str) -> bool { e.contains("the capture card refused") }
 
 /// Capture devices and their formats (macOS helper; best effort elsewhere).
 pub async fn list_devices() -> Value {

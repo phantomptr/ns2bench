@@ -5,7 +5,8 @@ import { apiFetch, authURL, currentConsole, setConsole } from './client.js';
 import { t } from './i18n.js';
 
 const $ = (s) => document.querySelector(s);
-let consoles = [], controllerOn = null, onSwitch = () => {};
+// shownId: the console whose picture and sound this page is connected to now
+let consoles = [], controllerOn = null, onSwitch = () => {}, shownId = null;
 
 /** The console this page shows (its info from the last status), or null. */
 export function viewed() {
@@ -42,8 +43,7 @@ function thumb(c) {
   b.type = 'button';
   b.className = 'console-thumb';
   b.dataset.console = c.id;
-  b.setAttribute('role', 'tab');
-  b.setAttribute('aria-selected', String(c.id === viewed()?.id));
+  b.setAttribute('aria-pressed', String(c.id === viewed()?.id));
   b.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
   const pic = Object.assign(document.createElement('div'), { className: 'pic' });
   const img = Object.assign(document.createElement('img'), { alt: '', decoding: 'async', draggable: false });
@@ -61,7 +61,8 @@ function thumb(c) {
     Object.assign(document.createElement('span'), { className: `state${live ? ' live' : ''}`, textContent: live ? t('live') : t('no picture') }));
   b.title = `${c.name} · ${c.model_name || ''}`;
   b.append(pic, cap);
-  b.onclick = () => { if (c.id !== viewed()?.id) { setConsole(c.id); render(); onSwitch(c); } };
+  // picking a console pins it (it no longer follows the controller around)
+  b.onclick = () => { setConsole(c.id); render(); follow(); };
   return b;
 }
 
@@ -81,7 +82,10 @@ function refreshPictures() {
   if (!left) { refreshing = false; return; }
   for (const img of imgs) {
     const next = new Image();
-    const done = () => { if (--left === 0) refreshing = false; };
+    // one card that stopped answering must not freeze every tile: give up on it after 4 s
+    let finished = false;
+    const done = () => { if (finished) return; finished = true; next.onload = next.onerror = null; if (--left === 0) refreshing = false; };
+    setTimeout(done, 4000);
     next.onload = () => { img.src = next.src; done(); };
     next.onerror = done;
     next.src = authURL(`/api/screenshot?console=${encodeURIComponent(img.dataset.console)}&max_width=320&r=${Date.now()}`);
@@ -134,9 +138,24 @@ export function updateConsoles(status) {
   consoles = status.consoles;
   controllerOn = status.controller_on ?? null;
   // a console that was removed: show the one with the controller
-  if (currentConsole() && !consoles.some((c) => c.id === currentConsole())) { setConsole(''); onSwitch(viewed()); }
+  if (currentConsole() && !consoles.some((c) => c.id === currentConsole())) setConsole('');
   const after = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);
   if (before !== after) render();
+  follow();
+}
+
+// The page shows another console than its picture and sound are connected to (picked, or the
+// default followed the controller, or the shown one was removed): reconnect them.
+function follow() {
+  const v = viewed();
+  if (!v) return;
+  if (shownId === null) { shownId = v.id; return; }   // first status: already connected to it
+  if (v.id !== shownId) { shownId = v.id; onSwitch(v); }
+}
+
+/** Settings changed this console's capture card: reconnect if it's the one on screen. */
+export function cardChanged(id) {
+  if (viewed()?.id === id) onSwitch(viewed());
 }
 
 /** `switched(console)` runs when the page shows another console (reconnect picture and sound). */

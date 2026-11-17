@@ -76,7 +76,8 @@ keeps a **controller location**: a console, or *unknown*.
 ```mermaid
 stateDiagram-v2
   [*] --> Known: you pick "Controller is on Switch 2"
-  Known --> Unknown: the board sees its USB cable unplugged / plugged again
+  [*] --> Unknown: NS2Bench starts with several consoles (the cable may have moved while it was closed)
+  Known --> Unknown: the board sees its USB cable out and in again, or the board itself reconnects
   Unknown --> Known: you pick where it is now
   Known --> Known: you pick another console (inputs released first)
   note right of Unknown: input is paused, the page asks where the controller went
@@ -114,7 +115,7 @@ A model is data: adding one later is a new file, not new code.
 | Live view, screenshots, clips, OCR, screen log | ✓ | |
 | Network address (shared home network, leak watch) | ✓ | |
 | Power / wake settings | ✓ | |
-| Press calibration (shortest reliable press) | ✓ | |
+| Press calibration (shortest reliable press) | later | ✓ (shared for now) |
 | Controller devices and their connections (Luckfox, Pico, CH9329) | | ✓ (a list) |
 | Block agents, logs, notifications, appearance | | ✓ |
 

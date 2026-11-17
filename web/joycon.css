@@ -65,6 +65,9 @@
 .joycon .key.unavailable .face { opacity: .4; }
 .joycon .key:focus-visible { outline: none; }
 .joycon .key:focus-visible .face { outline: 2px solid var(--accent-l); outline-offset: 2px; }
+/* the top buttons' faces are clipped to their shape: their focus ring goes on the button itself */
+.joycon .key.pill:focus-visible .face { outline: none; }
+.joycon .key.pill:focus-visible { outline: 2px solid var(--accent-l); outline-offset: 2px; border-radius: calc(var(--sh) * 0.42) calc(var(--sh) * 0.42) 2px 2px; }
 
 /* layout, top to bottom (as on the real Joy-Con 2) */
 .joycon .cluster { position: absolute; left: 50%; width: calc(var(--j) * 0.8); aspect-ratio: 1; translate: -50% -50%; }
