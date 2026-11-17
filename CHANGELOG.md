@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.16
+
 - **Keep consoles offline on your home Wi-Fi, with no extra hardware.** New in Settings → Network: **Shared home network**.
   - Pick your computer's network adapter from a list, enter the consoles' addresses, and NS2Bench shows exactly what to type on each console.
   - Each console's gateway is its own address, so nothing leaves your network, by name or by IP address.
