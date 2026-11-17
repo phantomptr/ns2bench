@@ -389,6 +389,9 @@ pub struct InputHub {
     pub tx: broadcast::Sender<Push>,
     agent_lock: tokio::sync::Mutex<()>,
     logs: LogHub,
+    /// The page (socket number) that last left something held: only that page going silent or
+    /// closing releases the person's input, not another, idle page.
+    pub ui_owner: std::sync::atomic::AtomicU64,
 }
 
 impl InputHub {
@@ -406,6 +409,7 @@ impl InputHub {
             tx,
             agent_lock: tokio::sync::Mutex::new(()),
             logs,
+            ui_owner: 0.into(),
         })
     }
 
@@ -446,8 +450,25 @@ impl InputHub {
         self.backend.send(Msg::State(pad, kbd))
     }
 
+    /// After a reconnect: the device starts neutral, so send what is held now, mouse included.
     pub fn resend(&self) {
         let _ = self.flush();
+        let b = { let st = self.st.lock().unwrap(); st.ui_mouse | st.agent_mouse };
+        if self.backend.devices().iter().any(|d| d == "mouse") {
+            let _ = self.backend.send(Msg::Mouse([b as i32, 0, 0, 0]));
+        }
+    }
+
+    /// Let go of everything a source holds, without the Block-agents check: cleanup after a
+    /// stopped test or sequence must always work.
+    pub fn release_source(&self, source: &str) {
+        if source == "ui" {
+            { let mut st = self.st.lock().unwrap(); st.ui = Layer::default(); st.ui_down.clear(); }
+            let _ = self.flush();
+            self.mouse_up(true, false);
+        } else {
+            self.clear_agent();
+        }
     }
 
     pub fn log(&self, source: &str, action: &str, detail: Value) {
@@ -682,9 +703,11 @@ impl InputHub {
         };
         self.backend.send(Msg::Mouse([b as i32, dx.clamp(-4096, 4096), dy.clamp(-4096, 4096), wheel.clamp(-64, 64)]))
             .inspect_err(|_| {
-                // not sent: the button isn't down on the console, so don't remember it as down
+                // A press that wasn't sent isn't down on the console: forget it. A release that
+                // wasn't sent stays released here (the device is neutral after it reconnects).
                 let mut st = self.st.lock().unwrap();
-                *(if source == "ui" { &mut st.ui_mouse } else { &mut st.agent_mouse }) = before;
+                let mine = if source == "ui" { &mut st.ui_mouse } else { &mut st.agent_mouse };
+                *mine &= before;
             })
     }
 

@@ -147,7 +147,7 @@ pub async fn run_test(b: &Bench, test: &Value, source: &str, stop_on_fail: bool)
         }
     }
     // a test that stopped early (a failed step, Block agents) leaves nothing held
-    let _ = b.hub.release(None, source);
+    b.hub.release_source(source);
     let logs = b.logs.query(None, log_from, 2000, None);
     let fmt_t = |t: f64| chrono::DateTime::from_timestamp(t as i64, 0).map(|d| d.with_timezone(&chrono::Local).format("%H:%M:%S").to_string()).unwrap_or_default();
     std::fs::write(dir.join("logs.txt"), logs.iter().map(|e| format!("{} [{}] {}", fmt_t(e.t), e.source, e.text)).collect::<Vec<_>>().join("\n"))?;

@@ -116,7 +116,14 @@ pub(crate) mod win_serial {
             d.ByteSize = 8;
             d.Parity = 0; // NOPARITY
             d.StopBits = 0; // ONESTOPBIT
-            d._bitfield |= 1; // fBinary: always on for Windows serial ports
+            // fBinary on; no hardware or XON/XOFF flow control (a setting left by another program
+            // would stall writes), DTR and RTS on, and one line error doesn't abort all I/O.
+            let mut bits = d._bitfield;
+            bits |= 1; // fBinary
+            bits &= !((1 << 2) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 9) | (1 << 14)); // CTS/DSR flow, DSR sensitivity, XON/XOFF out/in, abort on error
+            bits = (bits & !(0b11 << 4)) | (1 << 4); // DTR_CONTROL_ENABLE
+            bits = (bits & !(0b11 << 12)) | (1 << 12); // RTS_CONTROL_ENABLE
+            d._bitfield = bits;
             if SetCommState(f.as_raw_handle() as _, &d) == 0 {
                 return Err(io::Error::last_os_error());
             }
@@ -124,13 +131,15 @@ pub(crate) mod win_serial {
         Ok(())
     }
 
-    /// Reads that return within 200 ms even when nothing arrives (0 bytes), and writes that give
+    /// Reads that return at once (0 bytes when nothing arrived), and writes that give
     /// up after 2 s: so the reader thread can notice the connection is gone and end.
     fn timeouts(f: &std::fs::File) -> io::Result<()> {
+        // Reads return at once with what has arrived (the reader thread naps between empty
+        // reads): a read waiting on the handle would hold up writes on the same port.
         let t = COMMTIMEOUTS {
             ReadIntervalTimeout: u32::MAX,
-            ReadTotalTimeoutMultiplier: u32::MAX,
-            ReadTotalTimeoutConstant: 200,
+            ReadTotalTimeoutMultiplier: 0,
+            ReadTotalTimeoutConstant: 0,
             WriteTotalTimeoutMultiplier: 0,
             WriteTotalTimeoutConstant: 2000,
         };
@@ -159,7 +168,7 @@ pub(crate) mod win_serial {
             // Ends when the connection is dropped (nobody receives) or the port goes away.
             while !tx.is_closed() {
                 match f.read(&mut buf) {
-                    Ok(0) => continue, // nothing within 200 ms
+                    Ok(0) => { std::thread::sleep(std::time::Duration::from_millis(2)); continue }
                     Ok(n) => {
                         if tx.blocking_send(Ok(buf[..n].to_vec())).is_err() {
                             break;

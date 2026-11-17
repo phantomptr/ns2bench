@@ -294,12 +294,15 @@ async fn run_avf(cfg: &Value, hub: &FrameHub, logs: &LogHub) -> Result<()> {
     let mut child = Command::new(&helper).args(&args).stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn()?;
     let mut out = child.stdout.take().unwrap();
-    let mut err = child.stderr.take().unwrap();
+    let err = child.stderr.take().unwrap();
     let l2 = logs.clone();
+    // its messages as they come (line by line, nothing kept): a chatty helper costs no memory
     tokio::spawn(async move {
-        let mut s = String::new();
-        let _ = err.read_to_string(&mut s).await;
-        for line in s.lines() { l2.add("bench", line); }
+        use tokio::io::AsyncBufReadExt;
+        let mut lines = tokio::io::BufReader::new(err).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if !line.trim().is_empty() { l2.add("bench", line.chars().take(2000).collect::<String>()); }
+        }
     });
     // stream2: [u8 kind][u32 len][data]; 1 = JPEG, 2 = H.264 Annex B access unit
     loop {
@@ -461,6 +464,7 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
 /// Run the configured source forever, restarting with backoff. `cfg` is re-read on each start.
 pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub) {
     let mut delay = Duration::from_secs(1);
+    let mut h264_failures = 0u32;
     loop {
         let c = cfg.lock().unwrap().clone();
         let name = backend_name(&c);
@@ -499,10 +503,20 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub)
         logs.add("bench", format!("video ({name}): {} {}x{}@{} q{}", c["device"].as_str().unwrap_or("default"),
             c["width"], c["height"], c["fps"], c["quality"]));
         let started = Instant::now();
+        // A hardware H.264 encoder this computer lacks (nvenc without an NVIDIA card) stops the
+        // one ffmpeg that also makes the picture: after quick failures, go on without it.
+        let mut c = c;
+        if h264_failures >= 3 && !c["h264_encoder"].is_null() {
+            logs.warn("bench", format!("video: the H.264 encoder {} doesn't work here: continuing without it (the live view uses MJPEG)", c["h264_encoder"]));
+            c["h264_encoder"] = Value::Null;
+        }
         let r = if name == "avf" { run_avf(&c, &hub, &logs).await } else { run_ffmpeg(&c, &hub).await };
         if let Err(e) = r {
             *hub.error.lock().unwrap() = Some(e.to_string());
             logs.error("bench", format!("video ({name}): {e}; retrying in {}s", delay.as_secs()));
+            if !c["h264_encoder"].is_null() && started.elapsed() < Duration::from_secs(10) { h264_failures += 1; }
+        } else {
+            h264_failures = 0;
         }
         if started.elapsed() > Duration::from_secs(30) { delay = Duration::from_secs(1); }
         tokio::time::sleep(delay).await;

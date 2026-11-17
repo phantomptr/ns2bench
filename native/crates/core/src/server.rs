@@ -425,7 +425,7 @@ pub async fn run_sequence(b: &Bench, steps: &Value, source: &str) -> Result<()> 
     for s in steps {
         if let Err(e) = run_step(b, s, source).await {
             // a failed step must not leave a hold from an earlier step down on the console
-            let _ = b.hub.release(None, source);
+            b.hub.release_source(source);
             return Err(e);
         }
     }
@@ -519,10 +519,13 @@ async fn ui_socket(b: S, sock: WebSocket, drive: bool) {
     // While something is held, the page says so every second. A page that falls silent then (a
     // laptop asleep, Wi-Fi gone: the connection can stay half-open for minutes) has let go.
     let mut last = std::time::Instant::now();
+    static PAGES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let me = PAGES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let owner = |b: &S| b.hub.ui_owner.load(std::sync::atomic::Ordering::Relaxed) == me;
     loop {
         let m = match tokio::time::timeout(Duration::from_secs(1), rx.next()).await {
             Err(_) => {
-                if drive && last.elapsed() > Duration::from_secs(4) && b.hub.ui_active() {
+                if drive && owner(&b) && last.elapsed() > Duration::from_secs(4) && b.hub.ui_active() {
                     b.logs.warn("bench", "the NS2Bench page went silent while holding input: released");
                     b.hub.release_ui();
                 }
@@ -548,9 +551,12 @@ async fn ui_socket(b: S, sock: WebSocket, drive: bool) {
             _ => Ok(()),
         };
         let _ = r; // errors surface through status (input offline) rather than per message
+        // this page now holds something: it's the one whose silence or closing lets go
+        if b.hub.ui_active() { b.hub.ui_owner.store(me, std::sync::atomic::Ordering::Relaxed); }
     }
     sender.abort();
-    if drive { b.hub.release_ui(); } // tab closed: release human input
+    // tab closed: release what it was holding (not what another open page holds)
+    if drive && (owner(&b) || b.hub.ui_owner.load(std::sync::atomic::Ordering::Relaxed) == 0) { b.hub.release_ui(); }
 }
 
 #[cfg(test)]

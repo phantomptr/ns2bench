@@ -135,7 +135,15 @@ pub async fn run(
             loop {
                 let m = if let Some(p) = pending.take() { p } else {
                     tokio::select! {
-                        m = rx.recv() => { let Some(m) = m else { return Ok(()) }; m }
+                        m = rx.recv() => {
+                            let Some(m) = m else {
+                                // replaced without a Stop: still leave the chip neutral
+                                let _ = put(&mut w, &keyboard(&NEUTRAL_KBD)).await;
+                                for f in mouse(0, 0, 0, 0) { let _ = put(&mut w, &f).await; }
+                                return Ok(());
+                            };
+                            m
+                        }
                         _ = beat.tick() => {
                             if ping_at.is_some_and(|t| t.elapsed() > Duration::from_secs(3)) {
                                 bail!("CH9329 stopped answering");
