@@ -33,10 +33,19 @@ const UI = typeof window.__NS2BENCH_UI__ === 'string' ? window.__NS2BENCH_UI__ :
 /** This page is the person at the bench (it can save preferences, drive, turn Block agents off). */
 export const hasUiKey = !!UI;
 export function setToken(value) { token = value.trim(); session.set(token); location.reload(); }
+// Several consoles: the one this page shows. Its picture, sound, screenshots, clips and screen
+// reading come from that console; '' is the engine's default (the one the controller is on).
+let consoleId = (() => { try { return localStorage.getItem('ns2bench.console') || ''; } catch { return ''; } })();
+export function currentConsole() { return consoleId; }
+export function setConsole(id) {
+  consoleId = id || '';
+  try { if (consoleId) localStorage.setItem('ns2bench.console', consoleId); else localStorage.removeItem('ns2bench.console'); } catch { /* fine */ }
+}
 export function authURL(path) {
   const url = new URL(path, location.href);
   if (token && url.host === location.host) url.searchParams.set('token', token);
   if (UI && url.host === location.host && url.pathname === '/ws') url.searchParams.set('ui', UI);
+  if (consoleId && url.host === location.host && ['/stream.mjpg', '/video', '/audio'].includes(url.pathname)) url.searchParams.set('console', consoleId);
   return url.href;
 }
 export function apiFetch(path, init = {}) {
@@ -45,5 +54,6 @@ export function apiFetch(path, init = {}) {
   if (UI) headers.set('X-NS2Bench-UI', UI);
   // This page is the person at the bench, not an agent (the engine checks that claim).
   if (!headers.has('X-NS2Bench-Source')) headers.set('X-NS2Bench-Source', 'ui');
+  if (consoleId && !headers.has('X-NS2Bench-Console')) headers.set('X-NS2Bench-Console', consoleId);
   return fetch(path, { ...init, headers });
 }

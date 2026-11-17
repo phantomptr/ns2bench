@@ -24,6 +24,7 @@ async function showTab(tab) {
   dialog.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.tab === tab)));
   dialog.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== tab; });
   if (tab === 'network') await network();
+  if (tab === 'consoles') await consolesPane();
   // Opening Updates looks again (at most every 10 minutes), instead of showing an old answer.
   if (tab === 'updates' && invoke && Date.now() - lastAttempt > 600000) updateAction('check').then(automaticUpdates).catch(() => {});
   if (tab === 'devices') serialPorts();
@@ -710,3 +711,90 @@ document.addEventListener('ns2bench:wake', run(wakeConsole));
     min.onchange = () => { ls.set('ns2bench.tray.minimize', String(min.checked)); tray(); };
   }
 }
+
+// ---------------------------------------------------------------- consoles (several on one bench)
+// docs/design/multi-console.md. Engine text goes in as text, never as HTML.
+const consoleApi = (body) => api('/api/consoles', body);
+// capture cards, and which console uses each (a card serves one console)
+async function captureCards() {
+  const r = await apiFetch('/api/video', { headers: { 'X-NS2Bench-Console': '' } }).then((x) => x.json()).catch(() => ({}));
+  return (r.devices || []).filter((d) => d.kind === 'video');
+}
+function cardSelect(cards, used, mine) {
+  const sel = document.createElement('select');
+  sel.append(new Option(t('Pick automatically'), ''));
+  for (const d of cards) {
+    const by = used.get(d.id);
+    const o = new Option(by && d.id !== mine ? `${d.name || d.id} (${t('used by')} ${by})` : (d.name || d.id), d.id);
+    o.disabled = !!by && d.id !== mine;
+    sel.append(o);
+  }
+  sel.value = mine || '';
+  return sel;
+}
+function field(label, input) {
+  const l = Object.assign(document.createElement('label'), { className: 'field' });
+  l.append(document.createTextNode(label), input);
+  return l;
+}
+async function consolesPane() {
+  const r = await api('/api/consoles');
+  const cards = await captureCards();
+  const used = new Map(r.consoles.filter((c) => c.video?.device).map((c) => [c.video.device, c.name]));
+  const models = r.models || [];
+  const modelSelect = (value) => {
+    const s = document.createElement('select');
+    for (const m of models) s.append(new Option(`${m.name} (${m.mode === 'pro' ? t('Pro Controller') : t('standard controller')})`, m.id));
+    s.value = value; return s;
+  };
+  $('#console-add-model').replaceChildren(...modelSelect('switch1').children);
+  $('#console-add-model').value = 'switch1';
+  $('#console-add-card').replaceChildren(...cardSelect(cards, used, '').children);
+  $('#consoles-list').replaceChildren(...r.consoles.map((c) => {
+    const box = Object.assign(document.createElement('div'), { className: 'group console-card' });
+    box.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
+    const title = Object.assign(document.createElement('h3'), { textContent: c.name });
+    if (c.controller_here) title.append(Object.assign(document.createElement('span'), { className: 'controller-badge', textContent: ` 🎮 ${t('controller here')}` }));
+    const name = Object.assign(document.createElement('input'), { value: c.name, maxLength: 40 });
+    const model = modelSelect(c.model);
+    const color = Object.assign(document.createElement('input'), { type: 'color', value: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888' });
+    const ip = Object.assign(document.createElement('input'), { value: c.network_ip || '', placeholder: '192.168.86.251', spellcheck: false });
+    const card = cardSelect(cards, used, c.video?.device || '');
+    const row = Object.assign(document.createElement('div'), { className: 'field-row wrap' });
+    const save = Object.assign(document.createElement('button'), { type: 'button', className: 'primary', textContent: t('Save') });
+    save.onclick = run(async () => {
+      await consoleApi({ action: 'update', id: c.id, name: name.value, model: model.value, color: color.value, network_ip: ip.value });
+      if ((card.value || '') !== (c.video?.device || '')) {
+        await apiFetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': c.id }, body: JSON.stringify({ device: card.value || null }) })
+          .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
+      }
+      message(`${name.value}: ${t('saved')}`); await consolesPane();
+    });
+    row.append(save);
+    if (!c.controller_here) {
+      const here = Object.assign(document.createElement('button'), { type: 'button', textContent: t('The controller is plugged in here') });
+      here.onclick = run(async () => { await consoleApi({ action: 'controller', id: c.id }); await consolesPane(); });
+      row.append(here);
+    }
+    if (r.consoles.length > 1) {
+      const rm = Object.assign(document.createElement('button'), { type: 'button', className: 'danger', textContent: t('Remove') });
+      rm.onclick = run(async () => {
+        if (!(await ask({ title: `${t('Remove')} ${c.name}?`, body: t('Its capture stops and its settings are removed. Clips and test reports stay.'), confirm: t('Remove'), destructive: true }))) return;
+        await consoleApi({ action: 'remove', id: c.id }); await consolesPane();
+      });
+      row.append(rm);
+    }
+    box.append(title, field(t('Name'), name), field(t('Model'), model), field(t('Capture card'), card), field(t('Network address (optional)'), ip), field(t('Colour'), color), row);
+    return box;
+  }));
+}
+$('#console-add').onclick = run(async () => {
+  const name = $('#console-add-name').value.trim();
+  if (!name) throw new Error(t('Give the console a name.'));
+  const body = { action: 'add', name, model: $('#console-add-model').value, color: $('#console-add-color').value,
+    network_ip: $('#console-add-ip').value.trim() || null, video: $('#console-add-card').value ? { device: $('#console-add-card').value } : {} };
+  await consoleApi(body);
+  $('#console-add-name').value = ''; $('#console-add-ip').value = '';
+  message(`${name}: ${t('added. Its picture starts in a moment.')}`);
+  await consolesPane();
+});

@@ -7,7 +7,10 @@ use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
-pub const BUILTIN_PROFILES: &[(&str, &str)] = &[("switch2", include_str!("../../../../profiles/switch2.json"))];
+pub const BUILTIN_PROFILES: &[(&str, &str)] = &[
+    ("switch2", include_str!("../../../../profiles/switch2.json")),
+    ("switch1", include_str!("../../../../profiles/switch1.json")),
+];
 
 pub fn load_profile(name: &str) -> Value {
     let custom = crate::config::state_dir().join("profiles").join(format!("{name}.json"));

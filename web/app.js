@@ -7,6 +7,7 @@ import { fromLog } from './notify.js';
 import { BIT, DPAD, mountPad } from './pad.js';
 import { startLive } from './live.js';
 import { toast } from './ui.js';
+import { inputBlock, mountConsoles, updateConsoles, viewed } from './consoles.js';
 
 const $ = (s) => document.querySelector(s);
 const KEYMAP = { // KeyboardEvent.code -> controller input (keyboard → controller mode)
@@ -114,6 +115,8 @@ function inputUnavailable() {
   if (ws?.readyState !== WebSocket.OPEN) return 'NS2Bench connection lost. Reconnecting automatically.';
   if (!bridgeStatus || performance.now() - bridgeSeen > 3000) return 'Waiting for NS2Bench Bridge status.';
   if (!canDrive) return 'This page can watch but not drive. Use the NS2Bench app window, or open the link that ns2bench serve printed.';
+  const elsewhere = inputBlock();
+  if (elsewhere) return elsewhere;
   if (!bridgeStatus.connected) return bridgeStatus.backend === 'none'
     ? 'NS2Bench Bridge is not configured. Set up an input device to send controls.'
     : 'NS2Bench Bridge is offline or starting. Check device power and its connection. Reconnecting automatically.';
@@ -318,6 +321,10 @@ hint();
 // ------------------------------------------------------------ status, activity, tools
 let crashOffered = false;
 function showStatus(s) {
+  updateConsoles(s);
+  // the picture of the console this page shows (status pushes are about the controller's)
+  const shown = viewed();
+  if (shown?.video_status) s = { ...s, video: shown.video_status };
   $('#safe-mode').hidden = !s.safe_mode;
   if (s.last_run_unclean && !crashOffered) {
     crashOffered = true;
@@ -558,6 +565,9 @@ $('#video').addEventListener('error', () => setTimeout(() => {
   if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); }, Math.min(15000, 1000 * ++mjpegFails)));
 $('#video').src = authURL('/stream.mjpg');
 const live = startLive($('#video'), (m) => { $('#screen').dataset.live = m; });
+// Another console picked in the console bar: let go of what this page held, then reconnect the
+// picture, sound and status for that console.
+mountConsoles(() => { releaseAll(); $('#btn-refresh').click(); });
 
 // ------------------------------------------------------------ video settings
 const vsel = { device: $('#v-device'), size: $('#v-size'), fps: $('#v-fps'), q: $('#v-quality') };

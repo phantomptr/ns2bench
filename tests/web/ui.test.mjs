@@ -371,3 +371,61 @@ test('shared home network: a console that is not on the picked adapter’s netwo
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('several consoles: add one, switch the view, input only goes where the controller is', async () => {
+  const { p, errors, ctx } = await page();
+  await p.evaluate(() => {
+    const d = document.querySelector('#whatsnew');
+    new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+    if (d.open) d.close();
+  });
+  // one console: no console bar, as before
+  assert.equal(await p.isHidden('#console-bar'), true);
+  await p.click('#btn-settings');
+  await p.click('[data-tab="consoles"]');
+  await p.waitForSelector('#consoles-list .console-card');
+  await p.fill('#console-add-name', 'Switch 1');
+  await p.selectOption('#console-add-model', 'switch1');
+  await p.fill('#console-add-ip', '192.168.86.252');
+  await p.click('#console-add');
+  await p.waitForFunction(() => document.querySelectorAll('#consoles-list .console-card').length === 2);
+  await p.click('#settings-close');
+  // two tabs, the controller on the first
+  await p.waitForSelector('#console-bar:not([hidden]) .console-tab >> nth=1', { timeout: 10000 });
+  const list = await (await fetch(`${BASE}/api/consoles`)).json();
+  assert.equal(list.consoles.length, 2);
+  const [first, second] = list.consoles;
+  assert.equal(list.controller_on, first.id);
+  assert.equal(second.model, 'switch1');
+  // watching the second: the drawn controller can't press there
+  await p.click('.console-tab >> nth=1');
+  await p.waitForSelector('.console.input-elsewhere');
+  assert.match(await p.textContent('#console-note'), /Switch 1/);
+  // an agent pressing on the console without the controller is refused, with why
+  const r = await fetch(`${BASE}/api/press`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': second.id },
+    body: JSON.stringify({ buttons: ['A'] }) });
+  assert.equal(r.status, 409);
+  assert.match(await r.text(), /plugged into/);
+  // its own picture is there
+  await waitFor(async () => (await fetch(`${BASE}/api/screenshot?console=${second.id}`)).ok);
+  // the person moves the cable and says so
+  await p.click('#console-note-actions button');
+  await waitFor(async () => (await (await fetch(`${BASE}/api/consoles`)).json()).controller_on === second.id);
+  await p.waitForFunction(() => !document.querySelector('.console').classList.contains('input-elsewhere'));
+  // a script can't move the controller or add consoles: only the person at the page
+  const w = await fetch(`${BASE}/api/consoles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'controller', id: first.id }) });
+  assert.equal(w.status, 403);
+  // back to one console
+  await p.click('.console-tab >> nth=0');
+  await p.click('#btn-settings');
+  await p.click('[data-tab="consoles"]');
+  await p.waitForSelector('#consoles-list .console-card >> nth=1');
+  await p.click('#consoles-list .console-card >> nth=1 >> button.danger');
+  await p.waitForSelector('#confirm[open]');
+  await p.click('#confirm-ok');
+  await waitFor(async () => (await (await fetch(`${BASE}/api/consoles`)).json()).consoles.length === 1);
+  await p.click('#settings-close');
+  await p.waitForSelector('#console-bar', { state: 'hidden' });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

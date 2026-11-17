@@ -1,0 +1,42 @@
+{
+  "name": "switch1",
+  "notes": "Starter profile for the original Nintendo Switch. Screens are recognised by text that the Switch 1 menus share with the Switch 2 (HOME clock, System Settings, Controllers, the button test, stick calibration, No Signal). No menu routes yet: they move the cursor, so they are only added once learned on a real Switch 1 (see profiles/switch2.json for the format). A custom copy in ~/.ns2bench/profiles/switch1.json takes priority.",
+  "screens": {
+    "home": {
+      "re": [
+        "\\b\\d{1,2}:\\d{2}\\s*[ap]\\.?m"
+      ],
+      "any": [
+        "Close Software",
+        "Change User"
+      ]
+    },
+    "system_settings": {
+      "any": [
+        "System Settings"
+      ]
+    },
+    "controllers": {
+      "all": [
+        "Change Grip/Order",
+        "Search for Controllers"
+      ]
+    },
+    "test_buttons": {
+      "any": [
+        "The symbols for any buttons you press"
+      ]
+    },
+    "calibrate_sticks": {
+      "any": [
+        "Tilt the control stick"
+      ]
+    },
+    "no_signal": {
+      "any": [
+        "No Signal"
+      ]
+    }
+  },
+  "routes": {}
+}
