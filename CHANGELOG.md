@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- The network helper walks the computer's adapter list in a way GitHub's code scanning can check (no change in behaviour).
+
 ## 0.0.20
 
 - **Several consoles, safer:**
