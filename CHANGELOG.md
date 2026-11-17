@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Security fix:** the network helper reads the computer's network adapters more carefully (a macOS netmask record can be shorter than a full address; it was read past its end). Flagged by GitHub code scanning.
+
 ## 0.0.18
 
 - **Several consoles, now as live pictures.** Under the console, each console has a small live picture with its name and colour, and 🎮 on the one the controller is plugged into. Click one to watch it big, or **+ Add console**.

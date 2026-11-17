@@ -188,61 +188,84 @@ pub fn forwarding_off() -> bool {
     false
 }
 
-/// Every up IPv4 address on this computer except loopback: (adapter, address, prefix length).
-/// The shared-network setup offers these so the person picks the adapter.
-pub fn ipv4_interfaces() -> Vec<(String, Ipv4Addr, u32)> {
+/// One row of getifaddrs: adapter name, flags, IPv4 address and netmask (if it has them).
+struct IfRow {
+    name: Vec<u8>,
+    flags: u32,
+    addr: Option<Ipv4Addr>,
+    mask: Option<Ipv4Addr>,
+}
+
+/// An IPv4 address out of a sockaddr, reading no more than the record holds. On macOS a record
+/// says its own length (a netmask's can be shorter than a full sockaddr_in): missing bytes are 0.
+/// `need_inet`: only an AF_INET record counts (a netmask may carry no family).
+///
+/// SAFETY: `sa` is null or points to a sockaddr from getifaddrs, alive until freeifaddrs.
+unsafe fn sockaddr_v4(sa: *const libc::sockaddr, need_inet: bool) -> Option<Ipv4Addr> {
+    if sa.is_null() {
+        return None;
+    }
+    let family = unsafe { std::ptr::addr_of!((*sa).sa_family).read_unaligned() } as i32;
+    if need_inet && family != libc::AF_INET {
+        return None;
+    }
+    let mut buf = [0u8; std::mem::size_of::<libc::sockaddr_in>()];
+    #[cfg(any(target_os = "macos", target_os = "freebsd"))]
+    let len = (unsafe { std::ptr::addr_of!((*sa).sa_len).read_unaligned() } as usize).min(buf.len());
+    // Linux: an AF_INET address or netmask is a whole sockaddr_in, and other families are longer
+    #[cfg(not(any(target_os = "macos", target_os = "freebsd")))]
+    let len = buf.len();
+    unsafe { std::ptr::copy_nonoverlapping(sa.cast::<u8>(), buf.as_mut_ptr(), len) };
+    // sin_addr sits after the 2-byte family (or len + family) and the 2-byte port, in network order
+    Some(Ipv4Addr::new(buf[4], buf[5], buf[6], buf[7]))
+}
+
+/// Every interface row, copied out before the list is freed.
+fn if_rows() -> Vec<IfRow> {
     let mut out = vec![];
-    // SAFETY: getifaddrs/freeifaddrs pair; every pointer is checked before use.
+    let mut head: *mut libc::ifaddrs = std::ptr::null_mut();
+    // SAFETY: getifaddrs fills `head` (freed below); each node is read field by field through raw
+    // pointers checked for null, and nothing read outlives freeifaddrs (names and addresses are
+    // copied).
     unsafe {
-        let mut head: *mut libc::ifaddrs = std::ptr::null_mut();
         if libc::getifaddrs(&mut head) != 0 {
             return out;
         }
         let mut next = head;
         while !next.is_null() {
-            let row = &*next;
-            next = row.ifa_next;
-            if row.ifa_addr.is_null() || row.ifa_netmask.is_null() || (*row.ifa_addr).sa_family as i32 != libc::AF_INET {
-                continue;
+            let name_ptr = std::ptr::addr_of!((*next).ifa_name).read();
+            let addr = std::ptr::addr_of!((*next).ifa_addr).read();
+            let mask = std::ptr::addr_of!((*next).ifa_netmask).read();
+            let flags = std::ptr::addr_of!((*next).ifa_flags).read() as u32;
+            if !name_ptr.is_null() {
+                out.push(IfRow {
+                    name: CStr::from_ptr(name_ptr).to_bytes().to_vec(),
+                    flags,
+                    addr: sockaddr_v4(addr, true),
+                    mask: sockaddr_v4(mask, false),
+                });
             }
-            if row.ifa_flags & (libc::IFF_UP as u32) == 0 || row.ifa_flags & (libc::IFF_LOOPBACK as u32) != 0 {
-                continue;
-            }
-            let a = &*(row.ifa_addr as *const libc::sockaddr_in);
-            let m = &*(row.ifa_netmask as *const libc::sockaddr_in);
-            let ip = Ipv4Addr::from(u32::from_be(a.sin_addr.s_addr));
-            let prefix = u32::from_be(m.sin_addr.s_addr).count_ones();
-            let name = CStr::from_ptr(row.ifa_name).to_string_lossy().into_owned();
-            out.push((name, ip, prefix));
+            next = std::ptr::addr_of!((*next).ifa_next).read();
         }
         libc::freeifaddrs(head);
     }
     out
 }
 
+/// Every up IPv4 address on this computer except loopback: (adapter, address, prefix length).
+/// The shared-network setup offers these so the person picks the adapter.
+pub fn ipv4_interfaces() -> Vec<(String, Ipv4Addr, u32)> {
+    if_rows().into_iter()
+        .filter(|r| r.flags & (libc::IFF_UP as u32) != 0 && r.flags & (libc::IFF_LOOPBACK as u32) == 0)
+        .filter_map(|r| {
+            let (ip, mask) = (r.addr?, r.mask?);
+            Some((String::from_utf8_lossy(&r.name).into_owned(), ip, u32::from(mask).count_ones()))
+        })
+        .collect()
+}
+
 pub fn interface_ready(cfg: &Config) -> bool {
-    unsafe {
-        let mut head: *mut libc::ifaddrs = std::ptr::null_mut();
-        if libc::getifaddrs(&mut head) != 0 {
-            return false;
-        }
-        let mut next = head;
-        let mut found = false;
-        while !next.is_null() {
-            let row = &*next;
-            if !row.ifa_addr.is_null()
-                && (*row.ifa_addr).sa_family as i32 == libc::AF_INET
-                && row.ifa_flags & libc::IFF_UP as u32 != 0
-                && CStr::from_ptr(row.ifa_name).to_bytes() == cfg.interface.as_bytes()
-            {
-                let addr = &*(row.ifa_addr as *const libc::sockaddr_in);
-                found |= Ipv4Addr::from(addr.sin_addr.s_addr.to_ne_bytes()) == cfg.address;
-            }
-            next = row.ifa_next;
-        }
-        libc::freeifaddrs(head);
-        found
-    }
+    if_rows().iter().any(|r| r.flags & (libc::IFF_UP as u32) != 0 && r.name == cfg.interface.as_bytes() && r.addr == Some(cfg.address))
 }
 
 pub(crate) fn interface_index(interface: &str) -> io::Result<u32> {
