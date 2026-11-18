@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.28
+
 - **The controller goes to the console you pick.** With several consoles, NS2Bench treats the console you last picked under the picture as where the controller is. It no longer asks "which console?" after the board restarts or when NS2Bench starts. A Switch 2 that starts the board as its Pro Controller still overrides that, and NS2Bench tells you.
 - **Reorder consoles:** drag their pictures in the strip, or use ↑ ↓ in **Settings → Consoles**.
 - **Fixed: Settings → Consoles sometimes stayed empty** when NS2Bench didn't answer for a moment (for example right after an update). It now says it's waiting and tries again.
