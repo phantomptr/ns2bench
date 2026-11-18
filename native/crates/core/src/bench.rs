@@ -220,7 +220,8 @@ impl Bench {
         // next time the board powers up (the console woke), it starts as what this console needs,
         // instead of starting as the other and switching over (seconds, and a reconnect)
         if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
-        if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| m != want) {
+        let model = c.model.lock().unwrap().clone();
+        if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| !crate::console::mode_fits(&model, m)) {
             if self.hub.mode_tries.fetch_add(1, SeqCst) >= 2 {
                 if self.hub.mode_tries.load(SeqCst) == 3 {
                     self.logs.warn("bench", format!("controller: the board didn't reach {want} mode for {} after two tries; pick it under Controller", c.name()));

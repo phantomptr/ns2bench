@@ -705,5 +705,10 @@
   "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "Для сна нужен HDMI-CEC (Настройки → Устройства → Питание и пробуждение). Пробуждение работает через контроллер.",
   "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "Для сна нужен HDMI-CEC: настройте в Настройки → Устройства → Питание и пробуждение",
   "Mouse aims · Esc releases": "Мышь целится · Esc освобождает",
-  "Mouse and keyboard go to the console · Esc releases the mouse": "Мышь и клавиатура идут на консоль · Esc освобождает мышь"
+  "Mouse and keyboard go to the console · Esc releases the mouse": "Мышь и клавиатура идут на консоль · Esc освобождает мышь",
+  "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Pro Controller для Switch 1: HOME, захват и все кнопки Switch 1 (без C, GL и GR). Switch 2 тоже его принимает. Без клавиатуры и мыши.",
+  "Switch 1 Pro": "Switch 1 Pro",
+  "Switch 1 Pro Controller": "Pro Controller для Switch 1",
+  "Switch 2 Pro": "Switch 2 Pro",
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Pro Controller для Switch 1 (Switch 2 тоже его принимает)"
 }

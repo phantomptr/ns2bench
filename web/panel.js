@@ -10,7 +10,7 @@ import { controllerIsOn, editConsole, inputBlock, viewed } from './consoles.js';
 const $ = (s) => document.querySelector(s);
 const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 const COLOR = /^#[0-9a-f]{6}$/i;
-const MODE_NAME = { standard: 'Controller + keyboard', hori: 'Controller + keyboard', pro: 'Pro Controller' };
+const MODE_NAME = { standard: 'Controller + keyboard', hori: 'Controller + keyboard', pro: 'Switch 2 Pro', pro1: 'Switch 1 Pro' };
 let last = null;
 
 const ago = (t0) => {
@@ -137,9 +137,11 @@ function modePick(s, target) {
   const want = (s.models || []).find((m) => m.id === target?.model)?.mode;
   if (inp.backend !== 'hidd' || !inp.connected || !want || !target || $('#usb-mode').dataset.busy) { p.hidden = true; return; }
   const now = inp.usb_mode === 'hori' ? 'standard' : inp.usb_mode || 'standard';
+  // a Switch 1 takes its own Pro Controller as well as the standard controller
+  const fits = now === want || (target.model === 'switch1' && now === 'pro1');
   p.hidden = false;
-  p.classList.toggle('warn', now !== want);
-  if (now === want) {
+  p.classList.toggle('warn', !fits);
+  if (fits) {
     p.textContent = t('Picked for %1: %2 needs this one.').replace('%1', target.name).replace('%2', target.model_name || target.model);
   } else {
     p.textContent = `${t('%1 needs “%2”.').replace('%1', target.name).replace('%2', t(MODE_NAME[want]))} `;

@@ -705,5 +705,10 @@
   "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "절전에는 HDMI-CEC가 필요합니다(설정 → 장치 → 전원 및 깨우기). 깨우기는 컨트롤러로 됩니다.",
   "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "절전에는 HDMI-CEC가 필요합니다: 설정 → 장치 → 전원 및 깨우기에서 설정",
   "Mouse aims · Esc releases": "마우스로 조준 · Esc로 해제",
-  "Mouse and keyboard go to the console · Esc releases the mouse": "마우스와 키보드가 콘솔로 · Esc로 마우스 해제"
+  "Mouse and keyboard go to the console · Esc releases the mouse": "마우스와 키보드가 콘솔로 · Esc로 마우스 해제",
+  "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Switch 1 Pro 컨트롤러: HOME, 캡처와 모든 Switch 1 버튼 (C, GL, GR 없음). Switch 2에서도 사용 가능. 키보드·마우스 없음.",
+  "Switch 1 Pro": "Switch 1 Pro",
+  "Switch 1 Pro Controller": "Switch 1 Pro 컨트롤러",
+  "Switch 2 Pro": "Switch 2 Pro",
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 컨트롤러 (Switch 2에서도 사용 가능)"
 }

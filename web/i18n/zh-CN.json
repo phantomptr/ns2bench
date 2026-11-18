@@ -705,5 +705,10 @@
   "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "休眠需要 HDMI-CEC（设置 → 设备 → 电源与唤醒）。唤醒可通过手柄完成。",
   "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "休眠需要 HDMI-CEC：在 设置 → 设备 → 电源与唤醒 中设置",
   "Mouse aims · Esc releases": "鼠标瞄准 · Esc 释放",
-  "Mouse and keyboard go to the console · Esc releases the mouse": "鼠标和键盘发往主机 · Esc 释放鼠标"
+  "Mouse and keyboard go to the console · Esc releases the mouse": "鼠标和键盘发往主机 · Esc 释放鼠标",
+  "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Switch 1 Pro 手柄：HOME、截图键和所有 Switch 1 按键（没有 C、GL、GR）。Switch 2 也支持。没有键盘鼠标。",
+  "Switch 1 Pro": "Switch 1 Pro",
+  "Switch 1 Pro Controller": "Switch 1 Pro 手柄",
+  "Switch 2 Pro": "Switch 2 Pro",
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 手柄（Switch 2 也支持）"
 }

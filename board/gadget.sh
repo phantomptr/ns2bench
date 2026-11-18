@@ -23,7 +23,7 @@ mode=${1:-$(cat "$MODE_FILE" 2>/dev/null || true)}
 # The saved mode can be lost (an empty file after the console cut the board's power mid-write):
 # start as standard then, never fail the boot over it.
 if [ -z "${1:-}" ]; then
-    case "$mode" in standard|hori|pro) ;; *) echo "saved mode '${mode}' unreadable: starting as standard" >&2; mode=standard ;; esac
+    case "$mode" in standard|hori|pro|pro1) ;; *) echo "saved mode '${mode}' unreadable: starting as standard" >&2; mode=standard ;; esac
 fi
 # Atomic write: a power cut leaves the old file or the new one, never an empty one.
 save_file() { printf '%s\n' "$2" > "$1.tmp" && sync && mv -f "$1.tmp" "$1" && sync; }
@@ -149,11 +149,32 @@ pro_pid() {
     [ -n "$p" ] && [ -r "/proc/$p/cmdline" ] && tr '\000' ' ' < "/proc/$p/cmdline" | grep -q "ns2bench-board pro2" && echo "$p"
 }
 
+hid_report_pro1() {    # Switch 1 Pro Controller (057e:2009): reports 0x30 in, 0x21/0x81 replies, 0x01/0x10/0x80/0x82 out
+    printf '\x05\x01\x15\x00\x09\x04\xa1\x01\x85\x30\x05\x01\x05\x09\x19\x01\x29\x0a\x15\x00\x25\x01\x75\x01\x95\x0a\x55\x00\x65\x00\x81\x02\x05\x09\x19\x0b\x29\x0e\x15\x00\x25\x01\x75\x01\x95\x04\x81\x02\x75\x01\x95\x02\x81\x03\x0b\x01\x00\x01\x00\xa1\x00\x0b\x30\x00\x01\x00\x0b\x31\x00\x01\x00\x0b\x32\x00\x01\x00\x0b\x35\x00\x01\x00\x15\x00\x27\xff\xff\x00\x00\x75\x10\x95\x04\x81\x02\xc0\x0b\x39\x00\x01\x00\x15\x00\x25\x07\x35\x00\x46\x3b\x01\x65\x14\x75\x04\x95\x01\x81\x02\x05\x09\x19\x0f\x29\x12\x15\x00\x25\x01\x75\x01\x95\x04\x81\x02\x75\x08\x95\x34\x81\x03\x06\x00\xff\x85\x21\x09\x01\x75\x08\x95\x3f\x81\x03\x85\x81\x09\x02\x75\x08\x95\x3f\x81\x03\x85\x01\x09\x03\x75\x08\x95\x3f\x91\x83\x85\x10\x09\x04\x75\x08\x95\x3f\x91\x83\x85\x80\x09\x05\x75\x08\x95\x3f\x91\x83\x85\x82\x09\x06\x75\x08\x95\x3f\x91\x83\xc0'
+}
+
 # Remote wakeup (the controller may wake a sleeping console), only while this file exists: an
 # experiment, undone by deleting it (and switching mode or rebooting).
 WAKE_BIT=0
 [ -e /etc/ns2bench-remote-wakeup ] && WAKE_BIT=32
 attrs() { printf '0x%02X' $(( $1 | WAKE_BIT )); }
+
+# Switch 1 Pro Controller over USB (the bridge speaks its protocol on hidg0): works on a Switch 1,
+# and a Switch 2 also takes the original Pro Controller.
+build_pro1() {
+    device 0x057E 0x2009 0x0200 0x00 0x00 0x00 "Nintendo Co., Ltd." "Pro Controller"
+    echo "000000000001" > "$G/strings/0x409/serialnumber"
+    echo "$(attrs 160)" > "$G/configs/b.1/bmAttributes"; echo 500 > "$G/configs/b.1/MaxPower"
+    echo "NS2Bench" > "$G/configs/b.1/strings/0x409/configuration"
+    if [ -f "$G/max_speed" ]; then
+        [ -f "$SPEED_SAVE" ] || cat "$G/max_speed" > "$SPEED_SAVE"
+        echo full-speed > "$G/max_speed"             # the real controller is a full-speed device
+    fi
+    hid_function usb0 0 0 64 0 hid_report_pro1
+    ln -s "$G/functions/hid.usb0" "$G/configs/b.1/f1" || return 1
+    bind || { echo "pro1: could not bind the gadget to $UDC" >&2; return 1; }
+    wait_nodes hidg0 || { echo "pro1: hidg0 did not appear" >&2; return 1; }
+}
 
 build_hori() {         # with_mouse(0|1)
     device 0x0F0D 0x0092 0x0100 0x00 0x00 0x00 "PICO SWITCH PRO." "J24 CONTROLLER"
@@ -209,7 +230,7 @@ if [ "$mode" = status ]; then
     exit 0
 fi
 
-case "$mode" in standard|hori|pro) ;; *) echo "usage: gadget.sh [standard|hori|pro|status]" >&2; exit 2 ;; esac
+case "$mode" in standard|hori|pro|pro1) ;; *) echo "usage: gadget.sh [standard|hori|pro|pro1|status]" >&2; exit 2 ;; esac
 
 # The early start (S45) may still be building when boot runs this again: wait for it (at most
 # 30 s) rather than build at the same time (two builds at once fail, and a failed start switches
@@ -245,6 +266,7 @@ case "$mode" in
     standard) build_hori 1 || { echo "standard failed; trying controller + keyboard" >&2; teardown; build_hori 0; } ;;
     hori)     build_hori 0 ;;
     pro)      build_pro || { echo "pro failed; falling back to standard for now (pro stays the saved choice)" >&2; teardown; build_hori 1; mode=standard; } ;;
+    pro1)     build_pro1 || { echo "pro1 failed; falling back to standard for now (pro1 stays the saved choice)" >&2; teardown; build_hori 1; mode=standard; } ;;
 esac
 quirk_after
 echo "$mode" > "$ACTIVE_MODE"

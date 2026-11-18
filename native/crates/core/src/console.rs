@@ -25,6 +25,13 @@ pub const MODELS: &[(&str, &str, &str)] = &[
     ("switch1", "Switch 1", "standard"),
 ];
 
+/// A mode that also works for this model: a Switch 1 takes its own Pro Controller (pro1) as well
+/// as the standard controller, so being in either is fine there.
+pub fn mode_fits(model: &str, mode: &str) -> bool {
+    let mode = if mode == "hori" { "standard" } else { mode };
+    mode == model_mode(model) || (model == "switch1" && mode == "pro1")
+}
+
 pub fn model_mode(model: &str) -> &'static str {
     MODELS.iter().find(|m| m.0 == model).map(|m| m.2).unwrap_or("standard")
 }
@@ -231,5 +238,7 @@ mod tests {
         assert_eq!(percent_decode(&enc), name);
         assert_eq!(model_mode("switch2"), "pro");
         assert_eq!(model_mode("switch1"), "standard");
+        assert!(mode_fits("switch1", "pro1") && mode_fits("switch1", "hori") && mode_fits("switch2", "pro"));
+        assert!(!mode_fits("switch2", "pro1") && !mode_fits("switch1", "pro"));
     }
 }

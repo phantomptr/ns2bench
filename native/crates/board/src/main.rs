@@ -7,6 +7,7 @@
 mod aes;
 mod hidd;
 mod logbuf;
+mod pro1;
 mod pro2;
 
 fn main() {

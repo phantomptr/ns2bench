@@ -373,7 +373,7 @@ function showStatus(s) {
   bridgeStatus = inp; bridgeSeen = performance.now();
   if (wasReady && (!inp.connected || inp.usb !== 'configured')) releaseAll();
   if (!inputUnavailable()) inputWarning.hidden = true;
-  const extra = inp.usb_mode === 'pro' ? ` · ${t('Pro Controller')}` : inp.devices?.includes('mouse') ? ` · ${t('keyboard + mouse')}` : '';
+  const extra = inp.usb_mode === 'pro' ? ` · ${t('Pro Controller')}` : inp.usb_mode === 'pro1' ? ` · ${t('Switch 1 Pro Controller')}` : inp.devices?.includes('mouse') ? ` · ${t('keyboard + mouse')}` : '';
   const usb = inp.usb === 'configured' ? t('console ready') : t('console not ready');
   i.textContent = inp.connected ? `Bridge ${inp.rtt_ms == null ? '?' : Math.max(1, Math.round(inp.rtt_ms))} ms · ${usb}${extra}`
     : `Bridge · ${inp.backend === 'none' ? t('not set up') : t('offline, reconnecting')}`;
@@ -391,7 +391,7 @@ function showStatus(s) {
   $('#step-input-why').textContent = inp.connected && inp.usb === 'configured' || inp.backend === 'none' ? '' : (inp.detail ?? (inp.connected ? t('console not ready') : ''));
   welcome(live, inp);
   const mode = inp.usb_mode ?? 'standard';
-  consoleEl.classList.toggle('pro', mode === 'pro');
+  consoleEl.classList.toggle('pro', mode === 'pro');     // (C, GL and GR shown: only the Switch 2 Pro has them)
   const sel = $('#usb-mode');
   if (sel && !sel.dataset.busy) sel.value = mode;
   syncDriving();
@@ -406,21 +406,25 @@ function syncDriving() {
   const mode = $('#usb-mode').value || 'standard';
   const devices = inp.devices || [];
   const proPossible = inp.backend === 'hidd';                // only Linux boards can be a Pro Controller
-  const hasPad = !inp.connected || devices.includes('pad') || mode === 'pro';
+  const isPro = mode === 'pro' || mode === 'pro1';
+  const hasPad = !inp.connected || devices.includes('pad') || isPro;
   const hasKbd = !inp.connected || devices.includes('kbd');
   for (const b of $('#seg-usb').children) {
     b.setAttribute('aria-checked', String(b.dataset.v === mode));
-    b.disabled = !!$('#usb-mode').dataset.busy || (b.dataset.v === 'pro' && !proPossible && mode !== 'pro');
-    b.title = b.dataset.v === 'pro' && !proPossible ? t('Needs a Linux board as the input device') : '';
+    const needsBoard = b.dataset.v === 'pro' || b.dataset.v === 'pro1';
+    b.disabled = !!$('#usb-mode').dataset.busy || (needsBoard && !proPossible && mode !== b.dataset.v);
+    if (needsBoard && !proPossible) b.title = t('Needs a Linux board as the input device');
   }
   $('#usb-help').textContent = mode === 'pro'
     ? t('A Switch 2 Pro Controller: every button, including C (GameChat) and the GL/GR back buttons. No keyboard or mouse.')
-    : t('A wired controller, a keyboard and a mouse. Every button except C and the Pro Controller’s GL/GR back buttons.');
+    : mode === 'pro1'
+      ? t('A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.')
+      : t('A wired controller, a keyboard and a mouse. Every button except C and the Pro Controller’s GL/GR back buttons.');
   // A device without a controller (CH9329) can only take keyboard and mouse.
   if (inp.connected && !hasPad && hasKbd && kbMode === 'pad') document.querySelector('input[name=kbmode][value=usb]').click();
   for (const b of $('#seg-kb').children) {
     b.setAttribute('aria-checked', String(b.dataset.v === kbMode));
-    b.disabled = b.dataset.v === 'usb' ? (mode === 'pro' || !hasKbd) : !hasPad;
+    b.disabled = b.dataset.v === 'usb' ? (isPro || !hasKbd) : !hasPad;
   }
   $('#kb-help').textContent = kbMode === 'pad'
     ? t('Keys press controller buttons (see the keyboard map). Shift+click aims with the mouse.')

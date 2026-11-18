@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **New controller mode: Switch 1 Pro Controller** (Luckfox and other Linux boards). The board can now act as the original Pro Controller: HOME, Capture and every Switch 1 button. A Switch 2 takes it too, without C, GL or GR. Pick **Switch 1 Pro** under **The console sees**. A Switch 1 can use it or the standard controller, and NS2Bench won't switch you away from either.
+
 ## 0.0.26
 
 - **Fixed: a board update could leave the Luckfox's files empty.** The board keeps recently written files in memory for a while, and a console going to sleep cuts its power. An update just before that could leave its scripts empty, so the controller and Bridge stopped working. The installer now writes everything to storage and checks every file on the board before it says it's done. A start-up that can't build the controller no longer switches controller mode off (it tries again at the next start), and the board keeps a start-up history (`/opt/ns2bench/boot-history.log`).

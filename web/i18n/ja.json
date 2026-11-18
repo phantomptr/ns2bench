@@ -705,5 +705,10 @@
   "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "スリープには HDMI-CEC が必要です（設定 → デバイス → 電源と起動）。起動はコントローラー経由でできます。",
   "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "スリープには HDMI-CEC が必要です：設定 → デバイス → 電源と起動 で設定",
   "Mouse aims · Esc releases": "マウスで照準 · Esc で解除",
-  "Mouse and keyboard go to the console · Esc releases the mouse": "マウスとキーボードはコンソールへ · Esc でマウスを解除"
+  "Mouse and keyboard go to the console · Esc releases the mouse": "マウスとキーボードはコンソールへ · Esc でマウスを解除",
+  "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Switch 1 Proコントローラー：HOME、キャプチャー、Switch 1 の全ボタン（C・GL・GR なし）。Switch 2 でも使えます。キーボードとマウスなし。",
+  "Switch 1 Pro": "Switch 1 Pro",
+  "Switch 1 Pro Controller": "Switch 1 Proコントローラー",
+  "Switch 2 Pro": "Switch 2 Pro",
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Proコントローラー（Switch 2 でも使えます）"
 }

@@ -362,8 +362,8 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
         return Err(ApiError(StatusCode::FORBIDDEN, "only the person at the NS2Bench page can turn off manual-only mode".into()));
     }
     if let Some(m) = body["usb_mode"].as_str() {
-        if !["standard", "hori", "pro"].contains(&m) {
-            return Err(bad("usb_mode must be standard, hori or pro"));
+        if !["standard", "hori", "pro", "pro1"].contains(&m) {
+            return Err(bad("usb_mode must be standard, hori, pro (Switch 2 Pro Controller) or pro1 (Switch 1 Pro Controller)"));
         }
         if blocked {
             return Err(ApiError(StatusCode::CONFLICT, "manual-only mode is on: only the person at the NS2Bench page can switch the USB mode".into()));

@@ -113,6 +113,7 @@ fn usb_mode() -> String {
     if let Some(m) = read(ACTIVE_MODE_FILE) { return m; }
     match read(&format!("{GADGET}/idProduct")).as_deref() {
         Some("0x2069") => "pro".into(),
+        Some("0x2009") => "pro1".into(),
         Some(_) => read(MODE_FILE).filter(|m| m != "pro").unwrap_or_else(|| "standard".into()),
         None => read(MODE_FILE).unwrap_or_else(|| "standard".into()),
     }
@@ -162,6 +163,8 @@ enum Dev {
     Mouse { fd: RawFd, buttons: u8, dx: i64, dy: i64, wheel: i64, pending: bool, writes: u64 },
     /// Pro Controller mode: the pad state goes to `pro2` over a datagram socket.
     Pro { sock: UnixDatagram, state: Vec<i64>, pending: bool, last: Option<Instant>, writes: u64 },
+    /// Switch 1 Pro Controller (pro1 mode): answers the console on hidg0, reports every 8 ms.
+    Pro1 { fd: RawFd, state: Vec<i64>, proto: crate::pro1::Pro1, last: Option<Instant>, writes: u64, seen: std::collections::BTreeSet<u8> },
 }
 
 fn pack(kind: &Kind, s: &[i64]) -> Vec<u8> {
@@ -189,6 +192,13 @@ impl Dev {
         Ok(Dev::Mouse { fd: open_nb(path, libc::O_RDWR)?, buttons: 0, dx: 0, dy: 0, wheel: 0, pending: false, writes: 0 })
     }
 
+    fn pro1(path: &str) -> std::io::Result<Dev> {
+        // a Nintendo-looking address (the console only shows it); the same every start
+        let mac = [0x98, 0xB6, 0xE9, 0x4E, 0x53, 0x32];
+        Ok(Dev::Pro1 { fd: open_nb(path, libc::O_RDWR)?, state: PAD_NEUTRAL.to_vec(), proto: crate::pro1::Pro1::new(mac),
+            last: None, writes: 0, seen: Default::default() })
+    }
+
     fn pro() -> std::io::Result<Dev> {
         let sock = UnixDatagram::unbound()?;
         sock.set_nonblocking(true)?;
@@ -197,14 +207,14 @@ impl Dev {
 
     fn fd(&self) -> RawFd {
         match self {
-            Dev::Hid { fd, .. } | Dev::Mouse { fd, .. } => *fd,
+            Dev::Hid { fd, .. } | Dev::Mouse { fd, .. } | Dev::Pro1 { fd, .. } => *fd,
             Dev::Pro { sock, .. } => sock.as_raw_fd(),
         }
     }
 
     fn writes(&self) -> u64 {
         match self {
-            Dev::Hid { writes, .. } | Dev::Mouse { writes, .. } | Dev::Pro { writes, .. } => *writes,
+            Dev::Hid { writes, .. } | Dev::Mouse { writes, .. } | Dev::Pro { writes, .. } | Dev::Pro1 { writes, .. } => *writes,
         }
     }
 
@@ -216,6 +226,7 @@ impl Dev {
                     *pending = true;
                 }
             }
+            Dev::Pro1 { state, .. } => *state = v,     // (sent with the next 8 ms report)
             Dev::Mouse { buttons, dx, dy, wheel, pending, .. } => {
                 *buttons = v[0] as u8;
                 *dx += v[1];
@@ -232,6 +243,9 @@ impl Dev {
                 *pending || last.is_none_or(|l| now - l >= KEEPALIVE)
             }
             Dev::Mouse { pending, .. } => *pending,
+            Dev::Pro1 { proto, last, .. } => {
+                !proto.replies.is_empty() || (proto.started && last.is_none_or(|l| now - l >= crate::pro1::REPORT))
+            }
         }
     }
 
@@ -255,6 +269,17 @@ impl Dev {
                     *writes += 1;
                 }
             }
+            Dev::Pro1 { fd, state, proto, last, writes, .. } => {
+                // answers first, then the 8 ms button report
+                let (report, is_reply) = match proto.replies.front() {
+                    Some(r) => (r.clone(), true),
+                    None => (proto.input(state), false),
+                };
+                if let Ok(true) = write_nb(*fd, &report) {
+                    if is_reply { proto.replies.pop_front(); } else { *last = Some(now); }
+                    *writes += 1;
+                }
+            }
             Dev::Pro { sock, state, pending, last, writes } => {
                 let b = state[0] as u32;
                 let mut m = b.to_le_bytes().to_vec();
@@ -270,10 +295,24 @@ impl Dev {
         }
     }
 
-    fn drain(&self) {
-        if let Dev::Hid { fd, .. } = self {
-            let mut b = [0u8; 64];
-            let _ = read_nb(*fd, &mut b); // keyboard LED / vendor OUT reports
+    fn drain(&mut self) {
+        match self {
+            Dev::Hid { fd, .. } => {
+                let mut b = [0u8; 64];
+                let _ = read_nb(*fd, &mut b); // keyboard LED / vendor OUT reports
+            }
+            Dev::Pro1 { fd, state, proto, seen, .. } => {
+                // everything the console sent: start-up commands and subcommands
+                let mut b = [0u8; 64];
+                while let Ok(Some(n)) = read_nb(*fd, &mut b) {
+                    if n == 0 { break; }
+                    if let Some(what) = proto.command(&b[..n], state) {
+                        let key = if b[0] == 0x01 && n > 10 { b[10] } else { 0xFF };
+                        if seen.insert(key) { log(what); }
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -298,6 +337,17 @@ impl Dev {
                     match write_nb(fd, &[0; 4]) {
                         Ok(false) => std::thread::sleep(Duration::from_millis(10)),
                         _ => break,
+                    }
+                }
+                close(fd);
+            }
+            Dev::Pro1 { fd, mut proto, .. } => {
+                // let go of everything: one neutral report, if the console is listening
+                if proto.started {
+                    let r = proto.input(&PAD_NEUTRAL);
+                    let deadline = Instant::now() + Duration::from_millis(200);
+                    while Instant::now() < deadline {
+                        match write_nb(fd, &r) { Ok(false) => std::thread::sleep(Duration::from_millis(10)), _ => break }
                     }
                 }
                 close(fd);
@@ -380,6 +430,10 @@ impl<'a> Session<'a> {
     fn open_devices(&mut self) -> std::io::Result<()> {
         self.mode = usb_mode();
         let a = self.args;
+        if self.mode == "pro1" {
+            self.devices.insert("pad", Dev::pro1(&a.pad)?);
+            return Ok(());
+        }
         if self.mode == "pro" {
             self.devices.insert("pad", Dev::pro()?);
             if std::fs::symlink_metadata(format!("{GADGET_CFG}/f2")).is_ok() && exists(&a.kbd) {
@@ -481,7 +535,7 @@ impl<'a> Session<'a> {
         // The mode to start in next time (the console the controller is on now needs it), without
         // touching the USB side now: the console sees nothing.
         if let Some(m) = msg.get("boot_mode").and_then(Value::as_str) {
-            if ["standard", "hori", "pro"].contains(&m) && usb_mode_saved().as_deref() != Some(m) {
+            if ["standard", "hori", "pro", "pro1"].contains(&m) && usb_mode_saved().as_deref() != Some(m) {
                 match save_atomic(MODE_FILE, &format!("{m}\n")) {
                     Ok(()) => log(format!("starts in {m} mode from now on")),
                     Err(e) => log(format!("{MODE_FILE}: {e}")),
@@ -491,7 +545,7 @@ impl<'a> Session<'a> {
         }
         if let Some(v) = msg.get("usb_mode") {
             let mode = v.as_str().unwrap_or("");
-            if !["standard", "hori", "pro"].contains(&mode) {
+            if !["standard", "hori", "pro", "pro1"].contains(&mode) {
                 self.send(json!({"error": "bad usb_mode"}));
                 return true;
             }
