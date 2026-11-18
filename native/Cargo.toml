@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/core", "crates/cli", "crates/board", "crates/app", "crates/netd", "crates/tools"]
 
 [workspace.package]
-version = "0.0.21"
+version = "0.0.22"
 edition = "2021"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/phantomptr/ns2bench"

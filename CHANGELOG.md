@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.22
+
 - **NS2Bench finds which console the controller is plugged into by itself** (one Switch 2 and one other console). Only a Switch 2 starts the board as a Pro Controller, so NS2Bench checks for that, briefly switching the board's mode if needed. It never presses a button to find out. You can still pick the console yourself at any time. Needs the updated board software: **Settings → Install → Bridge board**.
 - **Fixed: keys did nothing after the board restarted in Pro mode.** When Pro mode failed to start, the board quietly ran as the standard controller but still sent presses to the Pro Controller. It now reports and uses the mode that's really running. Pro mode is also more reliable at boot: the vendor's USB helper can no longer take over the board while it starts.
 - **When keys are paused, the Controller card says so,** with a button for each console. Before, it showed all green while every key was being held back.
