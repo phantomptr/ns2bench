@@ -193,7 +193,10 @@ case "$mode" in standard|hori|pro) ;; *) echo "usage: gadget.sh [standard|hori|p
 # Every mode change is logged (at boot nothing else keeps the output), with the seconds since boot.
 if [ "${NS2BENCH_GADGET_LOGGED:-}" != 1 ]; then
     export NS2BENCH_GADGET_LOGGED=1
-    exec > >(tee -a "$LOG") 2>&1
+    # run again with the output going to the log as well, and keep its exit status
+    rc_file=/run/ns2bench-gadget.rc
+    { "$0" "$@" 2>&1; echo $? > "$rc_file"; } | tee -a "$LOG"
+    exit "$(cat "$rc_file" 2>/dev/null || echo 1)"
 fi
 echo "== $(cut -d' ' -f1 /proc/uptime)s: gadget.sh ${1:-$mode} (boot default $(cat "$MODE_FILE" 2>/dev/null || echo unset))"
 
