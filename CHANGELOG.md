@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.27
+
 - **New controller mode: Switch 1 Pro Controller** (Luckfox and other Linux boards). The board can now act as the original Pro Controller: HOME, Capture and every Switch 1 button. A Switch 2 takes it too, without C, GL or GR. Pick **Switch 1 Pro** under **The console sees**. A Switch 1 can use it or the standard controller, and NS2Bench won't switch you away from either.
 
 ## 0.0.26
