@@ -172,7 +172,11 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 @media (max-width: 760px) { .logview { height: 160px; } }
 .seg-label { display: block; font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
 .seg { display: flex; padding: 3px; gap: 2px; background: var(--field); border-radius: 999px; }
-.seg button { flex: 1; border: 0; background: transparent; box-shadow: none; padding: 6px 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.seg button { flex: 1 1 0; min-width: 0; border: 0; background: transparent; box-shadow: none; padding: 6px 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+/* three choices in a narrow panel: labels may take two lines instead of running past the edge */
+.seg:has(> button:nth-child(3):not([hidden])) { border-radius: 14px; }
+.seg:has(> button:nth-child(3):not([hidden])) button { white-space: normal; line-height: 1.2; border-radius: 11px; }
+.seg button[hidden] { display: none; }
 .seg button[aria-checked=true] { background: var(--raised); color: var(--text); font-weight: 600; box-shadow: var(--shadow-1); }
 .seg button:disabled { opacity: .45; }
 .seg + .hint { margin: 6px 0 10px; }

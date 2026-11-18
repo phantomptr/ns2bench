@@ -682,8 +682,6 @@
   "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "NS2Bench가 컨트롤러가 연결된 콘솔을 찾는 동안 키가 일시 중지됩니다(최대 1분). 또는 직접 선택하세요:",
   "Keys are paused: which console is the controller plugged into?": "키가 일시 중지됨: 컨트롤러가 어느 콘솔에 연결되어 있나요?",
   "Which console?": "어느 콘솔?",
-  "%1: the controller acts as a Switch 2 Pro Controller (every button, C included)": "%1: 컨트롤러가 Switch 2 Pro 컨트롤러로 동작 (C 포함 모든 버튼)",
-  "%1: the controller acts as a wired controller + keyboard": "%1: 컨트롤러가 유선 컨트롤러 + 키보드로 동작",
   "Console type": "콘솔 종류",
   "Hide pictures": "이미지 숨기기",
   "Its network traffic looks like a %1.": "네트워크 트래픽이 %1처럼 보입니다.",
@@ -706,12 +704,12 @@
   "Mouse aims · Esc releases": "마우스로 조준 · Esc로 해제",
   "Mouse and keyboard go to the console · Esc releases the mouse": "마우스와 키보드가 콘솔로 · Esc로 마우스 해제",
   "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Switch 1 Pro 컨트롤러: HOME, 캡처와 모든 Switch 1 버튼 (C, GL, GR 없음). Switch 2에서도 사용 가능. 키보드·마우스 없음.",
-  "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Pro 컨트롤러",
-  "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 컨트롤러 (Switch 2에서도 사용 가능)",
   "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "각 콘솔은 자체 캡처 카드와 네트워크 주소, 원하는 이름을 가집니다. 컨트롤러는 공유됩니다: 화면 아래에서 고른 콘솔로 갑니다 (케이블을 그쪽에 꽂으세요). 순서는 이미지를 드래그하거나 여기서 ↑ ↓로 바꿉니다.",
   "Move down": "아래로",
   "Move up": "위로",
-  "Waiting for NS2Bench to answer (it may be restarting)…": "NS2Bench 응답을 기다리는 중 (재시작 중일 수 있음)…"
+  "Waiting for NS2Bench to answer (it may be restarting)…": "NS2Bench 응답을 기다리는 중 (재시작 중일 수 있음)…",
+  "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "컨트롤러 + 키보드: 유선 컨트롤러, 키보드, 마우스 (입력용)",
+  "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Pro 컨트롤러 (Switch 1): HOME, 캡처와 모든 Switch 1 버튼",
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro 컨트롤러 (Switch 2): C, GL, GR 포함 모든 버튼"
 }

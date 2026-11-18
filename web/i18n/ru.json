@@ -682,8 +682,6 @@
   "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "Клавиши приостановлены, пока NS2Bench определяет, к какой консоли подключён контроллер (до минуты). Или выберите её:",
   "Keys are paused: which console is the controller plugged into?": "Клавиши приостановлены: к какой консоли подключён контроллер?",
   "Which console?": "Какая консоль?",
-  "%1: the controller acts as a Switch 2 Pro Controller (every button, C included)": "%1: контроллер работает как Pro Controller для Switch 2 (все кнопки, включая C)",
-  "%1: the controller acts as a wired controller + keyboard": "%1: контроллер работает как проводной контроллер + клавиатура",
   "Console type": "Тип консоли",
   "Hide pictures": "Скрыть изображения",
   "Its network traffic looks like a %1.": "Её сетевой трафик похож на %1.",
@@ -706,12 +704,12 @@
   "Mouse aims · Esc releases": "Мышь целится · Esc освобождает",
   "Mouse and keyboard go to the console · Esc releases the mouse": "Мышь и клавиатура идут на консоль · Esc освобождает мышь",
   "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Pro Controller для Switch 1: HOME, захват и все кнопки Switch 1 (без C, GL и GR). Switch 2 тоже его принимает. Без клавиатуры и мыши.",
-  "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Pro Controller для Switch 1",
-  "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Pro Controller для Switch 1 (Switch 2 тоже его принимает)",
   "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "У каждой консоли своя карта захвата, свой сетевой адрес и имя на ваш выбор. Контроллер у них общий: он идёт к консоли, выбранной под изображением (переключите туда его кабель). Перетаскивайте изображения или используйте ↑ ↓ здесь, чтобы изменить порядок.",
   "Move down": "Ниже",
   "Move up": "Выше",
-  "Waiting for NS2Bench to answer (it may be restarting)…": "Ожидание ответа NS2Bench (возможно, он перезапускается)…"
+  "Waiting for NS2Bench to answer (it may be restarting)…": "Ожидание ответа NS2Bench (возможно, он перезапускается)…",
+  "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "Контроллер + клавиатура: проводной контроллер, клавиатура и мышь (для ввода текста)",
+  "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Pro Controller (Switch 1): HOME, захват и все кнопки Switch 1",
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro Controller (Switch 2): все кнопки, включая C, GL и GR"
 }

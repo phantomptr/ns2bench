@@ -682,8 +682,6 @@
   "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "Las teclas están en pausa mientras NS2Bench busca en qué consola está conectado el mando (hasta un minuto). O elígela:",
   "Keys are paused: which console is the controller plugged into?": "Las teclas están en pausa: ¿en qué consola está conectado el mando?",
   "Which console?": "¿Qué consola?",
-  "%1: the controller acts as a Switch 2 Pro Controller (every button, C included)": "%1: el mando actúa como Mando Pro de Switch 2 (todos los botones, incluido C)",
-  "%1: the controller acts as a wired controller + keyboard": "%1: el mando actúa como mando con cable + teclado",
   "Console type": "Tipo de consola",
   "Hide pictures": "Ocultar imágenes",
   "Its network traffic looks like a %1.": "Su tráfico de red parece de una %1.",
@@ -706,12 +704,12 @@
   "Mouse aims · Esc releases": "El ratón apunta · Esc libera",
   "Mouse and keyboard go to the console · Esc releases the mouse": "Ratón y teclado van a la consola · Esc libera el ratón",
   "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Un Mando Pro de Switch 1: HOME, Captura y todos los botones de Switch 1 (sin C, GL ni GR). Una Switch 2 también lo acepta. Sin teclado ni ratón.",
-  "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Mando Pro de Switch 1",
-  "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "El Mando Pro de Switch 1 (una Switch 2 también lo acepta)",
   "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "Cada consola tiene su propia capturadora, dirección de red y un nombre que eliges. Comparten el mando: va a la consola que elijas bajo la imagen (pasa su cable allí). Arrastra las imágenes, o usa ↑ ↓ aquí, para cambiar el orden.",
   "Move down": "Bajar",
   "Move up": "Subir",
-  "Waiting for NS2Bench to answer (it may be restarting)…": "Esperando respuesta de NS2Bench (puede estar reiniciándose)…"
+  "Waiting for NS2Bench to answer (it may be restarting)…": "Esperando respuesta de NS2Bench (puede estar reiniciándose)…",
+  "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "Mando + teclado: mando con cable, teclado y ratón (para escribir)",
+  "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Mando Pro (Switch 1): HOME, Captura y todos los botones de Switch 1",
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Mando Pro (Switch 2): todos los botones, incluidos C, GL y GR"
 }

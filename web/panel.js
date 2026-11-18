@@ -10,7 +10,7 @@ import { controllerIsOn, editConsole, inputBlock, viewed } from './consoles.js';
 const $ = (s) => document.querySelector(s);
 const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 const COLOR = /^#[0-9a-f]{6}$/i;
-const MODE_NAME = { standard: 'Controller + keyboard', hori: 'Controller + keyboard', pro: 'Switch 2 Pro', pro1: 'Switch 1 Pro' };
+const MODE_NAME = { standard: 'Controller + keyboard', hori: 'Controller + keyboard', pro: 'Pro Controller', pro1: 'Pro Controller' };
 let last = null;
 
 const ago = (t0) => {
@@ -134,11 +134,11 @@ function chain(s) {
 function modePick(s, target) {
   const inp = s.input || {};
   const p = $('#mode-pick');
-  const want = (s.models || []).find((m) => m.id === target?.model)?.mode;
+  // the console's own choice for its type
+  const want = !target ? null : target.controller === 'keyboard' ? 'standard' : target.model === 'switch1' ? 'pro1' : 'pro';
   if (inp.backend !== 'hidd' || !inp.connected || !want || !target || $('#usb-mode').dataset.busy) { p.hidden = true; return; }
   const now = inp.usb_mode === 'hori' ? 'standard' : inp.usb_mode || 'standard';
-  // a Switch 1 takes its own Pro Controller as well as the standard controller
-  const fits = now === want || (target.model === 'switch1' && now === 'pro1');
+  const fits = now === want;
   p.hidden = false;
   p.classList.toggle('warn', !fits);
   if (fits) {

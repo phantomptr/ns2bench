@@ -682,8 +682,6 @@
   "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "NS2Bench 尋找控制器連接在哪台主機上時，按鍵暫停（最多一分鐘）。或直接選擇：",
   "Keys are paused: which console is the controller plugged into?": "按鍵已暫停：控制器連接在哪台主機上？",
   "Which console?": "哪台主機？",
-  "%1: the controller acts as a Switch 2 Pro Controller (every button, C included)": "%1：控制器作為 Switch 2 Pro 控制器運作（所有按鍵，包括 C）",
-  "%1: the controller acts as a wired controller + keyboard": "%1：控制器作為有線控制器 + 鍵盤運作",
   "Console type": "主機類型",
   "Hide pictures": "隱藏畫面",
   "Its network traffic looks like a %1.": "它的網路流量看起來是 %1。",
@@ -706,12 +704,12 @@
   "Mouse aims · Esc releases": "滑鼠瞄準 · Esc 釋放",
   "Mouse and keyboard go to the console · Esc releases the mouse": "滑鼠和鍵盤送往主機 · Esc 釋放滑鼠",
   "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Switch 1 Pro 控制器：HOME、擷取鍵和所有 Switch 1 按鍵（沒有 C、GL、GR）。Switch 2 也支援。沒有鍵盤滑鼠。",
-  "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Pro 控制器",
-  "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 控制器（Switch 2 也支援）",
   "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "每台主機有自己的擷取卡、網路位址和你取的名字。它們共用控制器：控制器跟隨你在畫面下方選中的主機（把它的線插到那台）。拖動畫面或在這裡用 ↑ ↓ 調整順序。",
   "Move down": "下移",
   "Move up": "上移",
-  "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 回應（可能正在重新啟動）…"
+  "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 回應（可能正在重新啟動）…",
+  "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "控制器 + 鍵盤：有線控制器、鍵盤和滑鼠（用於打字）",
+  "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Pro 控制器（Switch 1）：HOME、擷取鍵和所有 Switch 1 按鍵",
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro 控制器（Switch 2）：所有按鍵，包括 C、GL、GR"
 }

@@ -32,6 +32,21 @@ pub fn mode_fits(model: &str, mode: &str) -> bool {
     mode == model_mode(model) || (model == "switch1" && mode == "pro1")
 }
 
+/// The board mode for a console's type and its controller choice: "pro" is that type's own Pro
+/// Controller (Switch 1: pro1, Switch 2: pro), "keyboard" the wired pad + keyboard + mouse.
+pub fn mode_for(model: &str, controller: &str) -> &'static str {
+    match (model, controller) {
+        (_, "keyboard") => "standard",
+        ("switch1", _) => "pro1",
+        _ => "pro",
+    }
+}
+
+/// The controller choice a board mode means ("pro" or "keyboard").
+pub fn controller_of(mode: &str) -> &'static str {
+    if mode == "pro" || mode == "pro1" { "pro" } else { "keyboard" }
+}
+
 pub fn model_mode(model: &str) -> &'static str {
     MODELS.iter().find(|m| m.0 == model).map(|m| m.2).unwrap_or("standard")
 }
@@ -47,6 +62,8 @@ pub struct Console {
     pub network_ip: Mutex<Option<String>>,
     /// It uses the bench's shared controller (the board): picking it can move the controller here.
     pub uses_controller: std::sync::atomic::AtomicBool,
+    /// "pro" (its type's Pro Controller) or "keyboard" (wired pad + keyboard + mouse).
+    pub controller: Mutex<String>,
     /// The menu routes and screen names for this console's model.
     pub profile: Mutex<Value>,
     pub frames: Arc<FrameHub>,
@@ -78,6 +95,7 @@ impl Console {
             color: Mutex::new(entry["color"].as_str().unwrap_or("#e60012").to_string()),
             network_ip: Mutex::new(entry["network_ip"].as_str().map(str::to_string)),
             uses_controller: entry["uses_controller"].as_bool().unwrap_or(true).into(),
+            controller: Mutex::new(entry["controller"].as_str().filter(|c| *c == "keyboard").unwrap_or("pro").to_string()),
             frames: FrameHub::new(),
             video_cfg: Arc::new(Mutex::new(video)),
             video_task: Mutex::new(None),
@@ -98,7 +116,8 @@ impl Console {
         let video: serde_json::Map<String, Value> = VIDEO_KEYS.iter().filter_map(|k| v.get(*k).filter(|x| !x.is_null()).map(|x| (k.to_string(), x.clone()))).collect();
         json!({"id": self.id, "name": self.name(), "model": *self.model.lock().unwrap(), "color": *self.color.lock().unwrap(),
             "network_ip": *self.network_ip.lock().unwrap(), "video": video,
-            "uses_controller": self.uses_controller.load(std::sync::atomic::Ordering::Relaxed)})
+            "uses_controller": self.uses_controller.load(std::sync::atomic::Ordering::Relaxed),
+            "controller": *self.controller.lock().unwrap()})
     }
 
     /// For status and the page: the entry plus the live picture's state.
@@ -246,5 +265,7 @@ mod tests {
         assert_eq!(model_mode("switch1"), "standard");
         assert!(mode_fits("switch1", "pro1") && mode_fits("switch1", "hori") && mode_fits("switch2", "pro"));
         assert!(!mode_fits("switch2", "pro1") && !mode_fits("switch1", "pro"));
+        assert_eq!((mode_for("switch1", "pro"), mode_for("switch2", "pro"), mode_for("switch1", "keyboard")), ("pro1", "pro", "standard"));
+        assert_eq!((controller_of("pro1"), controller_of("pro"), controller_of("hori")), ("pro", "pro", "keyboard"));
     }
 }

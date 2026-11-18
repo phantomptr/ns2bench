@@ -247,13 +247,14 @@ impl Bench {
         use std::sync::atomic::Ordering::SeqCst;
         let Some(c) = self.controller_console() else { return };
         if self.hub.manual_mode.load(SeqCst) { return; }
-        let want = crate::console::model_mode(&c.model.lock().unwrap());
+        // the console's own choice for its type (Pro Controller or controller + keyboard)
+        let want = crate::console::mode_for(&c.model.lock().unwrap(), &c.controller.lock().unwrap());
         let st = self.hub.status();
         // next time the board powers up (the console woke), it starts as what this console needs,
         // instead of starting as the other and switching over (seconds, and a reconnect)
         if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
-        let model = c.model.lock().unwrap().clone();
-        if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| !crate::console::mode_fits(&model, m)) {
+        let fits = |m: &str| m == want || (m == "hori" && want == "standard");
+        if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| !fits(m)) {
             if self.hub.mode_tries.fetch_add(1, SeqCst) >= 2 {
                 if self.hub.mode_tries.load(SeqCst) == 3 {
                     self.logs.warn("bench", format!("controller: the board didn't reach {want} mode for {} after two tries; pick it under Controller", c.name()));
@@ -336,8 +337,21 @@ impl Bench {
         if let Some(u) = v["uses_controller"].as_bool() {
             c.uses_controller.store(u, std::sync::atomic::Ordering::Relaxed);
         }
+        let mut new_choice = false;
+        if let Some(ch) = v["controller"].as_str() {
+            if ch != "pro" && ch != "keyboard" { bail!("controller must be pro or keyboard"); }
+            new_choice = *c.controller.lock().unwrap() != ch;
+            *c.controller.lock().unwrap() = ch.to_string();
+        }
+        let new_type = v.get("model").is_some();
         self.save_consoles()?;
         self.logs.add("bench", format!("console {} updated: {v}", c.id));
+        // the controller is on this console: its new choice or type takes effect now
+        if (new_choice || new_type) && self.controller_console().is_some_and(|o| o.id == c.id) {
+            self.hub.manual_mode.store(false, std::sync::atomic::Ordering::SeqCst);
+            self.hub.mode_tries.store(0, std::sync::atomic::Ordering::SeqCst);
+            self.apply_mode();
+        }
         Ok(())
     }
 

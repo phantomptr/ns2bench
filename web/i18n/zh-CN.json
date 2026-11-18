@@ -682,8 +682,6 @@
   "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "NS2Bench 查找手柄连接在哪台主机上时，按键暂停（最多一分钟）。或者直接选择：",
   "Keys are paused: which console is the controller plugged into?": "按键已暂停：手柄连接在哪台主机上？",
   "Which console?": "哪台主机？",
-  "%1: the controller acts as a Switch 2 Pro Controller (every button, C included)": "%1：手柄作为 Switch 2 Pro 手柄工作（所有按键，包括 C）",
-  "%1: the controller acts as a wired controller + keyboard": "%1：手柄作为有线手柄 + 键盘工作",
   "Console type": "主机类型",
   "Hide pictures": "隐藏画面",
   "Its network traffic looks like a %1.": "它的网络流量看起来是 %1。",
@@ -706,12 +704,12 @@
   "Mouse aims · Esc releases": "鼠标瞄准 · Esc 释放",
   "Mouse and keyboard go to the console · Esc releases the mouse": "鼠标和键盘发往主机 · Esc 释放鼠标",
   "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Switch 1 Pro 手柄：HOME、截图键和所有 Switch 1 按键（没有 C、GL、GR）。Switch 2 也支持。没有键盘鼠标。",
-  "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Pro 手柄",
-  "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 手柄（Switch 2 也支持）",
   "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "每台主机有自己的采集卡、网络地址和你起的名字。它们共用手柄：手柄跟随你在画面下方选中的主机（把它的线插到那台）。拖动画面或在这里用 ↑ ↓ 调整顺序。",
   "Move down": "下移",
   "Move up": "上移",
-  "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 响应（可能正在重启）…"
+  "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 响应（可能正在重启）…",
+  "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "手柄 + 键盘：有线手柄、键盘和鼠标（用于打字）",
+  "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Pro 手柄（Switch 1）：HOME、截图键和所有 Switch 1 按键",
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro 手柄（Switch 2）：所有按键，包括 C、GL、GR"
 }

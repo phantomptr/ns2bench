@@ -682,8 +682,6 @@
   "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "I tasti sono in pausa mentre NS2Bench cerca la console a cui è collegato il controller (fino a un minuto). Oppure sceglila:",
   "Keys are paused: which console is the controller plugged into?": "I tasti sono in pausa: a quale console è collegato il controller?",
   "Which console?": "Quale console?",
-  "%1: the controller acts as a Switch 2 Pro Controller (every button, C included)": "%1: il controller agisce come Controller Pro di Switch 2 (tutti i tasti, C incluso)",
-  "%1: the controller acts as a wired controller + keyboard": "%1: il controller agisce come controller cablato + tastiera",
   "Console type": "Tipo di console",
   "Hide pictures": "Nascondi immagini",
   "Its network traffic looks like a %1.": "Il suo traffico di rete sembra di una %1.",
@@ -706,12 +704,12 @@
   "Mouse aims · Esc releases": "Il mouse mira · Esc rilascia",
   "Mouse and keyboard go to the console · Esc releases the mouse": "Mouse e tastiera vanno alla console · Esc rilascia il mouse",
   "A Switch 1 Pro Controller: HOME, Capture and every Switch 1 button (no C, GL or GR). A Switch 2 takes it too. No keyboard or mouse.": "Un Controller Pro di Switch 1: HOME, Acquisizione e tutti i tasti di Switch 1 (niente C, GL o GR). Anche una Switch 2 lo accetta. Niente tastiera o mouse.",
-  "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Controller Pro di Switch 1",
-  "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Il Controller Pro di Switch 1 (anche una Switch 2 lo accetta)",
   "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "Ogni console ha la propria scheda di acquisizione, il proprio indirizzo di rete e un nome a scelta. Condividono il controller: va alla console scelta sotto l’immagine (spostaci il cavo). Trascina le immagini, o usa ↑ ↓ qui, per cambiare l’ordine.",
   "Move down": "Sposta giù",
   "Move up": "Sposta su",
-  "Waiting for NS2Bench to answer (it may be restarting)…": "In attesa che NS2Bench risponda (potrebbe riavviarsi)…"
+  "Waiting for NS2Bench to answer (it may be restarting)…": "In attesa che NS2Bench risponda (potrebbe riavviarsi)…",
+  "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "Controller + tastiera: controller cablato, tastiera e mouse (per scrivere)",
+  "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Controller Pro (Switch 1): HOME, Acquisizione e tutti i tasti di Switch 1",
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Controller Pro (Switch 2): tutti i tasti, compresi C, GL e GR"
 }

@@ -349,8 +349,11 @@ hint();
 
 // ------------------------------------------------------------ status, activity, tools
 let crashOffered = false;
+// the type of the console the controller is on: a Switch 1 can't take the Switch 2 Pro Controller
+let controllerModel = null;
 function showStatus(s) {
   updateConsoles(s);
+  controllerModel = (s.consoles || []).find((c) => c.controller_here)?.model ?? null;
   // the picture of the console this page shows (status pushes are about the controller's)
   const shown = viewed();
   if (shown?.video_status) s = { ...s, video: shown.video_status };
@@ -410,6 +413,8 @@ function syncDriving() {
   const hasPad = !inp.connected || devices.includes('pad') || isPro;
   const hasKbd = !inp.connected || devices.includes('kbd');
   for (const b of $('#seg-usb').children) {
+    // "Pro Controller" is the console type's own: Switch 1 Pro on a Switch 1, Switch 2 Pro otherwise
+    if (b.dataset.v === 'pro' || b.dataset.v === 'pro1') b.dataset.v = controllerModel === 'switch1' ? 'pro1' : 'pro';
     b.setAttribute('aria-checked', String(b.dataset.v === mode));
     const needsBoard = b.dataset.v === 'pro' || b.dataset.v === 'pro1';
     b.disabled = !!$('#usb-mode').dataset.busy || (needsBoard && !proPossible && mode !== b.dataset.v);

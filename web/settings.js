@@ -763,9 +763,7 @@ async function consolesPane() {
   const used = new Map(r.consoles.filter((c) => c.video?.device).map((c) => [c.video.device, c.name]));
   const models = r.models || [];
   // what the shared controller does for each type: that's why the type matters
-  const typeText = (m) => (m.mode === 'pro'
-    ? t('%1: the controller acts as a Switch 2 Pro Controller (every button, C included)')
-    : t('%1: the controller acts as a wired controller + keyboard')).replace('%1', m.name);
+  const typeText = (m) => m.name;
   const modelSelect = (value) => {
     const s = document.createElement('select');
     for (const m of models) s.append(new Option(typeText(m), m.id));
@@ -798,6 +796,11 @@ async function consolesPane() {
     const color = Object.assign(document.createElement('input'), { type: 'color', value: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888' });
     const ip = Object.assign(document.createElement('input'), { value: c.network_ip || '', placeholder: '192.168.86.251', spellcheck: false });
     const card = cardSelect(cards, used, c.video?.device || '');
+    // the controller on this console: its type's own Pro Controller, or controller + keyboard
+    const ctl = document.createElement('select');
+    const proName = c.model === 'switch1' ? t('Pro Controller (Switch 1): HOME, Capture and every Switch 1 button') : t('Pro Controller (Switch 2): every button, C, GL and GR included');
+    ctl.append(new Option(proName, 'pro'), new Option(t('Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)'), 'keyboard'));
+    ctl.value = c.controller === 'keyboard' ? 'keyboard' : 'pro';
     const uses = Object.assign(document.createElement('input'), { type: 'checkbox', checked: c.uses_controller !== false });
     uses.setAttribute('switch', '');
     const usesRow = Object.assign(document.createElement('label'), { className: 'row' });
@@ -819,6 +822,7 @@ async function consolesPane() {
     ip.onchange = () => save(t('Network address'), { network_ip: ip.value.trim() })();
     color.onchange = () => { box.style.setProperty('--tab-color', color.value); save(t('Colour'), { color: color.value })(); };
     uses.onchange = () => save(t('Shared controller'), { uses_controller: uses.checked })();
+    ctl.onchange = () => save(t('Controller'), { controller: ctl.value })();
     card.onchange = async () => {
       status.textContent = t('Saving…');
       try {
@@ -866,7 +870,7 @@ async function consolesPane() {
     }
     const colorField = field(t('Colour'), color);
     swatches(color);
-    box.append(title, field(t('Name'), name), field(t('Console type'), model), typeNote, field(t('Capture card'), card),
+    box.append(title, field(t('Name'), name), field(t('Console type'), model), typeNote, field(t('Controller'), ctl), field(t('Capture card'), card),
       field(t('Network address (optional)'), ip), colorField, usesRow, status, row);
     return box;
   }));
