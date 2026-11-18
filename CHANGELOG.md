@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.29
+
 - **The drawn console looks like one device:** the Joy-Cons sit flush against the screen with a thin dark seam, with no light stripes between the parts, and the thin coloured rail stays on the Joy-Con edges.
 
 - **Two clear controller choices per console:** **Pro Controller** (that console type's own: the Switch 1 Pro Controller on a Switch 1, the Switch 2 Pro Controller on a Switch 2) or **Controller + keyboard**. Each console keeps its own choice (**Settings → Consoles → Controller**), and moving the controller applies it. A Switch 1 is never offered the Switch 2 Pro Controller.
