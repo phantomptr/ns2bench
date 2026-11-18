@@ -6,6 +6,10 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Fixed: the board could fall out of controller mode after a power cut.** If the console cut the board's power while it was saving its start-up mode, the file was left empty, the board's start-up failed and controller mode was switched off. Now an unreadable start-up mode just means "start as standard", and the file is saved in a way a power cut can't empty. Install the board update from **Settings → Install → Bridge board**.
+- **Fixed: NS2Bench trusted an old answer about where the controller is.** A console picked while the board was away now only counts if the board comes back within a minute; otherwise NS2Bench finds out again.
+- **The board's own word wins:** when a Switch 2 starts the board as its Pro Controller, NS2Bench knows the controller is in that Switch 2, corrects itself if it thought otherwise, and tells you.
+
 ## 0.0.24
 
 - **The Luckfox is ready much sooner after power-up:** usable as a Pro Controller about **5.4 s** after power-on (it was 13 s). Its controller set-up runs early in boot, the vendor's unused USB setup is skipped, and it starts in the mode the console it was last on needs, Switch 1 or Switch 2. Install the board update from **Settings → Install → Bridge board**.

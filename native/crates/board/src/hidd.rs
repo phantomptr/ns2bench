@@ -118,6 +118,22 @@ fn usb_mode() -> String {
     }
 }
 
+/// Write a file so a power cut (the console sleeping cuts the board's power) leaves the old
+/// content or the new one, never an empty file: temp file, flushed to storage, renamed into place.
+fn save_atomic(path: &str, text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let tmp = format!("{path}.tmp");
+    let mut f = std::fs::File::create(&tmp)?;
+    f.write_all(text.as_bytes())?;
+    f.sync_all()?;
+    drop(f);
+    std::fs::rename(&tmp, path)?;
+    if let Some(dir) = std::path::Path::new(path).parent() {
+        if let Ok(d) = std::fs::File::open(dir) { let _ = d.sync_all(); }
+    }
+    Ok(())
+}
+
 fn usb_mode_saved() -> Option<String> {
     std::fs::read_to_string(MODE_FILE).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
@@ -466,7 +482,7 @@ impl<'a> Session<'a> {
         // touching the USB side now: the console sees nothing.
         if let Some(m) = msg.get("boot_mode").and_then(Value::as_str) {
             if ["standard", "hori", "pro"].contains(&m) && usb_mode_saved().as_deref() != Some(m) {
-                match std::fs::write(MODE_FILE, format!("{m}\n")) {
+                match save_atomic(MODE_FILE, &format!("{m}\n")) {
                     Ok(()) => log(format!("starts in {m} mode from now on")),
                     Err(e) => log(format!("{MODE_FILE}: {e}")),
                 }

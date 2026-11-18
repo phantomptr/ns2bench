@@ -88,7 +88,11 @@ async fn watch_controller(b: Arc<crate::Bench>) {
         if was_connected == Some(false) && connected {
             // The board reconnected: anything could have happened meanwhile, unless the person
             // already said where it is while it was away (moved the cable, then clicked).
-            let told = matches!((*b.hub.placed.lock().unwrap(), down_since), (Some(p), Some(d)) if p >= d);
+            // ...told while it was away, and only just: the person moved the cable and said so a
+            // moment ago. An old answer (the board away for minutes, the cable maybe moved again
+            // since) proves nothing: find out again.
+            let told = matches!((*b.hub.placed.lock().unwrap(), down_since), (Some(p), Some(d))
+                if p >= d && p.elapsed() < Duration::from_secs(60) && d.elapsed() < Duration::from_secs(90));
             // back from our own mode switch: make sure it's the mode its console needs (the
             // person may have placed it while a detection switch was under way)
             if told || b.hub.switching_mode() { b.apply_mode(); } else { moved = true; }
@@ -99,6 +103,19 @@ async fn watch_controller(b: Arc<crate::Bench>) {
             else if unplugged && usb.starts_with("configured") { unplugged = false; moved = true; }
         }
         was_connected = Some(connected);
+        // The board's own word wins: a Switch 2 started it as its Pro Controller, so it is in that
+        // Switch 2, whatever we were told. If we have it on a console that isn't a Switch 2, we're
+        // wrong: say so, and find out (detection settles it at once from the handshake).
+        if connected && st["host"] == "switch2" {
+            if let Some(c) = b.controller_console() {
+                if *c.model.lock().unwrap() != "switch2" {
+                    let _ = b.set_controller_on(None);
+                    b.logs.notify("bench", "warn", "The controller is in a Switch 2",
+                        format!("controller: a Switch 2 is driving the board as its Pro Controller, so it isn't on {}. Finding where it is", c.name()));
+                    continue;
+                }
+            }
+        }
         // our own mode switch makes the board drop off and come back: that's not the cable
         if b.hub.switching_mode() { moved = false; unplugged = false; }
         if moved && b.list().len() > 1 && b.controller_console().is_some() {

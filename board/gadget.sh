@@ -19,7 +19,14 @@ PRO_PID=/run/ns2bench-pro2.pid
 ACTIVE_MODE=/run/ns2bench-usb-mode     # the mode really running (a failed pro falls back to standard)
 LOG=/tmp/ns2bench-gadget.log
 SPEED_SAVE=/run/ns2bench-max-speed
-mode=${1:-$(cat "$MODE_FILE" 2>/dev/null || echo standard)}
+mode=${1:-$(cat "$MODE_FILE" 2>/dev/null || true)}
+# The saved mode can be lost (an empty file after the console cut the board's power mid-write):
+# start as standard then, never fail the boot over it.
+if [ -z "${1:-}" ]; then
+    case "$mode" in standard|hori|pro) ;; *) echo "saved mode '${mode}' unreadable: starting as standard" >&2; mode=standard ;; esac
+fi
+# Atomic write: a power cut leaves the old file or the new one, never an empty one.
+save_file() { printf '%s\n' "$2" > "$1.tmp" && sync && mv -f "$1.tmp" "$1" && sync; }
 
 # quirk hooks (overridden by quirks/*.sh)
 GADGET_NAME=ns2bench               # a quirk may reuse a vendor gadget directory instead
@@ -221,5 +228,5 @@ echo "$mode" > "$ACTIVE_MODE"
 # An explicit mode becomes the boot default, but only once it was actually reached: a fallback
 # must not quietly replace the person's choice.
 # (NS2BENCH_NO_SAVE=1: a quick look, e.g. the bench finding which console this is; boot stays as it was)
-if [ -n "${1:-}" ] && [ "$mode" = "$1" ] && [ "${NS2BENCH_NO_SAVE:-}" != 1 ]; then echo "$mode" > "$MODE_FILE"; fi
+if [ -n "${1:-}" ] && [ "$mode" = "$1" ] && [ "${NS2BENCH_NO_SAVE:-}" != 1 ]; then save_file "$MODE_FILE" "$mode"; fi
 echo "NS2Bench: $mode ready ($(cat /sys/class/udc/*/state 2>/dev/null), $(cat /sys/class/udc/*/current_speed 2>/dev/null))"

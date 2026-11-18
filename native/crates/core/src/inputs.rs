@@ -324,6 +324,9 @@ async fn run_board(
                                 let src = if e[2] == "kernel" { "kernel" } else { "board" };
                                 logs.add_guess(src, e[3].as_str().unwrap_or(""), e[1].as_f64().map(|t| t + shift));
                             }
+                        } else if m["stays"] == true {
+                            // a newer Bridge switches without restarting: no disconnect to expect
+                            status.lock().unwrap().restarting_until = None;
                         } else if let Some(mode) = m.get("switched").and_then(Value::as_str) {
                             // a mode switch done without dropping the connection (newer Bridges)
                             let mut s = status.lock().unwrap();
