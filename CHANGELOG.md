@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.30
+
 A full review of everything since 0.0.20. Fixed:
 
 - **Settings → Install → Bridge board works again.** It stopped at a file it never uploaded (nothing was changed on the board). It now also checks the files on the board after installing.
