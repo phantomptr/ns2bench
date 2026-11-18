@@ -373,11 +373,13 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
         b.hub.switch_usb_mode(m)?;
         // Picked on the page for the console the controller is on: that's its choice from now on
         // (saved in its profile). Anything else stays a hand-picked mode until the next placement.
-        let saved = b.controller_console().filter(|c| crate::console::mode_for(&c.model.lock().unwrap(), crate::console::controller_of(m)) == m || m == "hori");
+        let saved = b.controller_console().filter(|_| from_browser(&h))
+            .filter(|c| crate::console::mode_for(&c.model.lock().unwrap(), crate::console::controller_of(m)) == m);
         match saved {
             Some(c) => {
                 // (recorded only: the switch above is already under way)
                 *c.controller.lock().unwrap() = crate::console::controller_of(m).to_string();
+                b.hub.manual_mode.store(false, std::sync::atomic::Ordering::SeqCst);
                 let _ = b.save_consoles();
                 b.logs.add("bench", format!("{}: controller set to {}", c.name(), if m == "standard" || m == "hori" { "controller + keyboard" } else { "Pro Controller" }));
             }

@@ -267,9 +267,9 @@ Un banco può gestire più console insieme. Ognuna ha la propria **scheda di acq
 **Il controller**
 
 - 🎮 indica la console a cui è collegato il controller. Tasti, tastiera e input degli agenti vanno solo lì.
-- Stai guardando un'altra console? Il controller disegnato è grigio e una nota dice dov'è il controller. Dopo aver spostato il cavo, fai clic su **Ho spostato il controller su …** (oppure **Il controller è collegato qui** in Impostazioni → Console).
-- **Cavo spostato senza dirlo?** La scheda nota che il collegamento USB cade e poi torna. L'input allora si mette in pausa e NS2Bench chiede su quale console è adesso. Sulla console sbagliata non viene premuto niente.
-- Quando dici dov'è il controller, NS2Bench rilascia tutto ciò che è premuto, poi passa la scheda alla modalità controller che serve al modello di quella console (Switch 2: Controller Pro; Switch 1: controller standard).
+- **Il controller va alla console che scegli.** Fai clic sull’immagine di una console e sposta lì il cavo del controller: NS2Bench rilascia tutto ciò che è premuto e prepara la scheda per quella console. Ricorda la scelta, anche dopo un riavvio della scheda o di NS2Bench. (Disattivabile in Impostazioni → Console.)
+- **Ogni console ha la propria scelta di controller** (Impostazioni → Console → Controller, o la scheda Controller): **Controller Pro**, quello del suo tipo di console (Switch 1 o Switch 2), oppure **Controller + tastiera** per scrivere.
+- **Rete di sicurezza:** se una Switch 2 avvia la scheda come suo Controller Pro mentre è scelta un’altra console, NS2Bench sa che il cavo è in quella Switch 2, lo dice e la segue. Nulla viene premuto sulla console sbagliata.
 
 **Agenti e script** indicano la console con `?console=<id or name>` o un header `X-NS2Bench-Console`; gli strumenti MCP accettano un argomento `console`, e `list_consoles` le mostra tutte. Senza indicazione, una richiesta riguarda la console dove si trova il controller. L'input per una console senza controller viene rifiutato con un messaggio che dice dov'è. Vedi il [riferimento](../REFERENCE.md#agents-mcp-and-http-api).
 

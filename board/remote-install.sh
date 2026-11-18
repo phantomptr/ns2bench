@@ -8,7 +8,12 @@ cd /opt/ns2bench
 # The upload must be on storage before anything is swapped: this board loses the content of
 # recently written files when its power is cut (the console sleeping), leaving them empty.
 sync
-for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new S45ns2bench-early.new quirks/*.new; do sh -n "$f"; done
+# every script must be there, not empty (a power cut empties unsynced files), and parse
+for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new S45ns2bench-early.new quirks/*.new; do
+  [ -s "$f" ] || { echo "upload incomplete: $f is missing or empty; run the install again" >&2; exit 1; }
+  sh -n "$f"
+done
+[ -s ns2bench-board.new ] || { echo "upload incomplete: ns2bench-board.new is missing or empty" >&2; exit 1; }
 bash -n restore-default-gadget.sh.new
 chmod 755 ns2bench-board.new
 ./ns2bench-board.new version

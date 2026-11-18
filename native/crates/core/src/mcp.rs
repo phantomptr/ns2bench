@@ -93,8 +93,8 @@ fn base_tools() -> Vec<Value> {
         tool("doctor", "Check capture, NS2Bench Bridge, USB, console picture, audio, network isolation and calibration; says which part is broken and what to do. probe=true also presses RIGHT/LEFT (HOME only).",
             json!({"probe": boolean("also prove input works")}), &[]),
         tool("status", "Video fps/health, NS2Bench Bridge connection, USB state and whether agents are blocked.", json!({}), &[]),
-        tool("usb_mode", "Switch what the console sees: \"standard\" (HORI controller + keyboard + mouse) or \"pro\" (Switch 2 Pro Controller with C/GL/GR, no keyboard). Takes ~8 s; the console reconnects the controller.",
-            json!({"mode": st("standard or pro")}), &["mode"]),
+        tool("usb_mode", "Switch what the console sees: \"standard\" (wired controller + keyboard + mouse), \"pro\" (Switch 2 Pro Controller with C/GL/GR, no keyboard; Switch 2 only) or \"pro1\" (Switch 1 Pro Controller, no keyboard). Takes a few seconds; the console reconnects the controller.",
+            json!({"mode": st("standard, pro or pro1")}), &["mode"]),
         tool("wait_for_screen", "Wait until the screen changes from how it looks now (until=\"change\", e.g. after a press) or stops moving (until=\"stable\", e.g. after a menu animation or loading), instead of guessing a sleep. region watches only part of the screen. screenshot=true returns the screen afterwards.",
             json!({"until": st("change or stable (default change)"), "timeout_ms": int("default 5000"), "stable_ms": int("for stable: how long it must stay still, default 500"), "region": region(), "screenshot": boolean("return a screenshot afterwards")}), &[]),
         tool("find_text", "Find every line on screen that contains text (or matches regex), with its box [x, y, w, h] as fractions of the frame. Use it to see where an item is, or which one is highlighted.",
@@ -271,7 +271,7 @@ impl Mcp {
             "status" => Out::Text(serde_json::to_string_pretty(&self.json("GET", "/api/status", None).await?)?),
             "usb_mode" => {
                 let m = a["mode"].as_str().unwrap_or("");
-                if !["standard", "pro", "hori"].contains(&m) { bail!("mode must be standard or pro"); }
+                if !["standard", "pro", "pro1", "hori"].contains(&m) { bail!("mode must be standard, pro or pro1"); }
                 self.json("POST", "/api/control", Some(json!({"usb_mode": m, "source": "mcp"}))).await?;
                 Out::Text(format!("switching to {m}; the controller reconnects in ~8 s"))
             }

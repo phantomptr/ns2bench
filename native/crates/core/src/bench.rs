@@ -71,7 +71,8 @@ impl Bench {
         // while NS2Bench was closed). The page asks; one console needs no answer.
         // ...unless the controller follows the console picked on screen: then it's on that one.
         let follows = crate::console::FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed);
-        let active = crate::console::ACTIVE.lock().unwrap().clone().filter(|id| consoles.iter().any(|c| &c.id == id));
+        let active = crate::console::ACTIVE.lock().unwrap().clone()
+            .filter(|id| consoles.iter().any(|c| &c.id == id && c.uses_controller.load(std::sync::atomic::Ordering::Relaxed)));
         let controller_on = if follows && consoles.len() > 1 && !cfg!(test) { active } else {
             controller_on.filter(|id| consoles.iter().any(|c| &c.id == id)).filter(|_| consoles.len() < 2 || cfg!(test))
         };
@@ -171,6 +172,9 @@ impl Bench {
         };
         self.hub.release_all();
         let new = target.as_ref().map(|c| c.id.clone());
+        // where the controller was really placed (by the person, by following, or found) is where
+        // it's put again after the board restarts and at the next start
+        if let Some(id) = &new { *crate::console::ACTIVE.lock().unwrap() = Some(id.clone()); }
         let moved = *self.controller_on.lock().unwrap() != new;
         *self.controller_on.lock().unwrap() = new;
         // anything still running for the old place (a sequence, a test) stops pressing
@@ -199,11 +203,6 @@ impl Bench {
     pub fn follow_view(self: &Arc<Self>, id: &str) -> Result<bool> {
         use std::sync::atomic::Ordering::Relaxed;
         let c = self.console(id).ok_or_else(|| anyhow!("no console {id:?}"))?;
-        // the console on screen now: remembered, so the controller is placed there after a restart
-        if *crate::console::ACTIVE.lock().unwrap() != Some(c.id.clone()) {
-            *crate::console::ACTIVE.lock().unwrap() = Some(c.id.clone());
-            let _ = self.save_consoles();
-        }
         if !crate::console::FOLLOW_VIEW.load(Relaxed) || !c.uses_controller.load(Relaxed) || self.list().len() < 2 {
             return Ok(false);
         }
@@ -254,6 +253,9 @@ impl Bench {
         // instead of starting as the other and switching over (seconds, and a reconnect)
         if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
         let fits = |m: &str| m == want || (m == "hori" && want == "standard");
+        if st["connected"] == true && st["usb_mode"].as_str().is_some_and(fits) {
+            self.hub.mode_tries.store(0, SeqCst);       // there: later corrections start counting afresh
+        }
         if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| !fits(m)) {
             if self.hub.mode_tries.fetch_add(1, SeqCst) >= 2 {
                 if self.hub.mode_tries.load(SeqCst) == 3 {
@@ -553,8 +555,17 @@ mod tests {
     async fn its_own_mode_switch_is_not_a_cable_move_and_a_choice_is_remembered() {
         let b = bench();
         assert!(!b.hub.switching_mode());
-        let _ = b.hub.switch_usb_mode("standard");     // (no board in tests: only the timing matters)
-        assert!(b.hub.switching_mode(), "the board dropping off right after is the switch, not the cable");
+        // no board: a switch that can't be sent marks nothing (a board that's away isn't switching)
+        let sent = b.hub.switch_usb_mode("standard").is_ok();
+        assert_eq!(b.hub.switching_mode(), sent);
+        // a switch under way: the board dropping off is the switch, not the cable, and presses wait
+        *b.hub.mode_switched.lock().unwrap() = Some(std::time::Instant::now());
+        b.hub.backend.status.lock().unwrap().switching_until = Some(std::time::Instant::now() + std::time::Duration::from_secs(15));
+        assert!(b.hub.switching_mode());
+        assert!(b.hub.hold(&["A".into()], "api").unwrap_err().to_string().contains("changing mode"));
+        // the Bridge says "switched": over at once
+        b.hub.backend.status.lock().unwrap().switching_until = None;
+        assert!(!b.hub.switching_mode());
         b.add_console(&json!({"name": "Switch 1", "model": "switch1"})).unwrap();
         assert!(b.hub.placed.lock().unwrap().is_none());
         b.set_controller_on(Some("switch-1")).unwrap();

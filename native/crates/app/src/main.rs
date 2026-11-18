@@ -98,7 +98,8 @@ fn crash_notice(path: &std::path::Path) {
 fn cursor_grab(window: tauri::WebviewWindow, on: bool) -> Result<(), String> {
     if on {
         window.set_cursor_grab(true).map_err(|e| e.to_string())?;
-        window.set_cursor_visible(false).map_err(|e| e.to_string())
+        // hidden too, or not grabbed at all: never half
+        window.set_cursor_visible(false).map_err(|e| { let _ = window.set_cursor_grab(false); e.to_string() })
     } else {
         let a = window.set_cursor_grab(false);
         let b = window.set_cursor_visible(true);

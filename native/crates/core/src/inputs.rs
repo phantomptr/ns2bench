@@ -167,6 +167,10 @@ pub struct BackendStatus {
     /// The Bridge restarts for a mode switch until then: its disconnect is expected.
     #[serde(skip)]
     pub restarting_until: Option<Instant>,
+    /// A USB mode switch is under way on the board (its devices are closed): presses would be
+    /// dropped, so they're refused until it says "switched" (or this time passes).
+    #[serde(skip)]
+    pub switching_until: Option<Instant>,
     pub devices: Vec<String>,
     pub writes: HashMap<String, u64>,
 }
@@ -261,6 +265,7 @@ async fn run_board(
                 s.usb_mode = Some(h["mode"].as_str().unwrap_or("standard").to_string());
                 s.host = h["host"].as_str().map(str::to_string);
                 s.reports_host = h.get("host").is_some();
+                s.switching_until = None;        // (an older Bridge restarts for a mode switch: it's back)
                 s.devices = h["devices"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
                     .unwrap_or_else(|| vec!["pad".into(), "kbd".into()]);
                 logs.notify("bench", "info", "Bridge connected", format!("NS2Bench Bridge connected: {} usb={} mode={} devices={}",
@@ -334,6 +339,8 @@ async fn run_board(
                             if let Some(d) = m["devices"].as_array() { s.devices = d.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(); }
                             s.usb = m["udc"].as_str().map(str::to_string).or(s.usb.clone());
                             s.host = m["host"].as_str().map(str::to_string);
+                            s.switching_until = None;
+                            s.restarting_until = None;
                             drop(s);
                             logs.add("bench", format!("NS2Bench Bridge: now in {mode} mode (switched without reconnecting)"));
                             let _ = on_connect.send(());     // re-send what's held, as after a reconnect
@@ -512,6 +519,7 @@ impl InputHub {
             if let Some(why) = self.paused.lock().unwrap().clone() {
                 bail!(Conflict(why));
             }
+            self.check_switching()?;
             self.check_generation()?;
         }
         if changed {
@@ -768,6 +776,7 @@ impl InputHub {
             if let Some(why) = self.paused.lock().unwrap().clone() {
                 bail!(Conflict(why));
             }
+            self.check_switching()?;
             self.check_generation()?;
         }
         let (b, before) = {
@@ -837,17 +846,33 @@ impl InputHub {
 
     /// `save`: the board starts in this mode next time (false for a quick look, like detection's).
     pub fn switch_usb_mode_as(&self, mode: &str, save: bool) -> Result<()> {
+        // (nothing is marked when it can't be sent: a board that's away isn't switching)
+        self.backend.send(Msg::UsbMode(mode.to_string(), save))?;
+        self.release_all();
         let now = std::time::Instant::now();
         *self.mode_switched.lock().unwrap() = Some(now);
-        // the Bridge restarts for it: its disconnect is expected, not a problem to report
-        self.backend.status.lock().unwrap().restarting_until = Some(now + Duration::from_secs(45));
-        self.backend.send(Msg::UsbMode(mode.to_string(), save))
+        let mut s = self.backend.status.lock().unwrap();
+        // the Bridge may restart for it: its disconnect is expected, not a problem to report
+        s.restarting_until = Some(now + Duration::from_secs(45));
+        s.switching_until = Some(now + Duration::from_secs(15));
+        Ok(())
+    }
+
+    /// Refuse a press while the board switches USB mode (it would be acknowledged and lost).
+    fn check_switching(&self) -> Result<()> {
+        if self.backend.status.lock().unwrap().switching_until.is_some_and(|t| Instant::now() < t) {
+            bail!(Conflict("the controller is changing mode (a few seconds): try again in a moment".into()));
+        }
+        Ok(())
     }
 
     /// Within this long after a mode switch, a board that drops off and comes back did so because
     /// of the switch.
     pub fn switching_mode(&self) -> bool {
-        self.mode_switched.lock().unwrap().is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(45))
+        // (over as soon as a Bridge that stays connected says "switched")
+        let s = self.backend.status.lock().unwrap();
+        let pending = s.switching_until.is_some() || s.restarting_until.is_some_and(|t| Instant::now() < t);
+        pending && self.mode_switched.lock().unwrap().is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(45))
     }
 
     /// Refuse a press from a request that started before the controller moved.

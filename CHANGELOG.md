@@ -6,6 +6,20 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+A full review of everything since 0.0.20. Fixed:
+
+- **Settings → Install → Bridge board works again.** It stopped at a file it never uploaded (nothing was changed on the board). It now also checks the files on the board after installing.
+- **The console you pick stays picked.** A console picked by hand, or found by NS2Bench, could be replaced by an older pick after the board restarted. A pick that was refused ("still plugged into the Switch 2") is no longer remembered.
+- **Presses are no longer lost while the controller changes mode.** They're refused with "try again in a moment" for those few seconds, instead of being accepted and dropped.
+- **Switch 1 Pro Controller:** short presses arrive on time (reports go out every 8 ms; they could wait 50 ms), and the sticks reach exactly full tilt.
+- **NS2Bench never guesses where the controller is.** Two shortcuts that could pick the wrong console are gone; it decides only from what the console does.
+- **Changing a console's type in Settings now saves** (it re-sent the old type), and a refused change says why.
+- **Dragging a console one place to the right** now works.
+- **Picture & sound changes can't land on another console** if you switch consoles right after changing them.
+- **The mouse is always given back** when the picture loses focus, and Esc releases it from anywhere.
+- **An AI agent switching the controller mode** no longer changes a console's saved controller choice. Agents can use the Switch 1 Pro mode.
+- Smaller: the board's start-up can't fail on a full disk, a console's controller mode is set when NS2Bench starts, keyboard focus stays on a console tile when the strip redraws, the health check matches consoles by address, the setup guide describes the current behaviour (all languages).
+
 ## 0.0.29
 
 - **The drawn console looks like one device:** the Joy-Cons sit flush against the screen with a thin dark seam, with no light stripes between the parts, and the thin coloured rail stays on the Joy-Con edges.

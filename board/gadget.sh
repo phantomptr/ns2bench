@@ -32,9 +32,13 @@ save_file() { printf '%s\n' "$2" > "$1.tmp" && sync && mv -f "$1.tmp" "$1" && sy
 # controller mode off for good (seen three times when the console's power came and went). Log it,
 # keep the mode on, and the next boot tries again. Kept in a history that survives restarts.
 HISTORY=/opt/ns2bench/boot-history.log
-history() { echo "$(date '+%F %T' 2>/dev/null) up=$(cut -d' ' -f1 /proc/uptime)s $*" >> "$HISTORY" 2>/dev/null; tail -n 200 "$HISTORY" > "$HISTORY.tmp" 2>/dev/null && mv -f "$HISTORY.tmp" "$HISTORY"; }
+history() {            # never fails (it runs inside the boot trap; a full or read-only disk must not matter)
+    { echo "$(date '+%F %T' 2>/dev/null) up=$(cut -d' ' -f1 /proc/uptime)s $*" >> "$HISTORY"; } 2>/dev/null || true
+    { tail -n 200 "$HISTORY" > "$HISTORY.tmp" && mv -f "$HISTORY.tmp" "$HISTORY"; } 2>/dev/null || true
+    return 0
+}
 if [ -z "${1:-}" ]; then
-    trap 'rc=$?; if [ "$rc" != 0 ]; then echo "boot: could not build the controller (exit $rc); controller mode stays on, the next boot tries again" >&2; history "gadget.sh boot run FAILED (exit $rc), kept controller mode"; exit 0; fi' EXIT
+    trap 'rc=$?; if [ "$rc" != 0 ]; then echo "boot: could not build the controller (exit $rc); controller mode stays on, the next boot tries again" >&2; history "gadget.sh boot run FAILED (exit $rc), kept controller mode" || true; exit 0; fi' EXIT
 fi
 
 

@@ -267,9 +267,9 @@ Un mismo banco puede manejar varias consolas a la vez. Cada una tiene su propia 
 **El mando**
 
 - 🎮 marca la consola a la que está conectado el mando. Los botones, las teclas y la entrada de agentes solo van ahí.
-- ¿Estás viendo otra consola? El mando dibujado aparece en gris y una nota dice dónde está el mando. Después de cambiar el cable, haz clic en **He movido el mando a …** (o en **El mando está conectado aquí** en Ajustes → Consolas).
-- **¿Cable cambiado sin avisar?** La placa nota que su conexión USB se corta y vuelve. Entonces la entrada se pausa y NS2Bench pregunta en qué consola está ahora. No se pulsa nada en la consola equivocada.
-- Cuando dices dónde está el mando, NS2Bench suelta todo lo que esté pulsado y después cambia la placa al modo de mando que necesita el modelo de esa consola (Switch 2: Mando Pro; Switch 1: mando estándar).
+- **El mando va a la consola que elijas.** Haz clic en la imagen de una consola y pasa a ella el cable del mando: NS2Bench suelta todo lo pulsado y prepara la placa para esa consola. Recuerda tu elección, también tras reiniciar la placa o NS2Bench. (Se puede desactivar en Ajustes → Consolas.)
+- **Cada consola tiene su propia elección de mando** (Ajustes → Consolas → Mando, o la tarjeta Mando): **Mando Pro**, el propio de ese tipo de consola (Switch 1 o Switch 2), o **Mando + teclado** para escribir.
+- **Red de seguridad:** si una Switch 2 inicia la placa como su Mando Pro mientras hay otra consola elegida, NS2Bench sabe que el cable está en esa Switch 2, lo dice y la sigue. No se pulsa nada en la consola equivocada.
 
 **Los agentes y scripts** indican la consola con `?console=<id or name>` o una cabecera `X-NS2Bench-Console`; las herramientas MCP aceptan un argumento `console`, y `list_consoles` las muestra todas. Sin indicarla, la petición va a la consola donde está el mando. La entrada para una consola sin el mando se rechaza con un mensaje que dice dónde está. Consulta la [referencia](../REFERENCE.md#agents-mcp-and-http-api).
 

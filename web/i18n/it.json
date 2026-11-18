@@ -468,7 +468,6 @@
   "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.": "La scheda Bridge è alimentata dalla porta USB della console, quindi la console deve essere accesa. Controlla i cavi e l’indirizzo in Impostazioni → Dispositivi.",
   "The Bridge connects or disconnects": "Il Bridge si connette o si disconnette",
   "The Bridge pill stays red": "L’indicatore Bridge resta rosso",
-  "The capture card is picked in the Video panel, and no other app (OBS) is using it.": "La scheda di acquisizione è selezionata nel pannello Video e nessun’altra app (OBS) la sta usando.",
   "The capture card is sending the console picture.": "La scheda di acquisizione sta inviando l’immagine della console.",
   "The capture card stopped sending video: the console may be asleep or a cable came out.": "La scheda di acquisizione ha smesso di inviare video: la console potrebbe essere in standby o un cavo si è staccato.",
   "The command line tool installs from the NS2Bench desktop app.": "Lo strumento da riga di comando si installa dall’app desktop di NS2Bench.",
@@ -711,5 +710,6 @@
   "Waiting for NS2Bench to answer (it may be restarting)…": "In attesa che NS2Bench risponda (potrebbe riavviarsi)…",
   "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "Controller + tastiera: controller cablato, tastiera e mouse (per scrivere)",
   "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Controller Pro (Switch 1): HOME, Acquisizione e tutti i tasti di Switch 1",
-  "Pro Controller (Switch 2): every button, C, GL and GR included": "Controller Pro (Switch 2): tutti i tasti, compresi C, GL e GR"
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Controller Pro (Switch 2): tutti i tasti, compresi C, GL e GR",
+  "The capture card is picked under Picture & sound, and no other app (OBS) is using it.": "La scheda di acquisizione è scelta in Immagine e audio e nessun’altra app (OBS) la sta usando."
 }

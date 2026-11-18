@@ -267,9 +267,9 @@ Ein Arbeitsplatz kann mehrere Konsolen gleichzeitig betreiben. Jede hat ihre eig
 **Der Controller**
 
 - 🎮 markiert die Konsole, an der der Controller steckt. Tasten, Tastatur und Agenten-Eingaben gehen nur dorthin.
-- Du siehst eine andere Konsole an? Der gezeichnete Controller ist ausgegraut, und ein Hinweis sagt, wo der Controller steckt. Nach dem Umstecken klicke auf **Ich habe den Controller umgesteckt an …** (oder **Der Controller steckt hier** unter Einstellungen → Konsolen).
-- **Kabel umgesteckt, ohne Bescheid zu sagen?** Das Board merkt, dass seine USB-Verbindung weg ist und wiederkommt. Dann pausiert die Eingabe, und NS2Bench fragt, an welcher Konsole es jetzt steckt. Auf der falschen Konsole wird nichts gedrückt.
-- Wenn du sagst, wo der Controller steckt, lässt NS2Bench alles Gehaltene los und schaltet das Board dann in den Controller-Modus, den das Modell dieser Konsole braucht (Switch 2: Pro Controller; Switch 1: Standard-Controller).
+- **Der Controller geht an die Konsole, die du auswählst.** Klicke auf das Bild einer Konsole und stecke das Controller-Kabel dort ein: NS2Bench lässt alles Gehaltene los und richtet die Platine für diese Konsole ein. Die Auswahl bleibt erhalten, auch nach einem Neustart der Platine oder von NS2Bench. (Abschaltbar unter Einstellungen → Konsolen.)
+- **Jede Konsole hat ihre eigene Controller-Wahl** (Einstellungen → Konsolen → Controller oder die Controller-Karte): **Pro Controller**, also der des jeweiligen Konsolentyps (Switch 1 oder Switch 2), oder **Controller + Tastatur** zum Tippen.
+- **Sicherheitsnetz:** Startet eine Switch 2 die Platine als ihren Pro Controller, während eine andere Konsole ausgewählt ist, weiß NS2Bench, dass das Kabel in dieser Switch 2 steckt, sagt es und folgt ihr. Auf der falschen Konsole wird nichts gedrückt.
 
 **Agenten und Skripte** nennen die Konsole mit `?console=<id or name>` oder einem `X-NS2Bench-Console`-Header; MCP-Tools nehmen ein `console`-Argument, und `list_consoles` zeigt alle an. Ohne Angabe geht eine Anfrage an die Konsole, an der der Controller steckt. Eingaben für eine Konsole ohne Controller werden abgelehnt, mit einer Meldung, wo er steckt. Siehe die [Referenz](../REFERENCE.md#agents-mcp-and-http-api).
 

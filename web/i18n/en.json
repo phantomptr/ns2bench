@@ -602,7 +602,7 @@
   "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.": "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.",
   "The Bridge connects or disconnects": "The Bridge connects or disconnects",
   "The Bridge pill stays red": "The Bridge pill stays red",
-  "The capture card is picked in the Video panel, and no other app (OBS) is using it.": "The capture card is picked in the Video panel, and no other app (OBS) is using it.",
+  "The capture card is picked under Picture & sound, and no other app (OBS) is using it.": "The capture card is picked under Picture & sound, and no other app (OBS) is using it.",
   "The capture card is sending the console picture.": "The capture card is sending the console picture.",
   "The capture card stopped sending video: the console may be asleep or a cable came out.": "The capture card stopped sending video: the console may be asleep or a cable came out.",
   "The command line tool installs from the NS2Bench desktop app.": "The command line tool installs from the NS2Bench desktop app.",

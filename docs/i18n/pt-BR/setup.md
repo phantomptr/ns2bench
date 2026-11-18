@@ -267,9 +267,9 @@ Uma bancada pode rodar vários consoles ao mesmo tempo. Cada um tem sua própria
 **O controle**
 
 - 🎮 marca o console em que o controle está ligado. Botões, teclas e entradas de agentes vão só para ele.
-- Está vendo outro console? O controle desenhado fica cinza, e um aviso diz onde está o controle. Depois de trocar o cabo, clique em **Mudei o controle para …** (ou em **O controle está ligado aqui** em Configurações → Consoles).
-- **Trocou o cabo sem avisar?** A placa percebe que a ligação USB caiu e voltou. A entrada então pausa, e o NS2Bench pergunta em qual console ele está agora. Nada é apertado no console errado.
-- Quando você diz onde está o controle, o NS2Bench solta tudo o que estiver pressionado e depois muda a placa para o modo de controle que o modelo daquele console precisa (Switch 2: Pro Controller; Switch 1: controle padrão).
+- **O controle vai para o console que você escolher.** Clique na imagem de um console e passe o cabo do controle para ele: o NS2Bench solta tudo o que está pressionado e prepara a placa para esse console. A escolha é lembrada, mesmo depois de reiniciar a placa ou o NS2Bench. (Dá para desligar em Configurações → Consoles.)
+- **Cada console tem sua própria escolha de controle** (Configurações → Consoles → Controle, ou o cartão Controle): **Controle Pro**, o do tipo daquele console (Switch 1 ou Switch 2), ou **Controle + teclado** para digitar.
+- **Rede de segurança:** se um Switch 2 iniciar a placa como seu Controle Pro enquanto outro console está escolhido, o NS2Bench sabe que o cabo está nesse Switch 2, avisa e o segue. Nada é pressionado no console errado.
 
 **Agentes e scripts** indicam o console com `?console=<id or name>` ou um cabeçalho `X-NS2Bench-Console`; as ferramentas MCP aceitam um argumento `console`, e `list_consoles` mostra todos. Sem isso, o pedido vale para o console em que o controle está. Entradas para um console sem o controle são recusadas com uma mensagem dizendo onde ele está. Veja a [referência](../REFERENCE.md#agents-mcp-and-http-api).
 

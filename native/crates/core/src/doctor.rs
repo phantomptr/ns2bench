@@ -150,7 +150,7 @@ pub async fn run(b: &Bench, probe: bool) -> Value {
             let consoles: Vec<(String, Option<String>)> = b.list().iter().map(|c| (c.name(), c.network_ip.lock().unwrap().clone())).collect();
             let seen: Vec<String> = consoles.iter().filter_map(|(n, ip)| ip.as_deref().filter(|ip| crate::netseen::model_at(ip).is_some()
                 || crate::netseen::tested_within(ip, std::time::Duration::from_secs(24 * 3600))).map(|ip| format!("{n} ({ip})"))).collect();
-            let missing: Vec<String> = consoles.iter().filter(|(n, ip)| ip.is_some() && !seen.iter().any(|s| s.starts_with(n.as_str()))).map(|(n, _)| n.clone()).collect();
+            let missing: Vec<String> = consoles.iter().filter(|(n, ip)| ip.is_some() && !seen.contains(&format!("{n} ({})", ip.as_deref().unwrap_or("")))).map(|(n, _)| n.clone()).collect();
             let no_ip: Vec<String> = consoles.iter().filter(|(_, ip)| ip.is_none()).map(|(n, _)| n.clone()).collect();
             let (state, detail, fix) = if !missing.is_empty() {
                 ("warn", format!("not seen on the network yet: {}", missing.join(", ")), "Check that console's network settings: its DNS must be this computer's address (Settings → Network shows it). It shows up once it looks a name up.".to_string())

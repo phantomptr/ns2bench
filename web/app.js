@@ -271,7 +271,8 @@ screenEl.addEventListener('keyup', (e) => {
   // macOS sends no keyup for a key let go while Command is down: release them with Command.
   if (e.code === 'MetaLeft' || e.code === 'MetaRight') for (const c of [...held]) if (!/^(Shift|Control|Alt|Meta)/.test(c)) held.delete(c);
 });
-screenEl.addEventListener('blur', () => held.clear());
+screenEl.addEventListener('blur', () => { held.clear(); releaseMouse(); });
+document.addEventListener('keydown', (e) => { if (e.code === 'Escape' && grabbed) { e.preventDefault(); releaseMouse(); } }, true);
 window.addEventListener('blur', releaseAll);
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
@@ -289,7 +290,7 @@ function setCaptured(on) {
 function grabCursor(on) {
   if (!appInvoke || grabbed === on) return;
   grabbed = on; setCaptured(on);
-  appInvoke('cursor_grab', { on }).catch(() => { if (on) { grabbed = false; setCaptured(false); } });
+  appInvoke('cursor_grab', { on }).catch(() => { if (on) { grabbed = false; setCaptured(false); appInvoke('cursor_grab', { on: false }).catch(() => {}); } });
 }
 function captureMouse() {
   screenEl.requestPointerLock?.({ unadjustedMovement: true })?.catch?.(() => screenEl.requestPointerLock());
@@ -415,10 +416,11 @@ function syncDriving() {
   for (const b of $('#seg-usb').children) {
     // "Pro Controller" is the console type's own: Switch 1 Pro on a Switch 1, Switch 2 Pro otherwise
     if (b.dataset.v === 'pro' || b.dataset.v === 'pro1') b.dataset.v = controllerModel === 'switch1' ? 'pro1' : 'pro';
-    b.setAttribute('aria-checked', String(b.dataset.v === mode));
+    // (the board in the other type's Pro mode still shows as "Pro Controller"; the hint says to switch)
+    b.setAttribute('aria-checked', String(b.dataset.v === mode || (b.dataset.v.startsWith('pro') && isPro)));
     const needsBoard = b.dataset.v === 'pro' || b.dataset.v === 'pro1';
     b.disabled = !!$('#usb-mode').dataset.busy || (needsBoard && !proPossible && mode !== b.dataset.v);
-    if (needsBoard && !proPossible) b.title = t('Needs a Linux board as the input device');
+    b.title = needsBoard && !proPossible ? t('Needs a Linux board as the input device') : '';
   }
   $('#usb-help').textContent = mode === 'pro'
     ? t('A Switch 2 Pro Controller: every button, including C (GameChat) and the GL/GR back buttons. No keyboard or mouse.')
@@ -442,7 +444,7 @@ $('#seg-usb').addEventListener('click', (e) => {
   sel.value = b.dataset.v;
   sel.dispatchEvent(new Event('change'));
   // Pro mode has no keyboard: fall back to sending controller buttons.
-  if (b.dataset.v === 'pro' && kbMode === 'usb') document.querySelector('input[name=kbmode][value=pad]').click();
+  if (b.dataset.v.startsWith('pro') && kbMode === 'usb') document.querySelector('input[name=kbmode][value=pad]').click();
   syncDriving();
 });
 $('#seg-kb').addEventListener('click', (e) => {
@@ -635,9 +637,13 @@ function fillFps(want) {
   vsel.fps.replaceChildren(...rates.map((r) => opt(r, `${r}`, r === Number(want))));
   if (![...vsel.fps.options].some((o) => o.selected)) vsel.fps.value = String(Math.min(max, 60));
 }
+let videoLoad = 0;
 async function loadVideo() {
+  clearTimeout(saveTimer);                              // a change waiting to save was for the console before
+  const mine = ++videoLoad;
   $('#v-note').textContent = t('Loading devices…');
   const d = await (await fetch('/api/video', { headers: shown() })).json();
+  if (mine !== videoLoad) return;                       // a newer load (another console) is on its way
   // every capture card, also one that didn't say which sizes it offers (it still works)
   vdevices = d.devices.filter((x) => x.kind === 'video' || (x.kind !== 'audio' && (x.formats?.length || x.raw)));
   const s = d.settings;
@@ -658,13 +664,14 @@ async function loadVideo() {
 }
 // Every change is saved for the console on screen, by itself (no Apply): it's that console's.
 let saveTimer = 0;
-async function saveVideo() {
-  const who = viewed();
+async function saveVideo(who) {
+  if (!who || who.id !== viewed()?.id) return;        // another console is on screen now: not its settings
   const [width, height] = vsel.size.value.split('x').map(Number);
   const body = { device: vsel.device.value || null, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
   if (!$('#v-audio-field').hidden) body.audio_device = $('#v-audio').value || null;
   $('#v-note').textContent = t('Saving…');
-  const r = await fetch('/api/video', { method: 'POST', headers: shown({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) });
+  const r = await fetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': who.id }, body: JSON.stringify(body) });
+  if (who.id !== viewed()?.id) return;
   if (r.ok) {
     $('#v-note').textContent = who ? t('Saved for %1').replace('%1', who.name) : t('Saved');
     setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
@@ -673,7 +680,7 @@ async function saveVideo() {
     loadVideo().catch(() => {});              // show what is really saved
   }
 }
-const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => saveVideo().catch((e) => { $('#v-note').textContent = String(e); }), 400); };
+const saveSoon = () => { const who = viewed(); clearTimeout(saveTimer); saveTimer = setTimeout(() => saveVideo(who).catch((e) => { $('#v-note').textContent = String(e); }), 400); };
 vsel.device.addEventListener('change', () => { fillSizes({ width: 1920, height: 1080, fps: 60 }); saveSoon(); });
 vsel.size.addEventListener('change', () => { fillFps(vsel.fps.value); saveSoon(); });
 vsel.fps.addEventListener('change', saveSoon);

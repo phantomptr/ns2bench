@@ -88,8 +88,10 @@ function thumb(c) {
     e.preventDefault(); tile.classList.remove('drop');
     const from = e.dataTransfer.getData('text/plain');
     if (!from || from === c.id) return;
-    const ids = consoles.map((x) => x.id).filter((x) => x !== from);
-    ids.splice(ids.indexOf(c.id), 0, from);
+    const all = consoles.map((x) => x.id);
+    const after = all.indexOf(from) < all.indexOf(c.id);     // dragged rightwards: lands after the target
+    const ids = all.filter((x) => x !== from);
+    ids.splice(ids.indexOf(c.id) + (after ? 1 : 0), 0, from);
     consoles.sort((a, b2) => ids.indexOf(a.id) - ids.indexOf(b2.id)); render();
     post({ action: 'order', ids }).catch((err) => alertText(err));
   });
@@ -177,7 +179,14 @@ function render() {
   if (bar.hidden) return;
   const strip = $('#console-tabs');
   strip.classList.toggle('names', stripStyle === 'names');
+  // keyboard focus survives the redraw (a tile, or its edit button)
+  const f = document.activeElement?.closest?.('#console-tabs [data-console]') ? document.activeElement : null;
+  const focusId = f?.closest('[data-console]')?.dataset.console, focusEdit = f?.classList.contains('edit');
   strip.replaceChildren(...consoles.map(stripStyle === 'names' ? chip : thumb), addTile(), styleToggle());
+  if (focusId) {
+    const tile = [...strip.children].find((x) => x.dataset.console === focusId || x.querySelector?.(`[data-console="${CSS.escape(focusId)}"]`));
+    (focusEdit ? tile?.querySelector('.edit') : tile?.querySelector('.console-thumb, .console-chip') || tile)?.focus?.();
+  }
   refreshPictures();
   const v = viewed();
   const note = $('#console-note'), act = $('#console-note-actions');

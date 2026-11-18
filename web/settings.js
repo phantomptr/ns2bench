@@ -814,11 +814,13 @@ async function consolesPane() {
         status.textContent = `${what}: ${t('saved')}`;
         after?.();
         updateTitle();
-      } catch (e) { status.textContent = String(e.message || e); await consolesPane(); }
+      } catch (e) { await refused(e); }
     };
+    // refused: show what is really saved, then say why (a note in the list would be redrawn away)
+    const refused = async (e) => { await consolesPane().catch(() => {}); message(`${c.name}: ${String(e.message || e)}`); };
     const updateTitle = () => { title.firstChild.textContent = name.value.trim() || c.name; };
     name.onchange = () => name.value.trim() && save(t('Name'), { name: name.value.trim() })();
-    model.onchange = save(t('Type'), { model: model.value }, () => warnType());
+    model.onchange = () => save(t('Type'), { model: model.value }, () => consolesPane())();   // (the Controller choices depend on the type)
     ip.onchange = () => save(t('Network address'), { network_ip: ip.value.trim() })();
     color.onchange = () => { box.style.setProperty('--tab-color', color.value); save(t('Colour'), { color: color.value })(); };
     uses.onchange = () => save(t('Shared controller'), { uses_controller: uses.checked })();
@@ -830,7 +832,7 @@ async function consolesPane() {
           .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
         cardChanged(c.id);
         status.textContent = `${t('Capture card')}: ${t('saved')}`;
-      } catch (e) { status.textContent = String(e.message || e); await consolesPane(); }
+      } catch (e) { await refused(e); }
     };
     // its network traffic says what it is: point out a type that doesn't match
     const typeNote = Object.assign(document.createElement('p'), { className: 'hint warn-text' });

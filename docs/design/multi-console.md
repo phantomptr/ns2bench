@@ -115,6 +115,14 @@ Switch 1 `*.hac.*` names and `ctest.cdn.nintendo.net` (seen on this bench). With
 such lookups, 90% of one kind, Settings shows the type the network suggests when it differs from
 the one set (`core/src/netseen.rs`).
 
+### The console picked is where the controller is
+
+With "the shared controller follows the console I watch" on (the default), the console the
+controller was last placed on (picked on the page, followed, or found) is remembered as *active*.
+After the board restarts (a console's USB power coming and going) and at start, the controller is
+placed there again: no question. Detection below only runs when following is off. In both cases
+a Switch 2 starting the board as its Pro Controller overrides a placement on another console.
+
 ### Finding the console by itself
 
 Only a Switch 2 starts a Pro Controller: it sends the "input reports on" command (`03/0D`), and
@@ -128,9 +136,7 @@ guessed), the engine (`core/src/detect.rs`) decides:
 |---|---|
 | Pro mode, the Switch 2 started it | on the Switch 2 |
 | Pro mode, a console there (USB configured, addressed or default) for 15 s, not started | on the other console |
-| Standard mode, a console there, exactly one console ran its connection test in the last 90 s | it's that console if it's the other one (a console that wakes powers the board and tests its connection within seconds); a Switch 2 is still checked by its handshake |
-| Standard mode, a console there, otherwise | become a Pro Controller once to find out (not saved as the board's start-up mode) |
-| After that switch: 30 s with no Switch 2 handshake, not asleep | on the other console |
+| Standard mode, a console there | become a Switch 2 Pro Controller once to find out (not saved as the board's start-up mode) |
 | Console asleep (USB suspended), USB not attached, or the board away | wait, never guess |
 | Two minutes without an answer | stop, and leave the question to you |
 
@@ -146,8 +152,15 @@ pad but keeps "pro" as the saved choice. The Bridge reports the mode really runn
 
 | Model | Controller mode | Menu routes and screens | Notes |
 |---|---|---|---|
-| Switch 2 | Pro Controller (all buttons incl. C, GL, GR) | `profiles/switch2.json` (verified) | as today |
-| Switch 1 | Standard (HORI) controller | `profiles/switch1.json` (starts minimal) | Switch 2 Pro protocol not used |
+| Switch 2 | Switch 2 Pro Controller (`pro`: all buttons incl. C, GL, GR) | `profiles/switch2.json` (verified) | as today |
+| Switch 1 | Switch 1 Pro Controller (`pro1`, 057e:2009 over a HID gadget) | `profiles/switch1.json` (starts minimal) | the Switch 2 Pro Controller is never offered |
+
+Each console keeps a **controller choice**: `pro` (its type's own Pro Controller, the default) or
+`keyboard` (wired pad + keyboard + mouse, board mode `standard`). `mode_for(model, choice)` gives
+the board mode; placing the controller on a console, or changing its choice or type while the
+controller is there, applies it. A mode picked on the page for the controller's console is saved
+as that console's choice (the page only; an agent's switch stays a temporary hand-picked mode).
+While the board switches mode, presses are refused (they would be acknowledged and lost).
 
 A model is data: adding one later is a new file, not new code.
 

@@ -40,9 +40,9 @@ fi
 $SSH sh -s < "$HERE/remote-install.sh"
 
 # Every file on the board must match what was sent (a power cut before the flush empties files).
-want=$( (cd "$HERE" && md5sum gadget.sh ns2bench-hidd.sh swap.sh restore-default-gadget.sh quirks/*.sh 2>/dev/null || md5 -r gadget.sh ns2bench-hidd.sh swap.sh restore-default-gadget.sh quirks/*.sh) | awk '{print $1}' | tr '\n' ' ')
+want=$( (cd "$HERE" && md5sum gadget.sh ns2bench-hidd.sh swap.sh restore-default-gadget.sh quirks/luckfox.sh 2>/dev/null || md5 -r gadget.sh ns2bench-hidd.sh swap.sh restore-default-gadget.sh quirks/luckfox.sh) | awk '{print $1}' | tr '\n' ' ')
 bin=$( (md5sum "$BIN" 2>/dev/null || md5 -r "$BIN") | awk '{print $1}')
-got=$($SSH "cd $DEST && sync && md5sum gadget.sh ns2bench-hidd.sh swap.sh restore-default-gadget.sh quirks/*.sh | awk '{print \$1}' | tr '\\n' ' '; echo; md5sum ns2bench-board | awk '{print \$1}'")
+got=$($SSH "cd $DEST && sync && md5sum gadget.sh ns2bench-hidd.sh swap.sh restore-default-gadget.sh quirks/luckfox.sh | awk '{print \$1}' | tr '\\n' ' '; echo; md5sum ns2bench-board | awk '{print \$1}'")
 if [ "$(echo "$got" | head -1)" != "$want" ] || [ "$(echo "$got" | tail -1)" != "$bin" ]; then
     echo "the files on the board don't match what was sent: run the install again" >&2
     exit 1

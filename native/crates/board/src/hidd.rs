@@ -114,7 +114,7 @@ fn usb_mode() -> String {
     match read(&format!("{GADGET}/idProduct")).as_deref() {
         Some("0x2069") => "pro".into(),
         Some("0x2009") => "pro1".into(),
-        Some(_) => read(MODE_FILE).filter(|m| m != "pro").unwrap_or_else(|| "standard".into()),
+        Some(_) => read(MODE_FILE).filter(|m| m == "hori").unwrap_or_else(|| "standard".into()),
         None => read(MODE_FILE).unwrap_or_else(|| "standard".into()),
     }
 }
@@ -246,6 +246,17 @@ impl Dev {
             Dev::Pro1 { proto, last, .. } => {
                 !proto.replies.is_empty() || (proto.started && last.is_none_or(|l| now - l >= crate::pro1::REPORT))
             }
+        }
+    }
+
+    /// Milliseconds until this device next has something to send by itself (None: only on change).
+    fn next_due_ms(&self, now: Instant) -> Option<i32> {
+        match self {
+            Dev::Pro1 { proto, last, .. } if proto.started => Some(match last {
+                Some(l) => crate::pro1::REPORT.saturating_sub(now - *l).as_millis() as i32,
+                None => 0,
+            }),
+            _ => None,
         }
     }
 
@@ -686,7 +697,9 @@ pub fn main(argv: &[String]) -> Result<(), String> {
                 fds.push(libc::pollfd { fd: d.fd(), events: ev, revents: 0 });
             }
         }
-        unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as _, 50) };
+        // (a Switch 1 Pro Controller reports every 8 ms: wake for the next one, not after 50 ms)
+        let wait = session.as_ref().and_then(|s| s.devices.values().filter_map(|d| d.next_due_ms(now)).min()).unwrap_or(50).min(50);
+        unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as _, wait) };
         let ready = |fd: RawFd, ev: i16| fds.iter().any(|p| p.fd == fd && p.revents & (ev | libc::POLLERR | libc::POLLHUP) != 0);
         let now = Instant::now();
         if let Some(fd) = kmsg.0 {

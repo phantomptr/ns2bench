@@ -267,9 +267,9 @@ Un même banc peut faire tourner plusieurs consoles à la fois. Chacune a sa pro
 **La manette**
 
 - 🎮 marque la console sur laquelle la manette est branchée. Les boutons, les touches et les entrées des agents ne vont que là.
-- Vous regardez une autre console ? La manette dessinée est grisée, et une note indique où est la manette. Après avoir déplacé le câble, cliquez sur **J’ai branché la manette sur …** (ou **La manette est branchée ici** dans Réglages → Consoles).
-- **Câble déplacé sans le dire ?** La carte remarque que sa liaison USB tombe puis revient. Les entrées se mettent alors en pause, et NS2Bench demande sur quelle console elle est maintenant. Rien n’est appuyé sur la mauvaise console.
-- Quand vous indiquez où est la manette, NS2Bench relâche tout ce qui est maintenu, puis passe la carte dans le mode de manette dont le modèle de cette console a besoin (Switch 2 : manette Pro ; Switch 1 : manette standard).
+- **La manette va à la console que vous choisissez.** Cliquez sur l’image d’une console et branchez-y le câble de la manette : NS2Bench relâche tout ce qui est tenu et prépare la carte pour cette console. Votre choix est mémorisé, même après un redémarrage de la carte ou de NS2Bench. (Désactivable dans Réglages → Consoles.)
+- **Chaque console a son propre choix de manette** (Réglages → Consoles → Manette, ou la carte Manette) : **Manette Pro**, celle de ce type de console (Switch 1 ou Switch 2), ou **Manette + clavier** pour écrire.
+- **Filet de sécurité :** si une Switch 2 démarre la carte comme sa manette Pro alors qu’une autre console est choisie, NS2Bench sait que le câble est dans cette Switch 2, le dit et la suit. Rien n’est pressé sur la mauvaise console.
 
 **Les agents et scripts** désignent la console avec `?console=<id or name>` ou un en-tête `X-NS2Bench-Console` ; les outils MCP prennent un argument `console`, et `list_consoles` les affiche toutes. Sans précision, une requête concerne la console où est la manette. Une entrée pour une console sans la manette est refusée avec un message indiquant où elle est. Voir la [référence](../REFERENCE.md#agents-mcp-and-http-api).
 

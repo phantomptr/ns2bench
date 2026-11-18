@@ -468,7 +468,6 @@
   "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.": "La placa Bridge se alimenta del puerto USB de la consola, así que la consola debe estar encendida. Revisa sus cables y su dirección en Ajustes → Dispositivos.",
   "The Bridge connects or disconnects": "El Bridge se conecta o desconecta",
   "The Bridge pill stays red": "El indicador de Bridge sigue en rojo",
-  "The capture card is picked in the Video panel, and no other app (OBS) is using it.": "La capturadora está elegida en el panel Vídeo y ninguna otra app (OBS) la está usando.",
   "The capture card is sending the console picture.": "La capturadora está enviando la imagen de la consola.",
   "The capture card stopped sending video: the console may be asleep or a cable came out.": "La capturadora dejó de enviar vídeo: puede que la consola esté en reposo o que se haya soltado un cable.",
   "The command line tool installs from the NS2Bench desktop app.": "La herramienta de línea de comandos se instala desde la app de escritorio de NS2Bench.",
@@ -711,5 +710,6 @@
   "Waiting for NS2Bench to answer (it may be restarting)…": "Esperando respuesta de NS2Bench (puede estar reiniciándose)…",
   "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "Mando + teclado: mando con cable, teclado y ratón (para escribir)",
   "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Mando Pro (Switch 1): HOME, Captura y todos los botones de Switch 1",
-  "Pro Controller (Switch 2): every button, C, GL and GR included": "Mando Pro (Switch 2): todos los botones, incluidos C, GL y GR"
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Mando Pro (Switch 2): todos los botones, incluidos C, GL y GR",
+  "The capture card is picked under Picture & sound, and no other app (OBS) is using it.": "La capturadora está elegida en Imagen y sonido, y ninguna otra app (OBS) la está usando."
 }

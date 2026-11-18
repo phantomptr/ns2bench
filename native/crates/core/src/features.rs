@@ -102,6 +102,8 @@ async fn watch_controller(b: Arc<crate::Bench>) {
             if usb == "not attached" { unplugged = true; }
             else if unplugged && usb.starts_with("configured") { unplugged = false; moved = true; }
         }
+        // first sight of the board since start, or one console's board back: the mode its console needs
+        if connected && (was_connected.is_none() || (moved && b.list().len() == 1)) { b.apply_mode(); }
         was_connected = Some(connected);
         // The board's own word wins: a Switch 2 started it as its Pro Controller, so it is in that
         // Switch 2, whatever we were told. If we have it on a console that isn't a Switch 2, we're
@@ -161,11 +163,6 @@ fn detect_step(b: &Arc<crate::Bench>, detector: &mut Option<crate::detect::Detec
         mode: st["usb_mode"].as_str().map(str::to_string),
         usb: st["usb"].as_str().unwrap_or("").to_string(),
         switch2: st["host"] == "switch2",
-        woke: {
-            let tested = |c: &Arc<crate::console::Console>| c.network_ip.lock().unwrap().as_deref()
-                .is_some_and(|ip| crate::netseen::tested_within(ip, Duration::from_secs(90)));
-            match (tested(twos[0]), tested(others[0])) { (true, false) => Some(true), (false, true) => Some(false), _ => None }
-        },
     };
     let now = std::time::Instant::now();
     let d = detector.get_or_insert_with(|| {

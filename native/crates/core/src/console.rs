@@ -22,15 +22,8 @@ use tokio::task::JoinHandle;
 pub const MODELS: &[(&str, &str, &str)] = &[
     // (id, name, controller mode)
     ("switch2", "Switch 2", "pro"),
-    ("switch1", "Switch 1", "standard"),
+    ("switch1", "Switch 1", "pro1"),
 ];
-
-/// A mode that also works for this model: a Switch 1 takes its own Pro Controller (pro1) as well
-/// as the standard controller, so being in either is fine there.
-pub fn mode_fits(model: &str, mode: &str) -> bool {
-    let mode = if mode == "hori" { "standard" } else { mode };
-    mode == model_mode(model) || (model == "switch1" && mode == "pro1")
-}
 
 /// The board mode for a console's type and its controller choice: "pro" is that type's own Pro
 /// Controller (Switch 1: pro1, Switch 2: pro), "keyboard" the wired pad + keyboard + mouse.
@@ -45,10 +38,6 @@ pub fn mode_for(model: &str, controller: &str) -> &'static str {
 /// The controller choice a board mode means ("pro" or "keyboard").
 pub fn controller_of(mode: &str) -> &'static str {
     if mode == "pro" || mode == "pro1" { "pro" } else { "keyboard" }
-}
-
-pub fn model_mode(model: &str) -> &'static str {
-    MODELS.iter().find(|m| m.0 == model).map(|m| m.2).unwrap_or("standard")
 }
 
 /// The video settings a console keeps (the same keys as video.json).
@@ -261,10 +250,6 @@ mod tests {
         let enc: String = name.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
         assert!(!enc.contains(['\n', ' ']));
         assert_eq!(percent_decode(&enc), name);
-        assert_eq!(model_mode("switch2"), "pro");
-        assert_eq!(model_mode("switch1"), "standard");
-        assert!(mode_fits("switch1", "pro1") && mode_fits("switch1", "hori") && mode_fits("switch2", "pro"));
-        assert!(!mode_fits("switch2", "pro1") && !mode_fits("switch1", "pro"));
         assert_eq!((mode_for("switch1", "pro"), mode_for("switch2", "pro"), mode_for("switch1", "keyboard")), ("pro1", "pro", "standard"));
         assert_eq!((controller_of("pro1"), controller_of("pro"), controller_of("hori")), ("pro", "pro", "keyboard"));
     }

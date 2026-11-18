@@ -49,8 +49,10 @@ pub fn buttons(s: &[i64]) -> [u8; 3] {
 
 /// A stick (0..255 each, 128 centre, y down) as the controller's packed 12-bit x/y (y up).
 pub fn stick(x: i64, y: i64) -> [u8; 3] {
-    let x12 = (x.clamp(0, 255) as u32 * 4095 / 255) as u16;
-    let y12 = 4095 - (y.clamp(0, 255) as u32 * 4095 / 255) as u16;
+    // the factory calibration it reports: centre 0x800, full travel 0x700 either way
+    let to12 = |v: i64| (0x800 + (v.clamp(0, 255) - 128) * 0x700 / 127).clamp(0x100, 0xF00) as u16;
+    let x12 = to12(x);
+    let y12 = to12(255 - y);
     [(x12 & 0xFF) as u8, ((x12 >> 8) as u8) | (((y12 & 0x0F) as u8) << 4), (y12 >> 4) as u8]
 }
 
@@ -149,6 +151,7 @@ impl Pro1 {
                         d.extend([0x01, 0x01]);
                         self.reply21(s, 0x82, sub, &d);
                     }
+                    0x10 if r.len() < 16 => self.reply21(s, 0x80, sub, &[]),
                     0x10 => {
                         let addr = u32::from_le_bytes([r[11], r[12], r[13], r[14]]);
                         let len = (r[15] as usize).min(0x1D);
@@ -183,7 +186,13 @@ mod tests {
         let x = c[0] as u16 | ((c[1] as u16 & 0x0F) << 8);
         let y = (c[1] as u16 >> 4) | ((c[2] as u16) << 4);
         assert!((2040..=2060).contains(&x) && (2030..=2060).contains(&y), "{x} {y}");
-        assert_eq!(stick(255, 0), [0xFF, 0xFF, 0xFF]);
+        // full right and up: the calibrated maximum (0xF00), not past it
+        let f = stick(255, 0);
+        assert_eq!((f[0] as u16 | ((f[1] as u16 & 0x0F) << 8), (f[1] as u16 >> 4) | ((f[2] as u16) << 4)), (0xF00, 0xF00));
+        // a short SPI read request is acknowledged, not a crash
+        let mut p = Pro1::new([0; 6]);
+        p.command(&[0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0x3D], &s);
+        assert_eq!(p.replies.pop_front().unwrap()[13], 0x80);
     }
 
     #[test]

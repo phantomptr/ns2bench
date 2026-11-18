@@ -174,9 +174,7 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 .seg { display: flex; padding: 3px; gap: 2px; background: var(--field); border-radius: 999px; }
 .seg button { flex: 1 1 0; min-width: 0; border: 0; background: transparent; box-shadow: none; padding: 6px 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 /* three choices in a narrow panel: labels may take two lines instead of running past the edge */
-.seg:has(> button:nth-child(3):not([hidden])) { border-radius: 14px; }
-.seg:has(> button:nth-child(3):not([hidden])) button { white-space: normal; line-height: 1.2; border-radius: 11px; }
-.seg button[hidden] { display: none; }
+.seg button { overflow: hidden; text-overflow: ellipsis; }
 .seg button[aria-checked=true] { background: var(--raised); color: var(--text); font-weight: 600; box-shadow: var(--shadow-1); }
 .seg button:disabled { opacity: .45; }
 .seg + .hint { margin: 6px 0 10px; }
@@ -299,7 +297,9 @@ button:disabled { opacity: .5; cursor: default; }
 /* a console's tile, with its edit button on top */
 .console-tile { position: relative; display: inline-flex; }
 .console-tile.dragging { opacity: .5; }
-.console-tile.drop .console-thumb { outline: 2px dashed var(--accent-l); outline-offset: 3px; }
+.console-tile.drop .console-thumb { outline: 2px dashed var(--accent); outline-offset: 3px; }
+.warn-text { color: var(--warn); }
+.chain li { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .console-tile .edit { position: absolute; left: 8px; top: 8px; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgb(0 0 0 / .55); color: #fff; cursor: pointer; opacity: .85; }
 .console-tile .edit:hover, .console-tile .edit:focus-visible { opacity: 1; background: rgb(0 0 0 / .75); }
 .console-tile .edit svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

@@ -452,6 +452,12 @@ test('several consoles: add one, switch the view, input only goes where the cont
   assert.equal(await p.locator('.console-thumb[data-console]').count(), 0);
   await p.click('.strip-toggle');
   await p.waitForSelector('.console-thumb[data-console]');
+  // drag the first console onto the second: it lands after it; and back again
+  const order = async () => (await (await fetch(`${BASE}/api/consoles`)).json()).consoles.map((c) => c.id);
+  await p.dragAndDrop('.console-tile >> nth=0', '.console-tile >> nth=1');
+  await waitFor(async () => (await order()).join() === [second.id, first.id].join());
+  await p.dragAndDrop('.console-tile >> nth=1', '.console-tile >> nth=0');
+  await waitFor(async () => (await order()).join() === [first.id, second.id].join());
   // back to one console
   await p.click('.console-thumb[data-console] >> nth=0');
   await p.click('#btn-settings');

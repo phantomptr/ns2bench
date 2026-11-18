@@ -468,7 +468,6 @@
   "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.": "Bridge 板由主機的 USB 埠供電，因此主機必須處於喚醒狀態。請檢查其線材以及「設定 → 裝置」中的位址。",
   "The Bridge connects or disconnects": "Bridge 連線或中斷時",
   "The Bridge pill stays red": "Bridge 標籤一直是紅色",
-  "The capture card is picked in the Video panel, and no other app (OBS) is using it.": "已在影像面板中選取擷取卡，且沒有其他應用程式（OBS）佔用它。",
   "The capture card is sending the console picture.": "擷取卡正在傳送主機畫面。",
   "The capture card stopped sending video: the console may be asleep or a cable came out.": "擷取卡已停止傳送影像：主機可能已休眠，或線材已鬆脫。",
   "The command line tool installs from the NS2Bench desktop app.": "命令列工具需從 NS2Bench 桌面應用程式安裝。",
@@ -711,5 +710,6 @@
   "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 回應（可能正在重新啟動）…",
   "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "控制器 + 鍵盤：有線控制器、鍵盤和滑鼠（用於打字）",
   "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Pro 控制器（Switch 1）：HOME、擷取鍵和所有 Switch 1 按鍵",
-  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro 控制器（Switch 2）：所有按鍵，包括 C、GL、GR"
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro 控制器（Switch 2）：所有按鍵，包括 C、GL、GR",
+  "The capture card is picked under Picture & sound, and no other app (OBS) is using it.": "已在「畫面與聲音」中選擇擷取卡，並且沒有其他應用程式（OBS）在使用它。"
 }

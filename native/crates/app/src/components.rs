@@ -126,6 +126,7 @@ const BOARD_SCRIPTS: &[(&str, &str)] = &[
     ("swap.sh", include_str!("../../../../board/swap.sh")),
     ("restore-default-gadget.sh", include_str!("../../../../board/restore-default-gadget.sh")),
     ("S98ns2bench-swap", include_str!("../../../../board/S98ns2bench-swap")),
+    ("S45ns2bench-early", include_str!("../../../../board/S45ns2bench-early")),
     ("quirks/luckfox.sh", include_str!("../../../../board/quirks/luckfox.sh")),
 ];
 
@@ -227,6 +228,15 @@ async fn board_install(host: String) -> Result<Value> {
         }
         let out = ssh(&host, "sh -s", Some(REMOTE_INSTALL.as_bytes()))?;
         log.extend(out.lines().map(String::from));
+        // What's on the board's storage must be what was sent: a board powered by the console can
+        // lose power right after, and files not yet on storage come back empty.
+        for (name, body) in BOARD_SCRIPTS.iter().filter(|(n, _)| !n.starts_with('S')) {
+            let got = ssh(&host, &format!("sync; wc -c < /opt/ns2bench/{name}"), None)?;
+            if got.trim().parse::<usize>().ok() != Some(body.len()) {
+                bail!("{name} on the board doesn't match what was sent ({} bytes there, {} sent). Run the install again.", got.trim(), body.len());
+            }
+        }
+        log.push("verified: the files on the board match".into());
         log.push("done; previous files are kept on the board as *.bak".into());
         Ok(json!({ "message": format!("Installed NS2Bench Bridge {VERSION} on {host}."), "log": log.join("\n") }))
     }).await?
@@ -447,7 +457,12 @@ mod tests {
     #[test]
     fn every_board_script_is_built_in() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../board");
-        let mut want: Vec<String> = ["gadget.sh", "ns2bench-hidd.sh", "swap.sh", "restore-default-gadget.sh", "S98ns2bench-swap"].map(String::from).to_vec();
+        let mut want: Vec<String> = ["gadget.sh", "ns2bench-hidd.sh", "swap.sh", "restore-default-gadget.sh", "S98ns2bench-swap", "S45ns2bench-early"].map(String::from).to_vec();
+        // everything the on-board installer checks is uploaded (a missing one stops the install)
+        let line = REMOTE_INSTALL.lines().find(|l| l.starts_with("for f in ") && l.contains(".new")).unwrap();
+        for f in line.split_whitespace().filter(|w| w.ends_with(".new") && !w.contains('*')) {
+            assert!(BOARD_SCRIPTS.iter().any(|(n, _)| *n == f.trim_end_matches(".new")), "{f} is checked on the board but never uploaded");
+        }
         for e in std::fs::read_dir(root.join("quirks")).unwrap().flatten() {
             want.push(format!("quirks/{}", e.file_name().to_string_lossy()));
         }

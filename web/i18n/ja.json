@@ -468,7 +468,6 @@
   "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.": "Bridge ボードは本体の USB ポートから給電されるため、本体が起動している必要があります。ケーブルと、設定 → デバイスのアドレスを確認してください。",
   "The Bridge connects or disconnects": "Bridge が接続・切断されたとき",
   "The Bridge pill stays red": "Bridge の表示が赤のまま",
-  "The capture card is picked in the Video panel, and no other app (OBS) is using it.": "キャプチャカードが「ビデオ」パネルで選択され、他のアプリ（OBS）が使用していないこと。",
   "The capture card is sending the console picture.": "キャプチャーカードが本体の映像を送信しています。",
   "The capture card stopped sending video: the console may be asleep or a cable came out.": "キャプチャカードからの映像が止まりました。本体がスリープ中か、ケーブルが外れた可能性があります。",
   "The command line tool installs from the NS2Bench desktop app.": "コマンドラインツールは NS2Bench デスクトップアプリからインストールします。",
@@ -711,5 +710,6 @@
   "Waiting for NS2Bench to answer (it may be restarting)…": "NS2Bench の応答を待っています（再起動中かもしれません）…",
   "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "コントローラー＋キーボード：有線コントローラー、キーボード、マウス（文字入力用）",
   "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Proコントローラー（Switch 1）：HOME、キャプチャー、Switch 1 の全ボタン",
-  "Pro Controller (Switch 2): every button, C, GL and GR included": "Proコントローラー（Switch 2）：C・GL・GR を含む全ボタン"
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Proコントローラー（Switch 2）：C・GL・GR を含む全ボタン",
+  "The capture card is picked under Picture & sound, and no other app (OBS) is using it.": "キャプチャーボードが「映像と音声」で選ばれていて、ほかのアプリ（OBS）が使っていない。"
 }

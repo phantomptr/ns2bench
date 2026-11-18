@@ -144,8 +144,10 @@ function modePick(s, target) {
   if (fits) {
     p.textContent = t('Picked for %1: %2 needs this one.').replace('%1', target.name).replace('%2', target.model_name || target.model);
   } else {
-    p.textContent = `${t('%1 needs “%2”.').replace('%1', target.name).replace('%2', t(MODE_NAME[want]))} `;
-    p.append(button(`${t('Use')} ${t(MODE_NAME[want])}`, () => $(`#seg-usb [data-v="${want}"]`)?.click(), 'link'));
+    // (pro vs pro1: both are "Pro Controller", so name whose)
+    const wantName = now.startsWith('pro') && want.startsWith('pro') ? `${t(MODE_NAME[want])} (${target.model_name || target.model})` : t(MODE_NAME[want]);
+    p.textContent = `${t('%1 needs “%2”.').replace('%1', target.name).replace('%2', wantName)} `;
+    p.append(button(`${t('Use')} ${wantName}`, () => $(`#seg-usb [data-v="${want}"]`)?.click(), 'link'));
   }
 }
 $('#btn-letgo').onclick = () => post('/api/release', {}).then(() => toast(t('Let go of everything.'), 'ok')).catch(failed);

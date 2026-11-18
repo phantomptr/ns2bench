@@ -468,7 +468,6 @@
   "The Bridge board powers from the console’s USB port, so the console must be awake. Check its cables and its address in Settings → Devices.": "Плата Bridge питается от USB-порта консоли, поэтому консоль должна быть включена. Проверьте кабели и адрес в Настройки → Устройства.",
   "The Bridge connects or disconnects": "Bridge подключается или отключается",
   "The Bridge pill stays red": "Индикатор Bridge остаётся красным",
-  "The capture card is picked in the Video panel, and no other app (OBS) is using it.": "Карта захвата выбрана на панели «Видео», и другое приложение (OBS) её не использует.",
   "The capture card is sending the console picture.": "Карта захвата передаёт изображение консоли.",
   "The capture card stopped sending video: the console may be asleep or a cable came out.": "Карта захвата перестала передавать видео: консоль, возможно, в режиме сна или отсоединился кабель.",
   "The command line tool installs from the NS2Bench desktop app.": "Инструмент командной строки устанавливается из настольного приложения NS2Bench.",
@@ -711,5 +710,6 @@
   "Waiting for NS2Bench to answer (it may be restarting)…": "Ожидание ответа NS2Bench (возможно, он перезапускается)…",
   "Controller + keyboard: a wired controller, a keyboard and a mouse (for typing)": "Контроллер + клавиатура: проводной контроллер, клавиатура и мышь (для ввода текста)",
   "Pro Controller (Switch 1): HOME, Capture and every Switch 1 button": "Pro Controller (Switch 1): HOME, захват и все кнопки Switch 1",
-  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro Controller (Switch 2): все кнопки, включая C, GL и GR"
+  "Pro Controller (Switch 2): every button, C, GL and GR included": "Pro Controller (Switch 2): все кнопки, включая C, GL и GR",
+  "The capture card is picked under Picture & sound, and no other app (OBS) is using it.": "Карта захвата выбрана в разделе «Изображение и звук», и её не использует другое приложение (OBS)."
 }

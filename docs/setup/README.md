@@ -267,9 +267,9 @@ One bench can run several consoles at once. Each has its own **capture card** (p
 **The controller**
 
 - 🎮 marks the console the controller is plugged into. Buttons, keys and agent input go only there.
-- Watching another console? The drawn controller is greyed out, and a note says where the controller is. After moving the cable, click **I moved the controller to …** (or **The controller is plugged in here** in Settings → Consoles).
-- **Cable moved without saying?** The board notices its USB link drop and come back. Input then pauses, and NS2Bench asks which console it's on now. Nothing is pressed on the wrong console.
-- When you say where the controller is, NS2Bench lets go of everything held, then switches the board to the controller mode that console's model needs (Switch 2: Pro Controller; Switch 1: standard).
+- **The controller goes to the console you pick.** Click a console's picture and move the controller's cable to it: NS2Bench lets go of everything held and sets the board up for that console. It remembers your pick, also after the board or NS2Bench restarts. (Turn this off in Settings → Consoles to pick the controller's console separately.)
+- **Each console has its own controller choice** (Settings → Consoles → Controller, or the Controller card): **Pro Controller**, which is that console type's own (Switch 1 or Switch 2), or **Controller + keyboard** for typing.
+- **Safety net:** if a Switch 2 starts the board as its Pro Controller while another console is picked, NS2Bench knows the cable is in that Switch 2, says so and follows it. Nothing is pressed on the wrong console.
 
 **Agents and scripts** name the console with `?console=<id or name>` or an `X-NS2Bench-Console` header; MCP tools take a `console` argument, and `list_consoles` shows them all. Without one, a request is about the console the controller is on. Input for a console the controller isn't on is refused with a message saying where it is. See the [reference](../REFERENCE.md#agents-mcp-and-http-api).
 
