@@ -64,7 +64,7 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 
 .bar { display: flex; gap: 8px; align-items: center; padding: 8px 14px; flex-wrap: nowrap; min-width: 0;
   border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: saturate(1.4) blur(20px); -webkit-backdrop-filter: saturate(1.4) blur(20px); position: relative; z-index: 3; }
+  position: relative; z-index: 3; }
 .brand { display: flex; align-items: center; gap: 8px; margin-right: 6px; color: var(--text); text-decoration: none; }
 .brand .mark { width: 34px; height: 20px; background: currentColor;
   -webkit-mask: url(/static/mark.svg) center / contain no-repeat; mask: url(/static/mark.svg) center / contain no-repeat; }
@@ -106,7 +106,7 @@ button[type=submit]:hover, button.primary:hover { background: var(--accent); }
 .thanks:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgb(255 61 110 / .75), inset 0 1px 0 rgb(255 255 255 / .25); }
 .thanks:active { transform: none; }
 .thanks:focus-visible { outline: 2px solid #ff3d6e; outline-offset: 2px; }
-.thanks .heart { width: 14px; height: 14px; fill: currentColor; animation: thanks-beat 2.8s ease-in-out infinite; }
+.thanks .heart { width: 14px; height: 14px; fill: currentColor; animation: thanks-beat 2.8s ease-in-out 3; }
 @keyframes thanks-beat { 0%, 70%, 100% { transform: scale(1); } 76% { transform: scale(1.22); } 82% { transform: scale(1); } 88% { transform: scale(1.14); } }
 :root[data-motion="none"] .thanks .heart, :root[data-motion="none"] .round.spin .i { animation: none; }
 @media (prefers-reduced-motion: reduce) { .thanks .heart, .round.spin .i { animation: none; } }
@@ -309,6 +309,13 @@ button:disabled { opacity: .5; cursor: default; }
 .console-thumb .state { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .console-thumb .state.live { color: var(--ok); }
 .console-thumb .state.live::before { content: "● "; }
+/* the strip as name chips (pictures hidden) */
+.console-strip.names { gap: 8px; align-items: center; }
+.console-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; border: 2px solid var(--line); background: var(--field); color: inherit; font-weight: 600; cursor: pointer; }
+.console-chip[aria-pressed="true"] { border-color: var(--tab-color); }
+.console-chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tab-color); }
+.console-strip.names .console-thumb.add { width: auto; min-height: 0; padding: 6px 14px; border-radius: 999px; }
+.strip-toggle { align-self: center; padding: 5px 12px; font-size: 12px; border-radius: 999px; background: transparent; border: 1px solid var(--line); color: var(--muted); box-shadow: none; }
 .console-thumb.add { width: 150px; display: grid; place-items: center; border-style: dashed; color: var(--muted); background: transparent; min-height: 150px; }
 .console-note-row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .console-note { margin: 0; padding: 6px 12px; border-radius: var(--r-field); background: var(--field); font-size: 13px; }

@@ -100,6 +100,21 @@ stateDiagram-v2
   changes; for 45 s after a switch that is not taken as the cable moving. A console picked while
   the board is restarting is kept, and its mode applied when the board is back.
 
+### The shared controller follows the console on screen
+
+On by default (Settings → Consoles → Shared controller). Switching the page to a console that uses
+the shared controller moves the controller's location there and puts the board in that console's
+mode. It is refused when the board shows it is still in another console (a Switch 2 is driving it
+as its Pro Controller and the console picked isn't a Switch 2). A console can be left out ("Uses
+the shared controller" off).
+
+### The console's type from its network
+
+The network helper logs every name a console looks up. A Switch 2 looks up `*.p01.*` names, a
+Switch 1 `*.hac.*` names and `ctest.cdn.nintendo.net` (seen on this bench). With at least three
+such lookups, 90% of one kind, Settings shows the type the network suggests when it differs from
+the one set (`core/src/netseen.rs`).
+
 ### Finding the console by itself
 
 Only a Switch 2 starts a Pro Controller: it sends the "input reports on" command (`03/0D`), and
@@ -113,7 +128,8 @@ guessed), the engine (`core/src/detect.rs`) decides:
 |---|---|
 | Pro mode, the Switch 2 started it | on the Switch 2 |
 | Pro mode, a console there (USB configured, addressed or default) for 15 s, not started | on the other console |
-| Standard mode, a console there | become a Pro Controller once to find out |
+| Standard mode, a console there, exactly one console ran its connection test in the last 90 s | it's that console if it's the other one (a console that wakes powers the board and tests its connection within seconds); a Switch 2 is still checked by its handshake |
+| Standard mode, a console there, otherwise | become a Pro Controller once to find out (not saved as the board's start-up mode) |
 | After that switch: 30 s with no Switch 2 handshake, not asleep | on the other console |
 | Console asleep (USB suspended), USB not attached, or the board away | wait, never guess |
 | Two minutes without an answer | stop, and leave the question to you |

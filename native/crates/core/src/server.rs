@@ -524,7 +524,8 @@ async fn console_layer(State(b): State<S>, req: axum::extract::Request, next: ax
 async fn get_consoles(State(b): State<S>) -> Json<Value> {
     let on = b.controller_on.lock().unwrap().clone();
     Json(json!({"consoles": b.list().iter().map(|c| c.info(on.as_deref() == Some(c.id.as_str()))).collect::<Vec<_>>(),
-        "controller_on": on, "models": crate::console::MODELS.iter().map(|m| json!({"id": m.0, "name": m.1, "mode": m.2})).collect::<Vec<_>>()}))
+        "controller_on": on, "controller_follows_view": crate::console::FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed),
+        "models": crate::console::MODELS.iter().map(|m| json!({"id": m.0, "name": m.1, "mode": m.2})).collect::<Vec<_>>()}))
 }
 
 /// {"action": "add"|"update"|"remove"|"controller", ...}. The page only: agents can read the
@@ -540,7 +541,16 @@ async fn post_consoles(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
         "update" => { b.update_console(id, &v)?; Ok(Json(json!({"ok": true}))) }
         "remove" => { b.remove_console(id)?; Ok(Json(json!({"ok": true}))) }
         "controller" => { b.set_controller_on(if id.is_empty() { None } else { Some(id) })?; Ok(Json(json!({"ok": true}))) }
-        other => Err(bad(format!("unknown action {other:?}: add, update, remove or controller"))),
+        // the page switched to this console: the shared controller follows when set to
+        "follow" => { let moved = b.follow_view(id)?; Ok(Json(json!({"ok": true, "moved": moved}))) }
+        "settings" => {
+            if let Some(f) = v["controller_follows_view"].as_bool() {
+                crate::console::FOLLOW_VIEW.store(f, std::sync::atomic::Ordering::Relaxed);
+                b.save_consoles()?;
+            }
+            Ok(Json(json!({"ok": true})))
+        }
+        other => Err(bad(format!("unknown action {other:?}: add, update, remove, controller, follow or settings"))),
     }
 }
 

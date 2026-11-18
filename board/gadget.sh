@@ -214,5 +214,6 @@ quirk_after
 echo "$mode" > "$ACTIVE_MODE"
 # An explicit mode becomes the boot default, but only once it was actually reached: a fallback
 # must not quietly replace the person's choice.
-if [ -n "${1:-}" ] && [ "$mode" = "$1" ]; then echo "$mode" > "$MODE_FILE"; fi
+# (NS2BENCH_NO_SAVE=1: a quick look, e.g. the bench finding which console this is; boot stays as it was)
+if [ -n "${1:-}" ] && [ "$mode" = "$1" ] && [ "${NS2BENCH_NO_SAVE:-}" != 1 ]; then echo "$mode" > "$MODE_FILE"; fi
 echo "NS2Bench: $mode ready ($(cat /sys/class/udc/*/state 2>/dev/null), $(cat /sys/class/udc/*/current_speed 2>/dev/null))"

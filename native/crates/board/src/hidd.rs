@@ -435,13 +435,16 @@ impl<'a> Session<'a> {
                 self.send(json!({"error": "bad usb_mode"}));
                 return true;
             }
-            log(format!("switching USB mode to {mode}"));
+            // "save": false is a quick look (the bench finding which console this is): the board
+            // keeps starting in the mode it had
+            let keep = if msg.get("save").and_then(Value::as_bool) == Some(false) { "NS2BENCH_NO_SAVE=1 " } else { "" };
+            log(format!("switching USB mode to {mode}{}", if keep.is_empty() { "" } else { " (not saved)" }));
             let here = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()))
                 .unwrap_or_else(|| "/opt/ns2bench".into());
             let here = here.display();
             // detached: stop this daemon (it holds the HID devices the rebuild removes), rebuild, start again
             let script = format!("(sleep 0.5; {here}/ns2bench-hidd.sh stop >/dev/null 2>&1; \
-                NS2BENCH_GADGET_LOGGED=1 {here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1; \
+                NS2BENCH_GADGET_LOGGED=1 {keep}{here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1; \
                 {here}/ns2bench-hidd.sh start >/dev/null 2>&1) </dev/null >/dev/null 2>&1 &");
             let _ = std::process::Command::new("/bin/sh").arg("-c").arg(script).spawn();
             self.send(json!({"ok": format!("switching to {mode}")}));

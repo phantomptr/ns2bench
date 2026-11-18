@@ -7,8 +7,10 @@
 //! - Pro mode and the Switch 2 started it: it's on the Switch 2.
 //! - Pro mode, a console is there (the board's USB is configured, addressed or default) and none
 //!   started it for [`NO_HANDSHAKE`]: it's not a Switch 2, so it's on the other console.
-//! - Standard mode with a console there: become a Pro Controller for a moment to find out (no
-//!   input is ever sent; input is paused while the place is unknown).
+//! - Standard mode with a console there: if exactly one console just ran its connection test (a
+//!   console that wakes up runs one within seconds, and powers the board up as it wakes), it's
+//!   that one, with no mode switch; otherwise become a Pro Controller for a moment to find out
+//!   (no input is ever sent; input is paused while the place is unknown).
 //! - A console asleep ("suspended"), the board's USB not attached, or the board away: wait. It
 //!   never guesses, and after [`GIVE_UP`] it stops and leaves the question to the person.
 //!
@@ -30,6 +32,8 @@ pub struct Seen {
     pub mode: Option<String>,
     pub usb: String,
     pub switch2: bool,
+    /// Exactly one console just ran its connection test: the Switch 2 (true) or the other (false).
+    pub woke: Option<bool>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -95,6 +99,9 @@ impl Detector {
                 Step::Wait
             }
             Some(_) if console_there(&s.usb) && self.probed.is_none() => {
+                if s.woke == Some(false) {
+                    return Step::Found { switch2: false, why: "it just woke up: its connection test came in as the board started" };
+                }
                 self.probed = Some(now);
                 Step::TryPro
             }
@@ -108,7 +115,7 @@ mod tests {
     use super::*;
 
     fn seen(mode: &str, usb: &str, switch2: bool) -> Seen {
-        Seen { connected: true, mode: Some(mode.into()), usb: usb.into(), switch2 }
+        Seen { connected: true, mode: Some(mode.into()), usb: usb.into(), switch2, woke: None }
     }
 
     #[test]
@@ -150,6 +157,18 @@ mod tests {
         // a Switch 2 would start it; this console never even shows up in pro mode
         assert_eq!(d.step(t + Duration::from_secs(12), &seen("pro", "not attached", false)), Step::Wait);
         assert!(matches!(d.step(t + Duration::from_secs(30), &seen("pro", "not attached", false)), Step::Found { switch2: false, .. }));
+    }
+
+    #[test]
+    fn the_console_that_just_woke_needs_no_probe() {
+        let t = Instant::now();
+        let mut d = Detector::new(t);
+        let s = Seen { woke: Some(false), ..seen("standard", "configured", false) };
+        assert!(matches!(d.step(t, &s), Step::Found { switch2: false, .. }));
+        // the Switch 2 woke: still checked with its handshake, never assumed
+        let mut d = Detector::new(t);
+        let s = Seen { woke: Some(true), ..seen("standard", "configured", false) };
+        assert_eq!(d.step(t, &s), Step::TryPro);
     }
 
     #[test]

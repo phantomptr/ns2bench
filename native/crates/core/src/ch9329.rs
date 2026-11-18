@@ -204,7 +204,7 @@ pub async fn run(
                         let _ = done.send(());
                         return Ok(());
                     }
-                    Msg::UsbMode(_) => logs.error("bench", "CH9329 has a single USB mode (keyboard + mouse)"),
+                    Msg::UsbMode(..) => logs.error("bench", "CH9329 has a single USB mode (keyboard + mouse)"),
                 }
             }
         }.await;

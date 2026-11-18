@@ -719,7 +719,8 @@ const consoleApi = (body) => api('/api/consoles', body);
 // capture cards, and which console uses each (a card serves one console)
 async function captureCards() {
   const r = await apiFetch('/api/video', { headers: { 'X-NS2Bench-Console': '' } }).then((x) => x.json()).catch(() => ({}));
-  return (r.devices || []).filter((d) => d.kind === 'video');
+  // (older engines left out the kind on macOS: anything not a sound device is a camera there)
+  return (r.devices || []).filter((d) => d.kind === 'video' || (!d.kind && d.formats));
 }
 function cardSelect(cards, used, mine) {
   const sel = document.createElement('select');
@@ -745,17 +746,32 @@ async function consolesPane() {
   const cards = await captureCards();
   const used = new Map(r.consoles.filter((c) => c.video?.device).map((c) => [c.video.device, c.name]));
   const models = r.models || [];
+  // what the shared controller does for each type: that's why the type matters
+  const typeText = (m) => (m.mode === 'pro'
+    ? t('%1: the controller acts as a Switch 2 Pro Controller (every button, C included)')
+    : t('%1: the controller acts as a wired controller + keyboard')).replace('%1', m.name);
   const modelSelect = (value) => {
     const s = document.createElement('select');
-    for (const m of models) s.append(new Option(`${m.name} (${m.mode === 'pro' ? t('Pro Controller') : t('standard controller')})`, m.id));
+    for (const m of models) s.append(new Option(typeText(m), m.id));
     s.value = value; return s;
   };
+  const modelName = (id) => models.find((m) => m.id === id)?.name || id;
   $('#console-add-model').replaceChildren(...modelSelect('switch1').children);
   $('#console-add-model').value = 'switch1';
   $('#console-add-card').replaceChildren(...cardSelect(cards, used, '').children);
   $('#console-add-card').value = '';
   swatches($('#console-add-color'));
-  $('#consoles-list').replaceChildren(...r.consoles.map((c) => {
+  // the shared controller: one board, moved between the consoles that use it
+  const follow = Object.assign(document.createElement('input'), { type: 'checkbox', checked: r.controller_follows_view !== false });
+  follow.setAttribute('switch', '');
+  follow.onchange = run(async () => { await consoleApi({ action: 'settings', controller_follows_view: follow.checked }); });
+  const followRow = Object.assign(document.createElement('label'), { className: 'row' });
+  followRow.append(follow, document.createTextNode(` ${t('When I switch consoles, the shared controller switches too (move its cable to that console)')}`));
+  const shared = Object.assign(document.createElement('div'), { className: 'group console-shared' });
+  shared.append(Object.assign(document.createElement('h3'), { textContent: t('Shared controller') }),
+    Object.assign(document.createElement('p'), { className: 'hint', textContent: t('One controller board (NS2Bench Bridge) plugged into one console at a time. Each console’s type decides how it acts there.') }),
+    followRow);
+  $('#consoles-list').replaceChildren(shared, ...r.consoles.map((c) => {
     const box = Object.assign(document.createElement('div'), { className: 'group console-card' });
     box.dataset.console = c.id;
     box.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
@@ -766,23 +782,48 @@ async function consolesPane() {
     const color = Object.assign(document.createElement('input'), { type: 'color', value: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888' });
     const ip = Object.assign(document.createElement('input'), { value: c.network_ip || '', placeholder: '192.168.86.251', spellcheck: false });
     const card = cardSelect(cards, used, c.video?.device || '');
-    const row = Object.assign(document.createElement('div'), { className: 'field-row wrap' });
-    const save = Object.assign(document.createElement('button'), { type: 'button', className: 'primary', textContent: t('Save') });
-    save.onclick = run(async () => {
+    const uses = Object.assign(document.createElement('input'), { type: 'checkbox', checked: c.uses_controller !== false });
+    uses.setAttribute('switch', '');
+    const usesRow = Object.assign(document.createElement('label'), { className: 'row' });
+    usesRow.append(uses, document.createTextNode(` ${t('Uses the shared controller')}`));
+    const status = Object.assign(document.createElement('p'), { className: 'hint console-saved', ariaLive: 'polite' });
+    // Every change is saved by itself, one field at a time; a refused one shows why and is put back.
+    const save = (what, body, after) => async () => {
+      status.textContent = t('Saving…');
       try {
-        // the card first: if it's refused (another console uses it), nothing else changed either
-        if ((card.value || '') !== (c.video?.device || '')) {
-          await apiFetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': c.id }, body: JSON.stringify({ device: card.value || null }) })
-            .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
-          cardChanged(c.id);
-        }
-        await consoleApi({ action: 'update', id: c.id, name: name.value.trim(), model: model.value, color: color.value, network_ip: ip.value.trim() });
-        message(`${name.value.trim()}: ${t('saved')}`);
-      } finally {
-        await consolesPane();            // the form shows what was really saved
-      }
-    });
-    row.append(save);
+        await consoleApi({ action: 'update', id: c.id, ...body });
+        status.textContent = `${what}: ${t('saved')}`;
+        after?.();
+        updateTitle();
+      } catch (e) { status.textContent = String(e.message || e); await consolesPane(); }
+    };
+    const updateTitle = () => { title.firstChild.textContent = name.value.trim() || c.name; };
+    name.onchange = () => name.value.trim() && save(t('Name'), { name: name.value.trim() })();
+    model.onchange = save(t('Type'), { model: model.value }, () => warnType());
+    ip.onchange = () => save(t('Network address'), { network_ip: ip.value.trim() })();
+    color.onchange = () => { box.style.setProperty('--tab-color', color.value); save(t('Colour'), { color: color.value })(); };
+    uses.onchange = () => save(t('Shared controller'), { uses_controller: uses.checked })();
+    card.onchange = async () => {
+      status.textContent = t('Saving…');
+      try {
+        await apiFetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': c.id }, body: JSON.stringify({ device: card.value || null }) })
+          .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
+        cardChanged(c.id);
+        status.textContent = `${t('Capture card')}: ${t('saved')}`;
+      } catch (e) { status.textContent = String(e.message || e); await consolesPane(); }
+    };
+    // its network traffic says what it is: point out a type that doesn't match
+    const typeNote = Object.assign(document.createElement('p'), { className: 'hint warn-text' });
+    const warnType = () => {
+      typeNote.replaceChildren();
+      if (!c.network_model || c.network_model === model.value) return;
+      typeNote.append(document.createTextNode(`${t('Its network traffic looks like a %1.').replace('%1', modelName(c.network_model))} `));
+      const fix = Object.assign(document.createElement('button'), { type: 'button', textContent: t('Make it a %1').replace('%1', modelName(c.network_model)) });
+      fix.onclick = () => { model.value = c.network_model; model.onchange(); };
+      typeNote.append(fix);
+    };
+    warnType();
+    const row = Object.assign(document.createElement('div'), { className: 'field-row wrap' });
     if (!c.controller_here) {
       const here = Object.assign(document.createElement('button'), { type: 'button', textContent: t('The controller is plugged in here') });
       here.onclick = run(async () => { await consoleApi({ action: 'controller', id: c.id }); await consolesPane(); });
@@ -798,7 +839,8 @@ async function consolesPane() {
     }
     const colorField = field(t('Colour'), color);
     swatches(color);
-    box.append(title, field(t('Name'), name), field(t('Model'), model), field(t('Capture card'), card), field(t('Network address (optional)'), ip), colorField, row);
+    box.append(title, field(t('Name'), name), field(t('Console type'), model), typeNote, field(t('Capture card'), card),
+      field(t('Network address (optional)'), ip), colorField, usesRow, status, row);
     return box;
   }));
 }
@@ -814,7 +856,7 @@ function swatches(input) {
     const b = Object.assign(document.createElement('button'), { type: 'button', className: 'swatch', title: c });
     b.dataset.color = c; b.style.background = c;
     b.setAttribute('aria-label', c);
-    b.onclick = () => { input.value = c; mark(); };
+    b.onclick = () => { input.value = c; mark(); input.dispatchEvent(new Event('change')); };
     row.append(b);
   }
   input.classList.add('custom-color');

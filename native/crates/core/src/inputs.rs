@@ -144,7 +144,8 @@ pub fn char_to_key(c: char) -> Result<(u8, u8)> {
 pub enum Msg {
     State(Pad, Kbd),
     Mouse([i32; 4]),
-    UsbMode(String),
+    /// A USB mode, and whether it becomes the board's boot default (a detection probe doesn't).
+    UsbMode(String, bool),
     Stop(tokio::sync::oneshot::Sender<()>),
 }
 
@@ -161,6 +162,9 @@ pub struct BackendStatus {
     /// The bridge reports `host` at all (older bridges don't: then "no Switch 2 handshake" means
     /// nothing, and detection must not run).
     pub reports_host: bool,
+    /// The Bridge restarts for a mode switch until then: its disconnect is expected.
+    #[serde(skip)]
+    pub restarting_until: Option<Instant>,
     pub devices: Vec<String>,
     pub writes: HashMap<String, u64>,
 }
@@ -279,7 +283,7 @@ async fn run_board(
                                 let _ = done.send(());
                                 return Ok(());
                             }
-                            Msg::UsbMode(mode) => format!("{}\n", json!({"usb_mode": mode})),
+                            Msg::UsbMode(mode, save) => format!("{}\n", json!({"usb_mode": mode, "save": save})),
                         };
                         board_write(&mut w, out.as_bytes()).await?;
                     }
@@ -328,10 +332,15 @@ async fn run_board(
         if res.is_ok() { return; }
         let was = { let mut s = status.lock().unwrap(); let w = s.connected; s.connected = false; s.host = None; w };
         let detail = match res { Ok(()) => "stopped".to_string(), Err(e) => e.to_string() };
-        if was {
-            logs.notify("bench", "error", "Bridge disconnected", format!("NS2Bench Bridge: {detail}"));
+        let expected = status.lock().unwrap().restarting_until.is_some_and(|t| Instant::now() < t);
+        if expected {
+            // our own mode switch: the Bridge restarts, nothing went wrong
+            if was { logs.add("bench", "NS2Bench Bridge: restarting for the USB mode change"); }
+        } else if was {
+            // usually the console went to sleep (the board powers from its USB port): a warning
+            logs.notify("bench", "warn", "Bridge disconnected", format!("NS2Bench Bridge: {detail}"));
         } else if status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
-            logs.error("bench", format!("NS2Bench Bridge: {detail}"));
+            logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
         }
         status.lock().unwrap().detail = Some(detail);
         tokio::time::sleep(delay).await;
@@ -806,8 +815,16 @@ impl InputHub {
 
     /// Switch the board's USB mode (it rebuilds its USB side and reconnects).
     pub fn switch_usb_mode(&self, mode: &str) -> Result<()> {
-        *self.mode_switched.lock().unwrap() = Some(std::time::Instant::now());
-        self.backend.send(Msg::UsbMode(mode.to_string()))
+        self.switch_usb_mode_as(mode, true)
+    }
+
+    /// `save`: the board starts in this mode next time (false for a quick look, like detection's).
+    pub fn switch_usb_mode_as(&self, mode: &str, save: bool) -> Result<()> {
+        let now = std::time::Instant::now();
+        *self.mode_switched.lock().unwrap() = Some(now);
+        // the Bridge restarts for it: its disconnect is expected, not a problem to report
+        self.backend.status.lock().unwrap().restarting_until = Some(now + Duration::from_secs(45));
+        self.backend.send(Msg::UsbMode(mode.to_string(), save))
     }
 
     /// Within this long after a mode switch, a board that drops off and comes back did so because

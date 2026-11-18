@@ -149,6 +149,15 @@ impl LogHub {
         self.add_full(source, text, t, level)
     }
 
+    /// A line from a followed log file. The network helper's per-lookup lines (every name a
+    /// console asks for, every connection test) are details: debug, not info, so they don't
+    /// bury everything else.
+    fn add_file_line(&self, name: &str, line: &str) {
+        let detail = name == "network" && line.trim_start().starts_with('{')
+            && serde_json::from_str::<Value>(line).ok().is_some_and(|v| matches!(v["event"].as_str(), Some("dns" | "ctest")));
+        if detail { self.add_full(name, pretty(line), None, "debug") } else { self.add_guess(name, pretty(line), None) }
+    }
+
     /// Also write every line to ~/.ns2bench/logs/ns2bench-YYYY-MM-DD.log (kept 7 days),
     /// so a problem can be looked at after NS2Bench restarts.
     pub fn persist(&self, dir: PathBuf) {
@@ -270,8 +279,11 @@ impl LogHub {
                 let start = data.len().saturating_sub(16384);
                 let text = String::from_utf8_lossy(&data[start..]).to_string();
                 let lines: Vec<&str> = text.lines().collect();
+                if name == "network" {
+                    for l in &lines { crate::netseen::observe(l, false); }
+                }
                 for l in &lines[lines.len().saturating_sub(30)..] {
-                    self.add_guess(name, pretty(l), None);
+                    self.add_file_line(name, l);
                 }
                 pos.insert(name.clone(), data.len() as u64);
             }
@@ -301,7 +313,8 @@ impl LogHub {
                         let end = chunk.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
                         let end = if end == 0 && chunk.len() == want && want == 1 << 20 { chunk.len() } else { end };
                         for l in String::from_utf8_lossy(&chunk[..end]).lines() {
-                            self.add_guess(name, pretty(l), None);
+                            if name == "network" { crate::netseen::observe(l, true); }
+                            self.add_file_line(name, l);
                         }
                         off += end as u64;
                     }

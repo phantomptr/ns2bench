@@ -240,7 +240,9 @@ function tick(now) {
   const local = [state.buttons, 8, ...state.sticks];
   const merged = [serverPad[0] | state.buttons, serverPad[1], ...serverPad.slice(2)];
   if (state.sticks.some((v) => v !== 128)) merged.splice(2, 4, ...local.slice(2));
-  pad.highlight(merged, serverAgent);
+  // only when something changed: this runs every frame, the drawing rarely changes
+  const shownKey = `${merged}|${serverAgent}`;
+  if (shownKey !== lastShown) { lastShown = shownKey; pad.highlight(merged, serverAgent); }
   requestAnimationFrame(tick);
 }
 
@@ -619,17 +621,30 @@ async function loadVideo() {
   fillSizes(s);
   $('#v-note').textContent = '';
 }
-vsel.device.addEventListener('change', () => fillSizes({ width: 1920, height: 1080, fps: 60 }));
-vsel.size.addEventListener('change', () => fillFps(vsel.fps.value));
-vsel.q.addEventListener('input', () => { $('#v-qval').textContent = vsel.q.value; });
-$('#v-apply').addEventListener('click', async () => {
+// Every change is saved for the console on screen, by itself (no Apply): it's that console's.
+let saveTimer = 0;
+async function saveVideo() {
+  const who = viewed();
   const [width, height] = vsel.size.value.split('x').map(Number);
-  const body = { device: vsel.device.value, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
+  const body = { device: vsel.device.value || null, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
   if (!$('#v-audio-field').hidden) body.audio_device = $('#v-audio').value || null;
+  $('#v-note').textContent = t('Saving…');
   const r = await fetch('/api/video', { method: 'POST', headers: shown({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) });
-  $('#v-note').textContent = r.ok ? t('Applied') : await r.text();
-  setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
-});
+  if (r.ok) {
+    $('#v-note').textContent = who ? t('Saved for %1').replace('%1', who.name) : t('Saved');
+    setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
+  } else {
+    $('#v-note').textContent = await r.text();
+    loadVideo().catch(() => {});              // show what is really saved
+  }
+}
+const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => saveVideo().catch((e) => { $('#v-note').textContent = String(e); }), 400); };
+vsel.device.addEventListener('change', () => { fillSizes({ width: 1920, height: 1080, fps: 60 }); saveSoon(); });
+vsel.size.addEventListener('change', () => { fillFps(vsel.fps.value); saveSoon(); });
+vsel.fps.addEventListener('change', saveSoon);
+vsel.q.addEventListener('input', () => { $('#v-qval').textContent = vsel.q.value; });
+vsel.q.addEventListener('change', saveSoon);
+$('#v-audio').addEventListener('change', saveSoon);
 loadVideo().catch((e) => { $('#v-note').textContent = String(e); });
 
 // ------------------------------------------------------------ logs panel
@@ -767,6 +782,8 @@ $('#log-download').addEventListener('click', () => {
 // History at start, and whatever was logged while the connection was down after a reconnect.
 // Lines are kept in order and once each (the socket may deliver some of the same ones).
 let logsLoaded = false;
+let lastShown = '';
+
 function loadLogs() {
   const last = logState.entries.reduce((m, e) => Math.max(m, e.seq ?? 0), 0);
   return fetch(`/api/logs?limit=2000&level=debug${last ? `&after=${last}` : ''}`).then((r) => r.json()).then((d) => {

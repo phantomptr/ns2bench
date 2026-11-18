@@ -53,6 +53,20 @@ impl Bench {
             crate::console::load(&cfg.raw)
         };
         let consoles: Vec<Arc<Console>> = entries.iter().map(|e| Console::new(e, &cfg.video, &cfg.raw)).collect();
+        // Two consoles can't read one card: if the file says so (it happened), the later one gets
+        // none and is asked for its own, instead of both fighting over the card.
+        let mut seen_cards: Vec<String> = vec![];
+        for c in &consoles {
+            let dev = c.video_cfg.lock().unwrap()["device"].as_str().map(str::to_string);
+            if let Some(d) = dev {
+                if seen_cards.contains(&d) {
+                    logs.warn("bench", format!("{}: its capture card {d} is also another console's; pick its own in Settings → Consoles", c.name()));
+                    c.video_cfg.lock().unwrap()["device"] = Value::Null;
+                } else {
+                    seen_cards.push(d);
+                }
+            }
+        }
         // Several consoles: where the controller is isn't known at start (its cable may have moved
         // while NS2Bench was closed). The page asks; one console needs no answer.
         let controller_on = controller_on.filter(|id| consoles.iter().any(|c| &c.id == id)).filter(|_| consoles.len() < 2 || cfg!(test));
@@ -173,6 +187,28 @@ impl Bench {
         Ok(())
     }
 
+    /// The person switched the page to this console: with "the shared controller follows the
+    /// console I watch" on and the console using it, the controller moves there (and its mode with
+    /// it). Refused when the board shows it's still in another console: a Switch 2 is driving it
+    /// as its Pro Controller, and this console isn't that Switch 2.
+    pub fn follow_view(self: &Arc<Self>, id: &str) -> Result<bool> {
+        use std::sync::atomic::Ordering::Relaxed;
+        let c = self.console(id).ok_or_else(|| anyhow!("no console {id:?}"))?;
+        if !crate::console::FOLLOW_VIEW.load(Relaxed) || !c.uses_controller.load(Relaxed) || self.list().len() < 2 {
+            return Ok(false);
+        }
+        let on = self.controller_console();
+        if on.as_ref().is_some_and(|o| o.id == c.id) { return Ok(false); }
+        let st = self.hub.status();
+        if st["host"] == "switch2" && *c.model.lock().unwrap() != "switch2" {
+            let there = on.map(|o| o.name()).unwrap_or_else(|| "a Switch 2".into());
+            bail!(crate::inputs::Conflict(format!("the controller is still plugged into {there} (it's driving it as its Pro Controller): move its cable to {} first, then pick it again", c.name())));
+        }
+        self.set_controller_on(Some(&c.id))?;
+        self.logs.add("bench", format!("controller: follows the console on screen: {}", c.name()));
+        Ok(true)
+    }
+
     /// Put the board in the USB mode the controller's console needs, if it's connected and in
     /// another one.
     pub fn apply_mode(&self) {
@@ -260,6 +296,9 @@ impl Bench {
             let ip = v["network_ip"].as_str().map(str::trim).filter(|s| !s.is_empty());
             if let Some(ip) = ip { ip.parse::<std::net::Ipv4Addr>().map_err(|_| anyhow!("{ip} is not an IPv4 address"))?; }
             *c.network_ip.lock().unwrap() = ip.map(str::to_string);
+        }
+        if let Some(u) = v["uses_controller"].as_bool() {
+            c.uses_controller.store(u, std::sync::atomic::Ordering::Relaxed);
         }
         self.save_consoles()?;
         self.logs.add("bench", format!("console {} updated: {v}", c.id));
@@ -424,6 +463,25 @@ mod tests {
         b.set_controller_on(Some("switch-1")).unwrap();
         let r = crate::inputs::RUN_GENERATION.scope(Some(started), async { b.hub.hold(&["A".into()], "api") }).await;
         assert!(r.unwrap_err().to_string().contains("moved to another console"));
+    }
+
+    #[tokio::test]
+    async fn the_shared_controller_follows_the_console_on_screen_but_not_out_of_a_switch2() {
+        let b = bench();
+        b.add_console(&json!({"name": "Switch 1", "model": "switch1"})).unwrap();
+        b.set_controller_on(Some("switch-2")).unwrap();
+        assert!(b.follow_view("switch-1").unwrap(), "moved to the console on screen");
+        assert_eq!(b.controller_console().unwrap().id, "switch-1");
+        assert!(!b.follow_view("switch-1").unwrap(), "already there");
+        // the board says a Switch 2 is driving it: it can't be in the Switch 1
+        b.set_controller_on(Some("switch-2")).unwrap();
+        b.hub.backend.status.lock().unwrap().host = Some("switch2".into());
+        assert!(b.follow_view("switch-1").unwrap_err().to_string().contains("still plugged into Switch 2"));
+        assert_eq!(b.controller_console().unwrap().id, "switch-2");
+        // a console that doesn't use the shared controller, or following turned off: nothing moves
+        b.hub.backend.status.lock().unwrap().host = None;
+        b.update_console("switch-1", &json!({"uses_controller": false})).unwrap();
+        assert!(!b.follow_view("switch-1").unwrap());
     }
 
     #[tokio::test]

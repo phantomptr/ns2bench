@@ -110,6 +110,11 @@ fn detect_step(b: &Arc<crate::Bench>, detector: &mut Option<crate::detect::Detec
         mode: st["usb_mode"].as_str().map(str::to_string),
         usb: st["usb"].as_str().unwrap_or("").to_string(),
         switch2: st["host"] == "switch2",
+        woke: {
+            let tested = |c: &Arc<crate::console::Console>| c.network_ip.lock().unwrap().as_deref()
+                .is_some_and(|ip| crate::netseen::tested_within(ip, Duration::from_secs(90)));
+            match (tested(twos[0]), tested(others[0])) { (true, false) => Some(true), (false, true) => Some(false), _ => None }
+        },
     };
     let now = std::time::Instant::now();
     let d = detector.get_or_insert_with(|| {
@@ -121,7 +126,7 @@ fn detect_step(b: &Arc<crate::Bench>, detector: &mut Option<crate::detect::Detec
         Step::Wait => {}
         Step::TryPro => {
             b.logs.add("bench", "controller: a console is there; trying the Pro Controller for a moment to see if it's the Switch 2");
-            let _ = b.hub.switch_usb_mode("pro");
+            let _ = b.hub.switch_usb_mode_as("pro", false);     // a quick look: not the boot mode
         }
         Step::Found { switch2, why } => {
             let c = if switch2 { twos[0].clone() } else { others[0].clone() };

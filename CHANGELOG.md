@@ -6,6 +6,19 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **The shared controller follows the console you switch to.** Click a console and the controller (and the mode that console's type needs) goes with it. Move its cable to that console. If the board shows it's still plugged into the Switch 2, NS2Bench says so instead of switching. Turn it off, or leave a console out, in **Settings → Consoles**.
+- **Console type, spelled out.** Each console's type says what the controller does there: a Switch 2 Pro Controller, or a wired controller + keyboard for a Switch 1. NS2Bench also notices when a console's network traffic says it's the other type, and offers to fix it.
+- **Settings save themselves.** Picture & sound and every console's settings save the moment you change them, for that console, with no Apply or Save buttons.
+- **Hide the console pictures:** "Hide pictures" turns the strip into small name chips, still one click to switch.
+- **Finding the controller's console after a console wakes is faster:** the console that just woke up runs its connection test, and NS2Bench uses that instead of switching the board's mode to check. The quick check no longer becomes the board's start-up mode.
+- **Fixed:**
+  - Settings → Consoles listed no capture cards on Mac, only the saved one marked "not connected". Automatic card picks found no cards on Mac either.
+  - Two consoles left on the same capture card now get sorted out when NS2Bench starts.
+  - Thumbnails no longer go blank when the strip updates.
+  - The Bridge restarting for a mode change, or because a console went to sleep, is no longer reported as an error.
+  - Every console network lookup no longer fills the log.
+- **Smoother:** less work on every screen refresh (the controller drawing only redraws when something changes, no blur on the top bar, the ❤️ stops after a few beats) and thumbnails refresh every 2 seconds, only for consoles with a picture.
+
 ## 0.0.22
 
 - **NS2Bench finds which console the controller is plugged into by itself** (one Switch 2 and one other console). Only a Switch 2 starts the board as a Pro Controller, so NS2Bench checks for that, briefly switching the board's mode if needed. It never presses a button to find out. You can still pick the console yourself at any time. Needs the updated board software: **Settings → Install → Bridge board**.

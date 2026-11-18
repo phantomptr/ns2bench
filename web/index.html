@@ -201,10 +201,7 @@
         <label class="field">Quality <span id="v-qval"></span>
           <input type="range" id="v-quality" min="30" max="95" step="5"></label>
       </details>
-      <div class="field-row">
-        <button type="button" id="v-apply">Apply</button>
-        <span class="hint" id="v-note"></span>
-      </div>
+      <p class="hint" id="v-note" aria-live="polite"></p>
       <div class="field-row wrap media-actions">
         <button type="button" id="p-sound" aria-pressed="false">Sound off</button>
         <button type="button" id="p-shot">Screenshot</button>
@@ -262,7 +259,7 @@
     <div class="group">
       <h3>Add a console</h3>
       <label class="field">Name<input id="console-add-name" placeholder="Switch 1" autocomplete="off" maxlength="40"></label>
-      <label class="field">Model<select id="console-add-model"></select></label>
+      <label class="field">Console type<select id="console-add-model"></select></label>
       <label class="field">Capture card<select id="console-add-card"></select></label>
       <label class="field">Network address (optional)<input id="console-add-ip" placeholder="192.168.86.252" autocomplete="off" spellcheck="false" data-no-i18n></label>
       <label class="field">Colour<input id="console-add-color" type="color" value="#0ab9e6"></label>

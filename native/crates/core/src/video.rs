@@ -684,6 +684,9 @@ pub async fn list_devices() -> Value {
             if let Ok(out) = Command::new(h).arg("formats").output().await {
                 if let Ok(mut devs) = serde_json::from_slice::<Value>(&out.stdout) {
                     for d in devs.as_array_mut().into_iter().flatten() {
+                        // (the helper lists only cameras here: say so, as the other platforms do;
+                        // without it Settings listed no cards and automatic picks found none)
+                        if d.get("kind").is_none() { d["kind"] = "video".into(); }
                         // keep one entry per size: best fps, prefer 420v
                         let mut best: Vec<Value> = vec![];
                         for f in d["formats"].as_array().cloned().unwrap_or_default() {

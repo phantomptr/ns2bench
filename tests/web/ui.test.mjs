@@ -418,6 +418,9 @@ test('several consoles: add one, switch the view, input only goes where the cont
   const [first, second] = list.consoles;
   assert.equal(list.controller_on, first.id);
   assert.equal(second.model, 'switch1');
+  // following off: watching another console leaves the shared controller where it is
+  await p.evaluate(async (on) => (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'settings', controller_follows_view: on }) }), false);
   // watching the second: the drawn controller can't press there
   await p.click('.console-thumb[data-console] >> nth=1');
   await p.waitForSelector('.console.input-elsewhere');
@@ -438,6 +441,17 @@ test('several consoles: add one, switch the view, input only goes where the cont
   // a script can't move the controller or add consoles: only the person at the page
   const w = await fetch(`${BASE}/api/consoles`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'controller', id: first.id }) });
   assert.equal(w.status, 403);
+  // following on (the default): switching consoles takes the shared controller along
+  await p.evaluate(async (on) => (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'settings', controller_follows_view: on }) }), true);
+  await p.click('.console-thumb[data-console] >> nth=0');
+  await waitFor(async () => (await (await fetch(`${BASE}/api/consoles`)).json()).controller_on === first.id);
+  // the pictures can be hidden: name chips, still one click to switch, remembered
+  await p.click('.strip-toggle');
+  await p.waitForSelector('.console-chip[data-console]');
+  assert.equal(await p.locator('.console-thumb[data-console]').count(), 0);
+  await p.click('.strip-toggle');
+  await p.waitForSelector('.console-thumb[data-console]');
   // back to one console
   await p.click('.console-thumb[data-console] >> nth=0');
   await p.click('#btn-settings');

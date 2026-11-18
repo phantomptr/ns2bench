@@ -38,6 +38,8 @@ pub struct Console {
     pub model: Mutex<String>,
     pub color: Mutex<String>,
     pub network_ip: Mutex<Option<String>>,
+    /// It uses the bench's shared controller (the board): picking it can move the controller here.
+    pub uses_controller: std::sync::atomic::AtomicBool,
     /// The menu routes and screen names for this console's model.
     pub profile: Mutex<Value>,
     pub frames: Arc<FrameHub>,
@@ -68,6 +70,7 @@ impl Console {
             model: Mutex::new(model),
             color: Mutex::new(entry["color"].as_str().unwrap_or("#e60012").to_string()),
             network_ip: Mutex::new(entry["network_ip"].as_str().map(str::to_string)),
+            uses_controller: entry["uses_controller"].as_bool().unwrap_or(true).into(),
             frames: FrameHub::new(),
             video_cfg: Arc::new(Mutex::new(video)),
             video_task: Mutex::new(None),
@@ -87,7 +90,8 @@ impl Console {
         let v = self.video_cfg.lock().unwrap().clone();
         let video: serde_json::Map<String, Value> = VIDEO_KEYS.iter().filter_map(|k| v.get(*k).filter(|x| !x.is_null()).map(|x| (k.to_string(), x.clone()))).collect();
         json!({"id": self.id, "name": self.name(), "model": *self.model.lock().unwrap(), "color": *self.color.lock().unwrap(),
-            "network_ip": *self.network_ip.lock().unwrap(), "video": video})
+            "network_ip": *self.network_ip.lock().unwrap(), "video": video,
+            "uses_controller": self.uses_controller.load(std::sync::atomic::Ordering::Relaxed)})
     }
 
     /// For status and the page: the entry plus the live picture's state.
@@ -95,6 +99,8 @@ impl Console {
         let mut e = self.entry();
         e["controller_here"] = json!(controller_here);
         e["video_status"] = self.frames.status();
+        // what its network traffic says it is (crate::netseen), to check the type against
+        e["network_model"] = json!(self.network_ip.lock().unwrap().as_deref().and_then(crate::netseen::model_at));
         e["model_name"] = json!(MODELS.iter().find(|m| Some(m.0) == e["model"].as_str()).map(|m| m.1).unwrap_or("?"));
         e
     }
@@ -153,6 +159,7 @@ pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
         let list: Vec<Value> = v["consoles"].as_array().cloned().unwrap_or_default().into_iter()
             .filter(|c| c["id"].as_str().is_some_and(|s| !s.is_empty())).collect();
         if !list.is_empty() {
+            FOLLOW_VIEW.store(v["controller_follows_view"].as_bool().unwrap_or(true), std::sync::atomic::Ordering::Relaxed);
             return (list, v["controller_on"].as_str().map(str::to_string));
         }
     }
@@ -162,10 +169,14 @@ pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
     (vec![json!({"id": id, "name": name, "model": model, "color": "#e60012"})], Some(id))
 }
 
+/// Switching to a console (on the page) moves the shared controller there too.
+pub static FOLLOW_VIEW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
 pub fn save(consoles: &[Arc<Console>], controller_on: Option<&str>) -> std::io::Result<()> {
     // unit tests never write the person's consoles.json
     if cfg!(test) { return Ok(()); }
-    write_json(&file(), &json!({"consoles": consoles.iter().map(|c| c.entry()).collect::<Vec<_>>(), "controller_on": controller_on}))
+    write_json(&file(), &json!({"consoles": consoles.iter().map(|c| c.entry()).collect::<Vec<_>>(), "controller_on": controller_on,
+        "controller_follows_view": FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed)}))
 }
 
 tokio::task_local! {
