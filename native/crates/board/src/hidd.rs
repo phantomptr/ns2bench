@@ -118,6 +118,10 @@ fn usb_mode() -> String {
     }
 }
 
+fn usb_mode_saved() -> Option<String> {
+    std::fs::read_to_string(MODE_FILE).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
 /// "switch2" once a Switch 2 has started the Pro Controller (see pro2::HOST_FILE), else null.
 fn host() -> Value {
     std::fs::read_to_string(crate::pro2::HOST_FILE).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
@@ -328,6 +332,9 @@ struct Session<'a> {
     /// Replies not yet taken by the client (written as the socket allows, never blocking the loop
     /// that keeps the controller alive).
     out: Vec<u8>,
+    /// A USB mode switch under way (gadget.sh rebuilding the USB side): this session stays, its
+    /// devices are closed until it's done, then reopened for the mode really reached.
+    switching: Option<std::process::Child>,
 }
 
 /// A client that leaves this much unread has stopped reading: it is dropped.
@@ -375,7 +382,32 @@ impl<'a> Session<'a> {
         Ok(())
     }
 
+    /// A mode switch finished: reopen the devices of the mode really running, and say so.
+    fn poll_switch(&mut self) {
+        let Some(child) = self.switching.as_mut() else { return };
+        match child.try_wait() {
+            Ok(None) => {}
+            done => {
+                self.switching = None;
+                let failed = !matches!(done, Ok(Some(st)) if st.success());
+                match self.open_devices() {
+                    Ok(()) => {
+                        let devices: Vec<&str> = self.devices.keys().copied().collect();
+                        log(format!("now in {} mode{}", self.mode, if failed { " (the switch reported a problem)" } else { "" }));
+                        let mode = self.mode.clone();
+                        self.send(json!({"switched": mode, "devices": devices, "udc": udc_state(), "host": host()}));
+                    }
+                    Err(e) => {
+                        log(format!("after the mode switch, opening devices: {e}"));
+                        self.send(json!({"error": format!("opening devices after the mode switch: {e}")}));
+                    }
+                }
+            }
+        }
+    }
+
     fn close(mut self) {
+        if let Some(mut c) = self.switching.take() { let _ = c.wait(); }
         for (_, d) in std::mem::take(&mut self.devices) {
             d.close();
         }
@@ -404,7 +436,8 @@ impl<'a> Session<'a> {
         }
         if let Some(v) = msg.get("pad") {
             match valid_pad(v) {
-                Some(s) => self.devices.get_mut("pad").unwrap().set(s),
+                // (no pad while a mode switch rebuilds the USB side: nothing to press)
+                Some(s) => if let Some(d) = self.devices.get_mut("pad") { d.set(s) },
                 None => {
                     self.send(json!({"error": "bad pad"}));
                     return true;
@@ -413,7 +446,7 @@ impl<'a> Session<'a> {
         }
         if let (Some(v), true) = (msg.get("kbd"), self.devices.contains_key("kbd")) {
             match valid_kbd(v) {
-                Some(s) => self.devices.get_mut("kbd").unwrap().set(s),
+                Some(s) => if let Some(d) = self.devices.get_mut("kbd") { d.set(s) },
                 None => {
                     self.send(json!({"error": "bad kbd"}));
                     return true;
@@ -429,6 +462,17 @@ impl<'a> Session<'a> {
                 }
             }
         }
+        // The mode to start in next time (the console the controller is on now needs it), without
+        // touching the USB side now: the console sees nothing.
+        if let Some(m) = msg.get("boot_mode").and_then(Value::as_str) {
+            if ["standard", "hori", "pro"].contains(&m) && usb_mode_saved().as_deref() != Some(m) {
+                match std::fs::write(MODE_FILE, format!("{m}\n")) {
+                    Ok(()) => log(format!("starts in {m} mode from now on")),
+                    Err(e) => log(format!("{MODE_FILE}: {e}")),
+                }
+            }
+            return true;
+        }
         if let Some(v) = msg.get("usb_mode") {
             let mode = v.as_str().unwrap_or("");
             if !["standard", "hori", "pro"].contains(&mode) {
@@ -439,16 +483,30 @@ impl<'a> Session<'a> {
             // keeps starting in the mode it had
             let keep = if msg.get("save").and_then(Value::as_bool) == Some(false) { "NS2BENCH_NO_SAVE=1 " } else { "" };
             log(format!("switching USB mode to {mode}{}", if keep.is_empty() { "" } else { " (not saved)" }));
+            if self.switching.is_some() {
+                self.send(json!({"error": "a USB mode switch is already under way"}));
+                return true;
+            }
             let here = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()))
                 .unwrap_or_else(|| "/opt/ns2bench".into());
             let here = here.display();
-            // detached: stop this daemon (it holds the HID devices the rebuild removes), rebuild, start again
-            let script = format!("(sleep 0.5; {here}/ns2bench-hidd.sh stop >/dev/null 2>&1; \
-                NS2BENCH_GADGET_LOGGED=1 {keep}{here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1; \
-                {here}/ns2bench-hidd.sh start >/dev/null 2>&1) </dev/null >/dev/null 2>&1 &");
-            let _ = std::process::Command::new("/bin/sh").arg("-c").arg(script).spawn();
-            self.send(json!({"ok": format!("switching to {mode}")}));
-            return false;
+            // This daemon stays and so does the bench's connection: let go of everything and close
+            // the devices the rebuild removes, rebuild, then reopen (see `poll_switch`). Only the
+            // console sees the controller change (a different USB device can't appear otherwise).
+            for (_, d) in std::mem::take(&mut self.devices) { d.close(); }
+            let script = format!("NS2BENCH_GADGET_LOGGED=1 {keep}{here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1");
+            match std::process::Command::new("/bin/sh").arg("-c").arg(script).stdin(std::process::Stdio::null()).spawn() {
+                Ok(child) => {
+                    self.switching = Some(child);
+                    self.send(json!({"ok": format!("switching to {mode}"), "stays": true}));
+                }
+                Err(e) => {
+                    log(format!("could not start the mode switch: {e}"));
+                    let _ = self.open_devices();
+                    self.send(json!({"error": format!("mode switch: {e}")}));
+                }
+            }
+            return true;
         }
         if let Some(v) = msg.get("logs") {
             let after = v.as_u64().unwrap_or(0);
@@ -576,11 +634,13 @@ pub fn main(argv: &[String]) -> Result<(), String> {
                     session = Some(Session {
                         conn, peer: peer.ip().to_string(), args: &args, buf: vec![], authed: false,
                         devices: BTreeMap::new(), mode: String::new(), last_rx: now, accepted: now, out: vec![],
+                        switching: None,
                     });
                 }
             }
         }
         let Some(s) = session.as_mut() else { continue };
+        s.poll_switch();
         let mut ok = true;
         if ready(s.conn.as_raw_fd(), libc::POLLIN) {
             let mut buf = [0u8; 4096];

@@ -90,6 +90,22 @@ fn crash_notice(path: &std::path::Path) {
     }
 }
 
+/// The picture captured the mouse (play mode): grab the cursor in this window and hide it, or put
+/// it back. The macOS web view accepts a pointer lock and does nothing, so the page asks for this
+/// instead. Release always does both, even if one fails: a grabbed or hidden cursor would take the
+/// whole Mac.
+#[tauri::command]
+fn cursor_grab(window: tauri::WebviewWindow, on: bool) -> Result<(), String> {
+    if on {
+        window.set_cursor_grab(true).map_err(|e| e.to_string())?;
+        window.set_cursor_visible(false).map_err(|e| e.to_string())
+    } else {
+        let a = window.set_cursor_grab(false);
+        let b = window.set_cursor_visible(true);
+        a.and(b).map_err(|e| e.to_string())
+    }
+}
+
 /// Help → Open logs folder.
 #[tauri::command]
 fn open_logs() {
@@ -201,7 +217,7 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .on_window_event(tray::on_window_event)
         .manage(updates::Updates::default())
-        .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action, agents::agent_action, open_logs, tray::tray_configure])
+        .invoke_handler(tauri::generate_handler![updates::update_action, cli_install::cli_action, components::component_action, agents::agent_action, open_logs, cursor_grab, tray::tray_configure])
         .setup(move |app| {
             // Installing, updating and the command line tool are only offered to the engine this
             // app started itself, never to whatever else may be answering on the port.

@@ -1,0 +1,15 @@
+#!/bin/sh
+# NS2Bench: start the controller early in boot (right after the network, S40), instead of after
+# every other vendor script; the vendor's own USB gadget (S50usbdevice) is skipped in this mode. Runs in the background: nothing in boot waits for it, SSH comes
+# up either way. The usual start at the end of boot (S99zz-ipstatic) then finds it done.
+# Only on a board set up for NS2Bench's controller (ns2-dev profile "hid"); anything else: no-op.
+case "${1:-}" in
+    start)
+        [ "$(cat /etc/ns2-dev-mode 2>/dev/null || echo network)" = hid ] || exit 0
+        [ -x /opt/ns2-dev/profile.sh ] || exit 0
+        ( /opt/ns2-dev/profile.sh boot >/dev/null 2>&1 && : > /run/ns2bench-early-done ) </dev/null &
+        ;;
+    stop|restart) ;;
+    *) echo "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;
+esac
+exit 0

@@ -257,9 +257,11 @@ function releaseAll() {
 // ------------------------------------------------------------ keyboard and mouse on the screen
 const screenEl = $('#screen');
 screenEl.addEventListener('keydown', (e) => {
+  // Esc: the mouse comes back first (as a browser's lock does); in controller mode the keys too
+  if (e.code === 'Escape' && grabbed) { e.preventDefault(); releaseMouse(); if (kbMode === 'pad') screenEl.blur(); return; }
   if (e.code === 'Escape' && kbMode === 'pad') { screenEl.blur(); return; }
   // Keyboard & mouse mode sends every key, Esc and Tab included: this chord is the way out.
-  if (e.code === 'KeyU' && e.ctrlKey && e.altKey) { e.preventDefault(); held.clear(); document.exitPointerLock?.(); screenEl.blur(); return; }
+  if (e.code === 'KeyU' && e.ctrlKey && e.altKey) { e.preventDefault(); held.clear(); releaseMouse(); screenEl.blur(); return; }
   e.preventDefault();
   if (inputUnavailable()) { warnInput(); return; }
   held.add(e.code);
@@ -273,39 +275,63 @@ screenEl.addEventListener('blur', () => held.clear());
 window.addEventListener('blur', releaseAll);
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
+// Capturing the mouse for play: the browser's pointer lock, or in the desktop app (whose macOS web
+// view accepts a lock and does nothing) the app's own cursor grab, as ps5upload's play does.
+// Every way out (Esc, leaving the window, hiding the page) gives the cursor back.
+const appInvoke = window.__TAURI__?.core?.invoke;
+let grabbed = false;
+const captured = () => document.pointerLockElement === screenEl || grabbed;
+function setCaptured(on) {
+  screenEl.classList.toggle('locked', on);
+  screenEl.dataset.lockHint = kbMode === 'usb' ? t('Mouse and keyboard go to the console · Esc releases the mouse') : t('Mouse aims · Esc releases');
+  if (!on) { mouse.buttons = 0; mouse.dirty = true; aim[0] = aim[1] = 0; }
+}
+function grabCursor(on) {
+  if (!appInvoke || grabbed === on) return;
+  grabbed = on; setCaptured(on);
+  appInvoke('cursor_grab', { on }).catch(() => { if (on) { grabbed = false; setCaptured(false); } });
+}
+function captureMouse() {
+  screenEl.requestPointerLock?.({ unadjustedMovement: true })?.catch?.(() => screenEl.requestPointerLock());
+  // no lock 150 ms later in the app: grab instead
+  if (appInvoke) setTimeout(() => { if (!document.pointerLockElement && document.activeElement === screenEl) grabCursor(true); }, 150);
+}
+function releaseMouse() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  grabCursor(false);
+}
+window.addEventListener('blur', releaseMouse);
+window.addEventListener('pagehide', releaseMouse);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseMouse(); });
+
 const HID_BUTTON = { 0: 1, 2: 2, 1: 4, 3: 8, 4: 16 };   // MouseEvent.button -> HID bit
 screenEl.addEventListener('mousedown', (e) => {
-  if (!document.pointerLockElement) {
+  if (!captured()) {
     screenEl.focus();
-    if (kbMode === 'usb' || e.shiftKey) screenEl.requestPointerLock?.({ unadjustedMovement: true })
-      ?.catch?.(() => screenEl.requestPointerLock());
+    if (kbMode === 'usb' || e.shiftKey) captureMouse();
     return;
   }
   if (kbMode === 'usb') { mouse.buttons |= HID_BUTTON[e.button] ?? 0; mouse.dirty = true; }
   e.preventDefault();
 });
 window.addEventListener('mouseup', (e) => {
-  if (kbMode === 'usb' && document.pointerLockElement === screenEl) {
+  if (kbMode === 'usb' && captured()) {
     mouse.buttons &= ~(HID_BUTTON[e.button] ?? 0); mouse.dirty = true;
   }
 });
 document.addEventListener('mousemove', (e) => {
-  if (document.pointerLockElement !== screenEl) return;
+  if (!captured()) return;
   if (kbMode === 'usb') { mouse.dx += e.movementX; mouse.dy += e.movementY; mouse.dirty = true; }
   else { aim[0] = Math.max(-1, Math.min(1, aim[0] + e.movementX * AIM_GAIN));
     aim[1] = Math.max(-1, Math.min(1, aim[1] + e.movementY * AIM_GAIN)); }
 });
 screenEl.addEventListener('wheel', (e) => {
-  if (document.pointerLockElement !== screenEl || kbMode !== 'usb') return;
+  if (!captured() || kbMode !== 'usb') return;
   e.preventDefault();
   mouse.wheel += e.deltaY > 0 ? -1 : e.deltaY < 0 ? 1 : 0; mouse.dirty = true;
 }, { passive: false });
 screenEl.addEventListener('contextmenu', (e) => e.preventDefault());
-document.addEventListener('pointerlockchange', () => {
-  const locked = document.pointerLockElement === screenEl;
-  screenEl.classList.toggle('locked', locked);
-  if (!locked) { mouse.buttons = 0; mouse.dirty = true; aim[0] = aim[1] = 0; }
-});
+document.addEventListener('pointerlockchange', () => setCaptured(captured()));
 
 const hint = () => {
   $('#capture-hint').textContent = kbMode === 'pad'
@@ -316,7 +342,7 @@ document.querySelectorAll('input[name=kbmode]').forEach((r) => {
   r.checked = r.value === kbMode;
   r.addEventListener('change', () => {
     releaseAll(); kbMode = r.value; store.set('kbmode', kbMode); hint();
-    if (document.pointerLockElement) document.exitPointerLock();
+    releaseMouse();
   });
 });
 hint();

@@ -55,12 +55,34 @@ async fn watch_controller(b: Arc<crate::Bench>) {
     let mut down_since: Option<std::time::Instant> = None;
     let mut detector: Option<crate::detect::Detector> = None;
     let mut gave_up = false;
+    // the board gone while a console is on (its picture live): worth one notification an outage
+    let mut away_since: Option<std::time::Instant> = None;
+    let mut told_away = false;
     loop {
         tokio::time::sleep(Duration::from_secs(1)).await;
         detect_step(&b, &mut detector, &mut gave_up);
         let st = b.hub.status();
         let connected = st["connected"] == true;
         let usb = st["usb"].as_str().unwrap_or("");
+        let uses_board = st["backend"].as_str().is_some_and(|k| k != "none");
+        if connected || !uses_board {
+            away_since = None;
+            told_away = false;
+        } else {
+            let since = *away_since.get_or_insert_with(std::time::Instant::now);
+            if !told_away && since.elapsed() >= Duration::from_secs(20) {
+                // asked once an outage: a console really on (a picture, not "No Signal": the card
+                // keeps sending frames while the console sleeps) with the board gone is a problem
+                told_away = true;
+                let mut console_on = false;
+                for c in b.list() {
+                    if crate::power::showing_picture(&b, &c.id).await { console_on = true; break; }
+                }
+                if !console_on { continue; }
+                b.logs.notify("bench", "warn", "Bridge not answering",
+                    "NS2Bench Bridge: no answer for 20 s while a console is on. Check the board's network cable and its USB cable to the console (it powers the board)");
+            }
+        }
         let mut moved = false;
         if was_connected == Some(true) && !connected { down_since = Some(std::time::Instant::now()); }
         if was_connected == Some(false) && connected {

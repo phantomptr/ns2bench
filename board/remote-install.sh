@@ -5,7 +5,7 @@
 # files as *.bak, swaps the new ones in and restarts the daemon.
 set -e
 cd /opt/ns2bench
-for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new quirks/*.new; do sh -n "$f"; done
+for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new S45ns2bench-early.new quirks/*.new; do sh -n "$f"; done
 bash -n restore-default-gadget.sh.new
 chmod 755 ns2bench-board.new
 ./ns2bench-board.new version
@@ -13,6 +13,12 @@ for f in ns2bench-board gadget.sh ns2bench-hidd.sh; do [ ! -e "$f" ] || cp -p "$
 # boot hook for SD swap: installed once, never replaced; a board without /etc/init.d goes without
 if [ -e /etc/init.d/S98ns2bench-swap ] || [ ! -d /etc/init.d ]; then rm -f S98ns2bench-swap.new
 else chmod 755 S98ns2bench-swap.new; mv S98ns2bench-swap.new /etc/init.d/S98ns2bench-swap || rm -f S98ns2bench-swap.new; fi
+# early start (Luckfox/ns2-dev boards): replaced on every install, the previous copy kept as .bak
+if [ -d /etc/init.d ] && [ -x /opt/ns2-dev/profile.sh ]; then
+  [ ! -e /etc/init.d/S45ns2bench-early ] || cp -p /etc/init.d/S45ns2bench-early /etc/init.d/S45ns2bench-early.bak
+  chmod 755 S45ns2bench-early.new; mv S45ns2bench-early.new /etc/init.d/S45ns2bench-early || rm -f S45ns2bench-early.new
+else rm -f S45ns2bench-early.new; fi
+rm -f /etc/init.d/S51ns2bench-early   # (its earlier name)
 for q in quirks/*.new; do b=${q%.new}; [ ! -e "$b" ] || cp -p "$b" "$b.bak"; mv "$q" "$b"; done
 for f in swap.sh restore-default-gadget.sh; do [ ! -e "$f" ] || cp -p "$f" "$f.bak"; done
 chmod 755 ns2bench-board.new gadget.sh.new ns2bench-hidd.sh.new swap.sh.new restore-default-gadget.sh.new

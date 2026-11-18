@@ -6,6 +6,16 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **The Luckfox is ready much sooner after power-up:** usable as a Pro Controller about **5.4 s** after power-on (it was 13 s). Its controller set-up runs early in boot, the vendor's unused USB setup is skipped, and it starts in the mode the console it was last on needs, Switch 1 or Switch 2. Install the board update from **Settings → Install → Bridge board**.
+- **Switching the controller's mode no longer drops the board's connection.** Only the console sees the controller change, about 1 s on the board. There's no "Board ✗", no reconnecting and no "which console?" question afterwards.
+- **NS2Bench notices the board coming back sooner** after a console wakes up (it checks every half second).
+- **Fewer "Bridge disconnected" notifications.** A console going to sleep turns the board off, which is normal, so that's only logged now. You're notified when the board stays away for 20 s while a console is on.
+- **Mouse capture works in the Mac app,** like ps5upload's play mode. Click the picture (or Shift+click with controller buttons) and the mouse goes to the console, with a faint note on how to release it. Esc, leaving the window or hiding it always gives the cursor back.
+- **Sleep is greyed out without HDMI-CEC,** and says how to set it up. Wake works through the controller.
+- **The health check understands the shared home network.** It looks for each console on the network instead of warning about missing DHCP leases. The greyed-out DHCP switch explains why it's off.
+- **Settings → Install** makes clear the Raspberry Pi Pico firmware isn't for a Luckfox, and how a Pico connects.
+- **Thank you** moved to the far right of the top bar.
+
 ## 0.0.23
 
 - **The shared controller follows the console you switch to.** Click a console and the controller (and the mode that console's type needs) goes with it. Move its cable to that console. If the board shows it's still plugged into the Switch 2, NS2Bench says so instead of switching. Turn it off, or leave a console out, in **Settings → Consoles**.

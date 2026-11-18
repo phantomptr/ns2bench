@@ -43,7 +43,9 @@ impl Link {
     pub async fn connect(&self) -> Result<(Reader, Writer)> {
         match self {
             Link::Tcp { host, port } => {
-                let s = tokio::time::timeout(Duration::from_secs(5), tokio::net::TcpStream::connect((host.as_str(), *port))).await??;
+                // short: a board that just powered up (its console woke) is noticed within a second
+                // or two, instead of after a long wait on the attempt made while it was still off
+                let s = tokio::time::timeout(Duration::from_millis(1500), tokio::net::TcpStream::connect((host.as_str(), *port))).await??;
                 s.set_nodelay(true)?;
                 let (r, w) = s.into_split();
                 Ok((Box::new(r), Box::new(w)))

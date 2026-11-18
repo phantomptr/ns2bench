@@ -144,6 +144,23 @@ pub async fn run(b: &Bench, probe: bool) -> Value {
                 out.push(check("console network isolation", "ok", "forwarding off", ""));
             }
         }
+        // Shared home network: consoles have fixed addresses and get no leases (DHCP stays off on
+        // purpose). What tells there is whether the helper has seen each console's lookups.
+        if crate::shared_net::is_shared(b) {
+            let consoles: Vec<(String, Option<String>)> = b.list().iter().map(|c| (c.name(), c.network_ip.lock().unwrap().clone())).collect();
+            let seen: Vec<String> = consoles.iter().filter_map(|(n, ip)| ip.as_deref().filter(|ip| crate::netseen::model_at(ip).is_some()
+                || crate::netseen::tested_within(ip, std::time::Duration::from_secs(24 * 3600))).map(|ip| format!("{n} ({ip})"))).collect();
+            let missing: Vec<String> = consoles.iter().filter(|(n, ip)| ip.is_some() && !seen.iter().any(|s| s.starts_with(n.as_str()))).map(|(n, _)| n.clone()).collect();
+            let no_ip: Vec<String> = consoles.iter().filter(|(_, ip)| ip.is_none()).map(|(n, _)| n.clone()).collect();
+            let (state, detail, fix) = if !missing.is_empty() {
+                ("warn", format!("not seen on the network yet: {}", missing.join(", ")), "Check that console's network settings: its DNS must be this computer's address (Settings → Network shows it). It shows up once it looks a name up.".to_string())
+            } else if seen.is_empty() {
+                ("warn", "no console address set".to_string(), "Give each console its network address in Settings → Consoles.".to_string())
+            } else {
+                ("ok", format!("seen: {}", seen.join(", ")), String::new())
+            };
+            out.push(check("console network (shared)", state, if no_ip.is_empty() { detail } else { format!("{detail}; no address set for {}", no_ip.join(", ")) }, &fix));
+        } else {
         match std::fs::read_to_string(crate::config::state_dir().join("leases.json")).ok().and_then(|s| serde_json::from_str::<Value>(&s).ok()) {
             Some(leases) => {
                 let now = crate::logs::now();
@@ -154,6 +171,7 @@ pub async fn run(b: &Bench, probe: bool) -> Value {
                     if any { "" } else { "Is the console connected to the bench network interface?" }));
             }
             None => out.push(check("console network", "warn", "no lease data", "")),
+        }
         }
     }
 

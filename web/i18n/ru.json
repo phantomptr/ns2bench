@@ -344,7 +344,6 @@
   "Pause": "Пауза",
   "Peach": "Персик",
   "Pick it in the Video panel.": "Выберите её на панели «Видео».",
-  "Pico firmware": "Прошивка Pico",
   "Pico ready:": "Pico готов:",
   "Pico: UART0 GP0/GP1 + GND to a 3.3 V USB-UART adapter; 921600 baud. Console uses the Pico USB port.": "Pico: UART0 GP0/GP1 + GND к адаптеру USB-UART 3.3 V; 921600 бод. Консоль подключается к USB-порту Pico.",
   "Picture is back": "Изображение вернулось",
@@ -513,7 +512,6 @@
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Переведён только интерфейс. Журналы, текст консоли и сообщения API остаются без изменений.",
   "Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench.": "Включите «Звук» на панели инструментов. Звук идёт с карты захвата, поэтому выберите ту же карту на панели «Видео». На Mac разрешите NS2Bench доступ к Микрофону.",
   "Turn sound on": "Включить звук",
-  "Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.": "Превращает Raspberry Pi Pico в NS2Bench Bridge. Удерживая кнопку BOOTSEL на Pico, подключите его к этому компьютеру, затем нажмите «Прошить Pico».",
   "Turns off the frosted-glass blur behind the toolbar and dialogs.": "Отключает размытие «матового стекла» за панелью и диалогами.",
   "Up": "Вверх",
   "Update": "Обновить",
@@ -698,5 +696,14 @@
   "Show pictures": "Показать изображения",
   "Type": "Тип",
   "Uses the shared controller": "Использует общий контроллер",
-  "When I switch consoles, the shared controller switches too (move its cable to that console)": "При переключении консоли общий контроллер переключается тоже (подключите его кабель к этой консоли)"
+  "When I switch consoles, the shared controller switches too (move its cable to that console)": "При переключении консоли общий контроллер переключается тоже (подключите его кабель к этой консоли)",
+  "A Pico has one USB port, and it goes to the console. The computer talks to it through its serial pins with a USB-to-serial adapter (see the setup guide). To flash it, plug it into this computer once: hold its BOOTSEL button while you plug it in, then click Flash Pico. Then move its USB cable to the console.": "У Pico один USB-порт, и он идёт к консоли. Компьютер общается с ней через последовательные выводы и USB-UART адаптер (см. руководство). Чтобы прошить, подключите её один раз к этому компьютеру: удерживая BOOTSEL, вставьте кабель и нажмите «Прошить Pico». Затем переключите USB-кабель на консоль.",
+  "Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.": "Выключено в общей домашней сети: иначе компьютер раздавал бы адреса в вашей сети и мешал роутеру. Консоли используют постоянные адреса.",
+  "Only if you use a Raspberry Pi Pico as the controller instead of a Linux board like the Luckfox. A Luckfox needs nothing here: it’s set up under Bridge board.": "Только если контроллером служит Raspberry Pi Pico, а не Linux-плата вроде Luckfox. Luckfox здесь ничего не нужно: она настраивается в разделе «Плата Bridge».",
+  "Put the console to sleep (over HDMI-CEC)": "Перевести консоль в сон (через HDMI-CEC)",
+  "Raspberry Pi Pico firmware (not for a Luckfox)": "Прошивка Raspberry Pi Pico (не для Luckfox)",
+  "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "Для сна нужен HDMI-CEC (Настройки → Устройства → Питание и пробуждение). Пробуждение работает через контроллер.",
+  "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "Для сна нужен HDMI-CEC: настройте в Настройки → Устройства → Питание и пробуждение",
+  "Mouse aims · Esc releases": "Мышь целится · Esc освобождает",
+  "Mouse and keyboard go to the console · Esc releases the mouse": "Мышь и клавиатура идут на консоль · Esc освобождает мышь"
 }

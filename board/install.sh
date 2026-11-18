@@ -24,7 +24,7 @@ $SSH "mkdir -p $DEST/quirks && chmod 700 $DEST"
 echo "uploading to $HOST:$DEST"
 scp -q "$BIN" "$HOST:$DEST/ns2bench-board.new"
 scp -q "$HERE/gadget.sh" "$HOST:$DEST/gadget.sh.new"
-for f in ns2bench-hidd.sh swap.sh restore-default-gadget.sh S98ns2bench-swap; do scp -q "$HERE/$f" "$HOST:$DEST/$f.new"; done
+for f in ns2bench-hidd.sh swap.sh restore-default-gadget.sh S98ns2bench-swap S45ns2bench-early; do scp -q "$HERE/$f" "$HOST:$DEST/$f.new"; done
 for q in "$HERE"/quirks/*.sh; do scp -q "$q" "$HOST:$DEST/quirks/$(basename "$q").new"; done
 
 if ! $SSH "test -s $DEST/token"; then

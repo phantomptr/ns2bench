@@ -29,7 +29,8 @@ case "${1:-}" in
         command -v chrt >/dev/null 2>&1 && RT="chrt -f 50"
         $RT "$DIR/ns2bench-board" hidd "$@" > "$LOG" 2>&1 &
         echo $! > "$PIDFILE"
-        sleep 1
+        # ready as soon as it listens (at most 1 s; it used to always wait the full second)
+        i=0; while [ "$i" -lt 20 ] && running && ! grep -q listening "$LOG" 2>/dev/null; do sleep 0.05; i=$((i + 1)); done
         if running; then echo "started (pid $(cat "$PIDFILE"))"; else echo "failed:"; tail -5 "$LOG"; exit 1; fi
         ;;
     stop)

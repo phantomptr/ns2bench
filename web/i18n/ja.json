@@ -344,7 +344,6 @@
   "Pause": "一時停止",
   "Peach": "ピーチ",
   "Pick it in the Video panel.": "ビデオパネルで選択します。",
-  "Pico firmware": "Pico ファームウェア",
   "Pico ready:": "Pico 準備完了：",
   "Pico: UART0 GP0/GP1 + GND to a 3.3 V USB-UART adapter; 921600 baud. Console uses the Pico USB port.": "Pico：UART0 GP0/GP1 + GND を 3.3 V USB-UART アダプターに接続、921600 baud。本体は Pico の USB ポートを使用します。",
   "Picture is back": "映像が復帰しました",
@@ -513,7 +512,6 @@
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "翻訳の対象はインターフェースです。ログ、本体のテキスト、API メッセージはそのまま表示されます。",
   "Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench.": "ツールバーでサウンドをオンにしてください。音はキャプチャーカードから来るため、ビデオパネルで同じカードを選んでください。Mac では NS2Bench にマイクを許可してください。",
   "Turn sound on": "サウンドをオン",
-  "Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.": "Raspberry Pi Pico を NS2Bench Bridge にします。Pico の BOOTSEL ボタンを押したままこのコンピューターに接続し、「Pico に書き込む」をクリックしてください。",
   "Turns off the frosted-glass blur behind the toolbar and dialogs.": "ツールバーやダイアログ背後のすりガラス効果をオフにします。",
   "Up": "上",
   "Update": "更新",
@@ -698,5 +696,14 @@
   "Show pictures": "画像を表示",
   "Type": "種類",
   "Uses the shared controller": "共有コントローラーを使う",
-  "When I switch consoles, the shared controller switches too (move its cable to that console)": "コンソールを切り替えると共有コントローラーも切り替わります（ケーブルをそのコンソールに挿してください）"
+  "When I switch consoles, the shared controller switches too (move its cable to that console)": "コンソールを切り替えると共有コントローラーも切り替わります（ケーブルをそのコンソールに挿してください）",
+  "A Pico has one USB port, and it goes to the console. The computer talks to it through its serial pins with a USB-to-serial adapter (see the setup guide). To flash it, plug it into this computer once: hold its BOOTSEL button while you plug it in, then click Flash Pico. Then move its USB cable to the console.": "Pico の USB ポートは1つで、コンソールにつなぎます。パソコンとはシリアルピンと USB シリアル変換器で通信します（セットアップガイド参照）。書き込みは一度だけこのパソコンにつなぎます：BOOTSEL を押しながら接続し、「Pico に書き込む」をクリック。その後 USB ケーブルをコンソールにつなぎ替えます。",
+  "Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.": "共有ホームネットワークではオフ：家のネットワークでアドレスを配り、ルーターと衝突します。コンソールは固定アドレスを使います。",
+  "Only if you use a Raspberry Pi Pico as the controller instead of a Linux board like the Luckfox. A Luckfox needs nothing here: it’s set up under Bridge board.": "Luckfox のような Linux ボードの代わりに Raspberry Pi Pico をコントローラーにする場合のみ。Luckfox はここで何もする必要はありません（Bridge ボードで設定）。",
+  "Put the console to sleep (over HDMI-CEC)": "コンソールをスリープ（HDMI-CEC 経由）",
+  "Raspberry Pi Pico firmware (not for a Luckfox)": "Raspberry Pi Pico ファームウェア（Luckfox 用ではありません）",
+  "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "スリープには HDMI-CEC が必要です（設定 → デバイス → 電源と起動）。起動はコントローラー経由でできます。",
+  "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "スリープには HDMI-CEC が必要です：設定 → デバイス → 電源と起動 で設定",
+  "Mouse aims · Esc releases": "マウスで照準 · Esc で解除",
+  "Mouse and keyboard go to the console · Esc releases the mouse": "マウスとキーボードはコンソールへ · Esc でマウスを解除"
 }

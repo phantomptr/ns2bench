@@ -344,7 +344,6 @@
   "Pause": "暂停",
   "Peach": "蜜桃",
   "Pick it in the Video panel.": "在“视频”面板中选择它。",
-  "Pico firmware": "Pico 固件",
   "Pico ready:": "Pico 已就绪：",
   "Pico: UART0 GP0/GP1 + GND to a 3.3 V USB-UART adapter; 921600 baud. Console uses the Pico USB port.": "Pico：UART0 GP0/GP1 + GND 连接 3.3 V USB-UART 适配器；波特率 921600。主机使用 Pico 的 USB 端口。",
   "Picture is back": "画面已恢复",
@@ -513,7 +512,6 @@
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "翻译仅覆盖界面。日志、主机文字和 API 消息保持原样。",
   "Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench.": "在工具栏中打开声音。声音来自采集卡，因此请在视频面板中选择同一采集卡。在 Mac 上，请允许 NS2Bench 使用麦克风。",
   "Turn sound on": "打开声音",
-  "Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.": "把 Raspberry Pi Pico 变成 NS2Bench Bridge。按住 Pico 的 BOOTSEL 按钮插入这台电脑，然后点击“刷写 Pico”。",
   "Turns off the frosted-glass blur behind the toolbar and dialogs.": "关闭工具栏和对话框后面的毛玻璃模糊。",
   "Up": "上",
   "Update": "更新",
@@ -698,5 +696,14 @@
   "Show pictures": "显示画面",
   "Type": "类型",
   "Uses the shared controller": "使用共享手柄",
-  "When I switch consoles, the shared controller switches too (move its cable to that console)": "切换主机时，共享手柄也一起切换（把它的线插到那台主机上）"
+  "When I switch consoles, the shared controller switches too (move its cable to that console)": "切换主机时，共享手柄也一起切换（把它的线插到那台主机上）",
+  "A Pico has one USB port, and it goes to the console. The computer talks to it through its serial pins with a USB-to-serial adapter (see the setup guide). To flash it, plug it into this computer once: hold its BOOTSEL button while you plug it in, then click Flash Pico. Then move its USB cable to the console.": "Pico 只有一个 USB 口，接到主机。电脑通过 USB 转串口适配器连它的串口引脚（见设置指南）。刷写时把它接到这台电脑一次：按住 BOOTSEL 再插上，然后点“刷写 Pico”。之后把 USB 线改接到主机。",
+  "Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.": "共享家庭网络中关闭：否则会在家里网络分配地址，和路由器冲突。主机使用固定地址。",
+  "Only if you use a Raspberry Pi Pico as the controller instead of a Linux board like the Luckfox. A Luckfox needs nothing here: it’s set up under Bridge board.": "仅当你用 Raspberry Pi Pico 而不是 Luckfox 这类 Linux 板当手柄时才需要。Luckfox 在这里不用做任何事（在 Bridge 板中设置）。",
+  "Put the console to sleep (over HDMI-CEC)": "让主机休眠（通过 HDMI-CEC）",
+  "Raspberry Pi Pico firmware (not for a Luckfox)": "Raspberry Pi Pico 固件（不适用于 Luckfox）",
+  "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "休眠需要 HDMI-CEC（设置 → 设备 → 电源与唤醒）。唤醒可通过手柄完成。",
+  "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "休眠需要 HDMI-CEC：在 设置 → 设备 → 电源与唤醒 中设置",
+  "Mouse aims · Esc releases": "鼠标瞄准 · Esc 释放",
+  "Mouse and keyboard go to the console · Esc releases the mouse": "鼠标和键盘发往主机 · Esc 释放鼠标"
 }

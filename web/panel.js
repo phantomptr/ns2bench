@@ -56,9 +56,15 @@ function consoleCard(s, v) {
   // wake and sleep reach the console through the controller (or its power command): only the
   // console the controller is plugged into
   const blocked = inputBlock();
-  for (const id of ['#pc-wake', '#pc-sleep']) $(id).disabled = !!blocked;
-  $('#pc-note').hidden = !blocked;
-  $('#pc-note').textContent = blocked ? t('Wake and sleep go to the console the controller is plugged into.') : '';
+  // Sleep is sent over HDMI-CEC only: without it set up, the button can't work
+  const cec = s.power?.cec === true;
+  $('#pc-wake').disabled = !!blocked;
+  $('#pc-sleep').disabled = !!blocked || !cec;
+  $('#pc-sleep').title = cec ? t('Put the console to sleep (over HDMI-CEC)') : t('Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake');
+  const why = blocked ? t('Wake and sleep go to the console the controller is plugged into.')
+    : !cec ? t('Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.') : '';
+  $('#pc-note').hidden = !why;
+  $('#pc-note').textContent = why;
 }
 $('#pc-edit').onclick = () => { const v = viewed(); if (v) editConsole(v.id); };
 async function power(action, btn) {
@@ -67,7 +73,7 @@ async function power(action, btn) {
     const r = await post('/api/power', { action });
     if (r.ok === false) throw new Error(r.detail || t('It didn’t work.'));
     toast(action === 'wake' ? t('Wake sent.') : t('Sleep sent.'), 'ok');
-  } catch (e) { failed(e); } finally { btn.disabled = !!inputBlock(); }
+  } catch (e) { failed(e); } finally { btn.disabled = !!inputBlock() || (action === 'sleep' && lastStatus?.power?.cec !== true); }
 }
 $('#pc-wake').onclick = (e) => power('wake', e.currentTarget);
 $('#pc-sleep').onclick = (e) => power('sleep', e.currentTarget);
@@ -224,7 +230,9 @@ $('#pn-addr').onclick = () => { const v = viewed(); if (v) editConsole(v.id); };
 $('#pn-settings').onclick = () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'network' }));
 
 /** From each status (after the console strip has taken it). */
+let lastStatus = null;
 export function updatePanel(s) {
+  lastStatus = s;
   const v = viewed();
   last = { s, v };
   consoleCard(s, v);

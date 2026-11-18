@@ -344,7 +344,6 @@
   "Pause": "Pausar",
   "Peach": "Pêssego",
   "Pick it in the Video panel.": "Escolha-a no painel Vídeo.",
-  "Pico firmware": "Firmware do Pico",
   "Pico ready:": "Pico pronto:",
   "Pico: UART0 GP0/GP1 + GND to a 3.3 V USB-UART adapter; 921600 baud. Console uses the Pico USB port.": "Pico: UART0 GP0/GP1 + GND a um adaptador USB-UART de 3.3 V; 921600 baud. O console usa a porta USB do Pico.",
   "Picture is back": "A imagem voltou",
@@ -513,7 +512,6 @@
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "As traduções cobrem a interface. Logs, textos do console e mensagens da API não são traduzidos.",
   "Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench.": "Ative Som na barra de ferramentas. O som vem da placa de captura, então escolha a mesma placa no painel Vídeo. No Mac, permita Microfone para o NS2Bench.",
   "Turn sound on": "Ligar o som",
-  "Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.": "Transforma um Raspberry Pi Pico no NS2Bench Bridge. Segure o botão BOOTSEL do Pico enquanto o conecta a este computador e clique em Gravar no Pico.",
   "Turns off the frosted-glass blur behind the toolbar and dialogs.": "Desliga o desfoque translúcido atrás da barra e das caixas de diálogo.",
   "Up": "Cima",
   "Update": "Atualizar",
@@ -698,5 +696,14 @@
   "Show pictures": "Mostrar imagens",
   "Type": "Tipo",
   "Uses the shared controller": "Usa o controle compartilhado",
-  "When I switch consoles, the shared controller switches too (move its cable to that console)": "Ao trocar de console, o controle compartilhado troca junto (ligue o cabo nesse console)"
+  "When I switch consoles, the shared controller switches too (move its cable to that console)": "Ao trocar de console, o controle compartilhado troca junto (ligue o cabo nesse console)",
+  "A Pico has one USB port, and it goes to the console. The computer talks to it through its serial pins with a USB-to-serial adapter (see the setup guide). To flash it, plug it into this computer once: hold its BOOTSEL button while you plug it in, then click Flash Pico. Then move its USB cable to the console.": "A Pico tem uma porta USB, que vai ao console. O computador fala com ela pelos pinos seriais com um adaptador USB-serial (veja o guia). Para gravar, conecte-a uma vez a este computador: segure BOOTSEL ao conectar e clique em Gravar Pico. Depois passe o cabo USB para o console.",
+  "Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.": "Desligado em uma rede doméstica compartilhada: distribuiria endereços na sua rede e brigaria com o roteador. Os consoles usam endereços fixos.",
+  "Only if you use a Raspberry Pi Pico as the controller instead of a Linux board like the Luckfox. A Luckfox needs nothing here: it’s set up under Bridge board.": "Só se você usar uma Raspberry Pi Pico como controle em vez de uma placa Linux como a Luckfox. A Luckfox não precisa de nada aqui: é configurada em Placa Bridge.",
+  "Put the console to sleep (over HDMI-CEC)": "Colocar o console em repouso (via HDMI-CEC)",
+  "Raspberry Pi Pico firmware (not for a Luckfox)": "Firmware da Raspberry Pi Pico (não para Luckfox)",
+  "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "O repouso precisa de HDMI-CEC (Configurações → Dispositivos → Energia e despertar). Despertar funciona pelo controle.",
+  "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "O repouso precisa de HDMI-CEC: configure em Configurações → Dispositivos → Energia e despertar",
+  "Mouse aims · Esc releases": "O mouse mira · Esc libera",
+  "Mouse and keyboard go to the console · Esc releases the mouse": "Mouse e teclado vão para o console · Esc libera o mouse"
 }

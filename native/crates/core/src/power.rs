@@ -240,6 +240,11 @@ async fn seen(b: &S) -> Seen {
     Seen::Picture
 }
 
+/// This console shows a real picture (not black, not the card's "No Signal" screen): it's on.
+pub async fn showing_picture(b: &S, id: &str) -> bool {
+    crate::console::SELECTED.scope(Some(id.to_string()), async { matches!(seen(b).await, Seen::Picture) }).await
+}
+
 /// The console has its USB up for the Bridge: it is on, whatever the picture says.
 fn usb_up(b: &S) -> bool {
     let s = b.hub.status();

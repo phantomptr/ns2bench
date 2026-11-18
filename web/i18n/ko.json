@@ -344,7 +344,6 @@
   "Pause": "일시 정지",
   "Peach": "피치",
   "Pick it in the Video panel.": "비디오 패널에서 선택하세요.",
-  "Pico firmware": "Pico 펌웨어",
   "Pico ready:": "Pico 준비됨:",
   "Pico: UART0 GP0/GP1 + GND to a 3.3 V USB-UART adapter; 921600 baud. Console uses the Pico USB port.": "Pico: UART0 GP0/GP1 + GND를 3.3 V USB-UART 어댑터에 연결, 921600 baud. 본체는 Pico USB 포트를 사용합니다.",
   "Picture is back": "화면이 돌아왔습니다",
@@ -513,7 +512,6 @@
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "번역은 인터페이스에만 적용됩니다. 로그, 본체 텍스트, API 메시지는 그대로 유지됩니다.",
   "Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench.": "툴바에서 사운드를 켜세요. 소리는 캡처 카드에서 오므로 비디오 패널에서 같은 카드를 선택하세요. Mac에서는 NS2Bench에 마이크를 허용하세요.",
   "Turn sound on": "소리 켜기",
-  "Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.": "Raspberry Pi Pico를 NS2Bench Bridge로 만듭니다. Pico의 BOOTSEL 버튼을 누른 채 이 컴퓨터에 연결한 다음 Pico 플래시를 클릭하세요.",
   "Turns off the frosted-glass blur behind the toolbar and dialogs.": "도구 막대와 대화 상자 뒤의 반투명 흐림을 끕니다.",
   "Up": "위",
   "Update": "업데이트",
@@ -698,5 +696,14 @@
   "Show pictures": "이미지 보기",
   "Type": "종류",
   "Uses the shared controller": "공유 컨트롤러 사용",
-  "When I switch consoles, the shared controller switches too (move its cable to that console)": "콘솔을 바꾸면 공유 컨트롤러도 함께 바뀝니다 (케이블을 그 콘솔에 꽂으세요)"
+  "When I switch consoles, the shared controller switches too (move its cable to that console)": "콘솔을 바꾸면 공유 컨트롤러도 함께 바뀝니다 (케이블을 그 콘솔에 꽂으세요)",
+  "A Pico has one USB port, and it goes to the console. The computer talks to it through its serial pins with a USB-to-serial adapter (see the setup guide). To flash it, plug it into this computer once: hold its BOOTSEL button while you plug it in, then click Flash Pico. Then move its USB cable to the console.": "Pico는 USB 포트가 하나이며 콘솔에 연결합니다. 컴퓨터는 USB-시리얼 어댑터로 시리얼 핀을 통해 통신합니다(설정 가이드 참고). 플래시하려면 이 컴퓨터에 한 번 연결하세요: BOOTSEL을 누른 채 연결한 뒤 Pico 플래시를 클릭. 그다음 USB 케이블을 콘솔로 옮기세요.",
+  "Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.": "공유 홈 네트워크에서는 꺼짐: 홈 네트워크에 주소를 배포해 공유기와 충돌합니다. 콘솔은 고정 주소를 사용합니다.",
+  "Only if you use a Raspberry Pi Pico as the controller instead of a Linux board like the Luckfox. A Luckfox needs nothing here: it’s set up under Bridge board.": "Luckfox 같은 리눅스 보드 대신 Raspberry Pi Pico를 컨트롤러로 쓸 때만 필요합니다. Luckfox는 여기서 할 일이 없습니다(Bridge 보드에서 설정).",
+  "Put the console to sleep (over HDMI-CEC)": "콘솔 절전 (HDMI-CEC 사용)",
+  "Raspberry Pi Pico firmware (not for a Luckfox)": "Raspberry Pi Pico 펌웨어 (Luckfox용 아님)",
+  "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "절전에는 HDMI-CEC가 필요합니다(설정 → 장치 → 전원 및 깨우기). 깨우기는 컨트롤러로 됩니다.",
+  "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "절전에는 HDMI-CEC가 필요합니다: 설정 → 장치 → 전원 및 깨우기에서 설정",
+  "Mouse aims · Esc releases": "마우스로 조준 · Esc로 해제",
+  "Mouse and keyboard go to the console · Esc releases the mouse": "마우스와 키보드가 콘솔로 · Esc로 마우스 해제"
 }

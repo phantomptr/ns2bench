@@ -217,6 +217,9 @@ impl Bench {
         if self.hub.manual_mode.load(SeqCst) { return; }
         let want = crate::console::model_mode(&c.model.lock().unwrap());
         let st = self.hub.status();
+        // next time the board powers up (the console woke), it starts as what this console needs,
+        // instead of starting as the other and switching over (seconds, and a reconnect)
+        if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
         if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| m != want) {
             if self.hub.mode_tries.fetch_add(1, SeqCst) >= 2 {
                 if self.hub.mode_tries.load(SeqCst) == 3 {
@@ -377,6 +380,8 @@ impl Bench {
             "engine": "native",
             "version": env!("CARGO_PKG_VERSION"),
             "safe_mode": crate::config::safe_mode(),
+            // what the page can offer: putting a console to sleep needs HDMI-CEC
+            "power": {"cec": crate::power::settings()["cec"] == true},
             "last_run_unclean": crate::report::unclean_previous().is_some(),
             "console": target.as_ref().map(|c| c.id.clone()),
             "consoles": self.list().iter().map(|c| c.info(on.as_deref() == Some(c.id.as_str()))).collect::<Vec<_>>(),

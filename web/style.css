@@ -297,6 +297,12 @@ button:disabled { opacity: .5; cursor: default; }
 .console-tile .edit { position: absolute; left: 8px; top: 8px; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgb(0 0 0 / .55); color: #fff; cursor: pointer; opacity: .85; }
 .console-tile .edit:hover, .console-tile .edit:focus-visible { opacity: 1; background: rgb(0 0 0 / .75); }
 .console-tile .edit svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* play: the mouse is captured; a faint note says how to get it back, then fades */
+#screen.locked { cursor: none; }
+#screen.locked::after { content: attr(data-lock-hint); position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  padding: 4px 12px; border-radius: 999px; font-size: 12px; color: #fff; background: rgb(0 0 0 / .55); pointer-events: none;
+  animation: lock-hint 3s ease forwards; z-index: 5; white-space: nowrap; }
+@keyframes lock-hint { 0%, 70% { opacity: 1; } 100% { opacity: .25; } }
 .console-thumb { width: 220px; padding: 0; border-radius: 12px; overflow: hidden; border: 2px solid var(--line); background: var(--field); color: inherit; text-align: left; cursor: pointer; }
 .console-thumb[aria-pressed="true"] { border-color: var(--tab-color); }
 .console-thumb .pic { position: relative; aspect-ratio: 16 / 9; background: #0b0c0e; }

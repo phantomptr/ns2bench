@@ -344,7 +344,6 @@
   "Pause": "Pausa",
   "Peach": "Pesca",
   "Pick it in the Video panel.": "Selezionala nel pannello Video.",
-  "Pico firmware": "Firmware Pico",
   "Pico ready:": "Pico pronto:",
   "Pico: UART0 GP0/GP1 + GND to a 3.3 V USB-UART adapter; 921600 baud. Console uses the Pico USB port.": "Pico: UART0 GP0/GP1 + GND a un adattatore USB-UART da 3.3 V; 921600 baud. La console usa la porta USB del Pico.",
   "Picture is back": "L’immagine è tornata",
@@ -513,7 +512,6 @@
   "Translations cover the interface. Logs, console text and API messages stay as they are.": "Le traduzioni riguardano l’interfaccia. Log, testo della console e messaggi API restano invariati.",
   "Turn on Sound in the toolbar. The sound comes from the capture card, so pick the same card in the Video panel. On a Mac, allow Microphone for NS2Bench.": "Attiva Audio nella barra degli strumenti. L’audio arriva dalla scheda di acquisizione, quindi scegli la stessa scheda nel pannello Video. Su Mac, consenti Microfono per NS2Bench.",
   "Turn sound on": "Attiva l’audio",
-  "Turns a Raspberry Pi Pico into the NS2Bench Bridge. Hold the Pico’s BOOTSEL button while you plug it into this computer, then click Flash Pico.": "Trasforma un Raspberry Pi Pico nel NS2Bench Bridge. Tieni premuto il pulsante BOOTSEL del Pico mentre lo colleghi a questo computer, poi fai clic su Flasha Pico.",
   "Turns off the frosted-glass blur behind the toolbar and dialogs.": "Toglie la sfocatura traslucida dietro barra e finestre di dialogo.",
   "Up": "Su",
   "Update": "Aggiorna",
@@ -698,5 +696,14 @@
   "Show pictures": "Mostra immagini",
   "Type": "Tipo",
   "Uses the shared controller": "Usa il controller condiviso",
-  "When I switch consoles, the shared controller switches too (move its cable to that console)": "Quando cambio console, anche il controller condiviso cambia (collega il suo cavo a quella console)"
+  "When I switch consoles, the shared controller switches too (move its cable to that console)": "Quando cambio console, anche il controller condiviso cambia (collega il suo cavo a quella console)",
+  "A Pico has one USB port, and it goes to the console. The computer talks to it through its serial pins with a USB-to-serial adapter (see the setup guide). To flash it, plug it into this computer once: hold its BOOTSEL button while you plug it in, then click Flash Pico. Then move its USB cable to the console.": "Una Pico ha una sola porta USB, che va alla console. Il computer le parla tramite i pin seriali con un adattatore USB-seriale (vedi la guida). Per programmarla, collegala una volta a questo computer: tieni premuto BOOTSEL mentre la colleghi, poi fai clic su Programma Pico. Poi sposta il cavo USB alla console.",
+  "Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.": "Disattivato su una rete domestica condivisa: assegnerebbe indirizzi sulla tua rete e interferirebbe con il router. Le console usano indirizzi fissi.",
+  "Only if you use a Raspberry Pi Pico as the controller instead of a Linux board like the Luckfox. A Luckfox needs nothing here: it’s set up under Bridge board.": "Solo se usi una Raspberry Pi Pico come controller invece di una scheda Linux come la Luckfox. Una Luckfox non ha bisogno di nulla qui: si configura in Scheda Bridge.",
+  "Put the console to sleep (over HDMI-CEC)": "Metti la console in standby (tramite HDMI-CEC)",
+  "Raspberry Pi Pico firmware (not for a Luckfox)": "Firmware Raspberry Pi Pico (non per una Luckfox)",
+  "Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.": "Lo standby richiede HDMI-CEC (Impostazioni → Dispositivi → Alimentazione e risveglio). Il risveglio funziona tramite il controller.",
+  "Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake": "Lo standby richiede HDMI-CEC: configuralo in Impostazioni → Dispositivi → Alimentazione e risveglio",
+  "Mouse aims · Esc releases": "Il mouse mira · Esc rilascia",
+  "Mouse and keyboard go to the console · Esc releases the mouse": "Mouse e tastiera vanno alla console · Esc rilascia il mouse"
 }

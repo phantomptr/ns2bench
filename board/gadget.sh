@@ -170,10 +170,8 @@ build_pro() {
     [ -e "$FFS/ep4" ] || { echo "pro: FunctionFS rejected the descriptors" >&2; tail -5 /tmp/ns2bench-pro2.log >&2; return 1; }
     ln -s "$G/functions/ffs.pro2" "$G/configs/b.1/f1" || return 1
     bind || { echo "pro: could not bind the gadget to $UDC" >&2; return 1; }
-    for _ in $(seq 1 60); do grep -q 'console initialised USB' /tmp/ns2bench-pro2.log && return 0; sleep 0.1; done
-    # The controller is up; the console just hasn't talked to it yet (asleep, off, slow to wake).
-    # Stay a Pro Controller: it starts the handshake when it wakes.
-    echo "pro: ready, waiting for the console (asleep or off?) to start the controller handshake" >&2
+    # Ready. The console starts the controller handshake by itself (now, or when it wakes); nothing
+    # here waits for it, so the Bridge starts at once (it used to wait up to 6 s for the handshake).
     return 0
 }
 
@@ -189,6 +187,14 @@ if [ "$mode" = status ]; then
 fi
 
 case "$mode" in standard|hori|pro) ;; *) echo "usage: gadget.sh [standard|hori|pro|status]" >&2; exit 2 ;; esac
+
+# Boot runs this twice (early, and again at the end of boot): the second time, with the gadget
+# already built in that mode and bound, leave it alone (a rebuild would make the console reconnect).
+if [ -z "${1:-}" ] && [ -e /run/ns2bench-early-done ] && [ "$(cat "$ACTIVE_MODE" 2>/dev/null)" = "$mode" ] \
+        && [ "$(cat "$G/UDC" 2>/dev/null)" = "$UDC" ]; then
+    echo "NS2Bench: $mode already set up at boot"
+    exit 0
+fi
 
 # Every mode change is logged (at boot nothing else keeps the output), with the seconds since boot.
 if [ "${NS2BENCH_GADGET_LOGGED:-}" != 1 ]; then

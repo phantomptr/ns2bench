@@ -83,6 +83,8 @@ function networkFields() {
     // shared: DNS and the test page only; handing out addresses would fight the home router
     const on = direct || (shared && key !== 'dhcp');
     el.disabled = !on; if (!on) el.checked = false;
+    // say why it can't be turned on, right where it is greyed out
+    el.closest('label').title = !on && key === 'dhcp' && shared ? t('Off on a shared home network: it would hand out addresses on your home network and fight your router. The consoles use fixed addresses instead.') : '';
   }
   $('#shared-setup').hidden = !shared;
   if (shared) { $('#network-help').textContent = t('Consoles stay on your home network with manual settings (gateway: their own address, DNS: this computer). NS2Bench answers only their connection test and refuses every other name, including all of Nintendo. Set it up below.'); return; }

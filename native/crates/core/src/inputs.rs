@@ -146,6 +146,8 @@ pub enum Msg {
     Mouse([i32; 4]),
     /// A USB mode, and whether it becomes the board's boot default (a detection probe doesn't).
     UsbMode(String, bool),
+    /// The mode the board starts in next time (no change now).
+    BootMode(String),
     Stop(tokio::sync::oneshot::Sender<()>),
 }
 
@@ -238,7 +240,7 @@ async fn run_board(
     logs: LogHub,
     on_connect: mpsc::UnboundedSender<()>,
 ) {
-    let mut delay = Duration::from_secs(1);
+    let mut delay = Duration::from_millis(300);
     let mut log_seq: u64 = 0;
     loop {
         let res: Result<()> = async {
@@ -265,7 +267,7 @@ async fn run_board(
                     link.describe(), s.usb.clone().unwrap_or_default(), s.usb_mode.clone().unwrap_or_default(), s.devices.join(",")));
             }
             log_seq = h["log_seq"].as_u64().unwrap_or(0).saturating_sub(50);
-            delay = Duration::from_secs(1);
+            delay = Duration::from_millis(300);
             let _ = on_connect.send(());
             let mut beat = tokio::time::interval(Duration::from_millis(250));
             let mut n: u64 = 0;
@@ -284,6 +286,7 @@ async fn run_board(
                                 return Ok(());
                             }
                             Msg::UsbMode(mode, save) => format!("{}\n", json!({"usb_mode": mode, "save": save})),
+                            Msg::BootMode(mode) => format!("{}\n", json!({"boot_mode": mode})),
                         };
                         board_write(&mut w, out.as_bytes()).await?;
                     }
@@ -321,6 +324,16 @@ async fn run_board(
                                 let src = if e[2] == "kernel" { "kernel" } else { "board" };
                                 logs.add_guess(src, e[3].as_str().unwrap_or(""), e[1].as_f64().map(|t| t + shift));
                             }
+                        } else if let Some(mode) = m.get("switched").and_then(Value::as_str) {
+                            // a mode switch done without dropping the connection (newer Bridges)
+                            let mut s = status.lock().unwrap();
+                            s.usb_mode = Some(mode.to_string());
+                            if let Some(d) = m["devices"].as_array() { s.devices = d.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(); }
+                            s.usb = m["udc"].as_str().map(str::to_string).or(s.usb.clone());
+                            s.host = m["host"].as_str().map(str::to_string);
+                            drop(s);
+                            logs.add("bench", format!("NS2Bench Bridge: now in {mode} mode (switched without reconnecting)"));
+                            let _ = on_connect.send(());     // re-send what's held, as after a reconnect
                         } else if let Some(err) = m.get("error") {
                             logs.error("board", format!("error: {err}"));
                             status.lock().unwrap().detail = Some(err.to_string());
@@ -337,14 +350,15 @@ async fn run_board(
             // our own mode switch: the Bridge restarts, nothing went wrong
             if was { logs.add("bench", "NS2Bench Bridge: restarting for the USB mode change"); }
         } else if was {
-            // usually the console went to sleep (the board powers from its USB port): a warning
-            logs.notify("bench", "warn", "Bridge disconnected", format!("NS2Bench Bridge: {detail}"));
+            // Usually the console went to sleep (the board powers from its USB port): logged, not
+            // a notification. watch_controller notifies when it stays away while a console is on.
+            logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
         } else if status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
             logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
         }
         status.lock().unwrap().detail = Some(detail);
         tokio::time::sleep(delay).await;
-        delay = (delay * 2).min(Duration::from_secs(2));
+        delay = (delay * 2).min(Duration::from_millis(500));
     }
 }
 
