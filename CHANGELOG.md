@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.23
+
 - **The shared controller follows the console you switch to.** Click a console and the controller (and the mode that console's type needs) goes with it. Move its cable to that console. If the board shows it's still plugged into the Switch 2, NS2Bench says so instead of switching. Turn it off, or leave a console out, in **Settings → Consoles**.
 - **Console type, spelled out.** Each console's type says what the controller does there: a Switch 2 Pro Controller, or a wired controller + keyboard for a Switch 1. NS2Bench also notices when a console's network traffic says it's the other type, and offers to fix it.
 - **Settings save themselves.** Picture & sound and every console's settings save the moment you change them, for that console, with no Apply or Save buttons.
