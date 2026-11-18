@@ -82,12 +82,13 @@ function thumb(c) {
 
 /** Open Settings → Consoles at this console (or at the add form): its name field, in view. */
 export function editConsole(id) {
-  document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
-  const go = (n = 0) => {
+  const focus = () => {
     const f = id ? document.querySelector(`#consoles-list [data-console="${CSS.escape(id)}"] input`) : $('#console-add-name');
-    if (f?.offsetParent) { f.scrollIntoView({ block: 'center' }); f.focus(); } else if (n < 30) setTimeout(() => go(n + 1), 100);
+    if (f?.offsetParent) { f.scrollIntoView({ block: 'center' }); f.focus(); }
   };
-  go();
+  // after the pane has drawn its fresh list (focusing an older copy is lost when it's replaced)
+  document.addEventListener('ns2bench:consoles-shown', focus, { once: true });
+  document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
 }
 
 function pick(c) {

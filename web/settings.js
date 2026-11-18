@@ -845,6 +845,7 @@ async function consolesPane() {
       field(t('Network address (optional)'), ip), colorField, usesRow, status, row);
     return box;
   }));
+  document.dispatchEvent(new Event('ns2bench:consoles-shown'));   // (editConsole focuses the fresh list)
 }
 // Colour dots to click (a colour input alone shows as an empty bar in some web views), and the
 // colour input itself, small, for any other colour. `input` keeps the value.
