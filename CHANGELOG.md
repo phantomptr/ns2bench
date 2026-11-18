@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.26
+
 - **Fixed: a board update could leave the Luckfox's files empty.** The board keeps recently written files in memory for a while, and a console going to sleep cuts its power. An update just before that could leave its scripts empty, so the controller and Bridge stopped working. The installer now writes everything to storage and checks every file on the board before it says it's done. A start-up that can't build the controller no longer switches controller mode off (it tries again at the next start), and the board keeps a start-up history (`/opt/ns2bench/boot-history.log`).
 
 - **Fixed: the Luckfox could switch controller mode off on a slow start-up.** The early start and the usual start at the end of boot could build the controller at the same time; the second failed, and a failed start turns controller mode off. The end-of-boot start now waits for the early one, and the early start writes to a log (`/tmp/ns2bench-boot.log` on the board). Install the board update from **Settings → Install → Bridge board**.
