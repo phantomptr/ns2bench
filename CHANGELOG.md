@@ -6,6 +6,10 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Moving the controller between consoles is smoother:**
+  - Switching the board's mode no longer makes NS2Bench ask "which console?" a second time.
+  - If you say where the controller is while the board is still restarting, NS2Bench remembers it and sets the right mode when the board is back.
+
 ## 0.0.21
 
 - **A new right panel that follows the console you watch:**

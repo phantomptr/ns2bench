@@ -397,6 +397,11 @@ pub struct InputHub {
     pub paused: Mutex<Option<String>>,
     /// Bumped whenever the controller moves to another console (or its place becomes unknown).
     pub generation: std::sync::atomic::AtomicU64,
+    /// When NS2Bench last switched the board's USB mode: the board drops off and comes back for
+    /// a while after, which is not the cable moving.
+    pub mode_switched: Mutex<Option<std::time::Instant>>,
+    /// When the person last said which console the controller is on.
+    pub placed: Mutex<Option<std::time::Instant>>,
 }
 
 tokio::task_local! {
@@ -423,6 +428,8 @@ impl InputHub {
             ui_owner: 0.into(),
             paused: Mutex::new(None),
             generation: 0.into(),
+            mode_switched: Mutex::new(None),
+            placed: Mutex::new(None),
         })
     }
 
@@ -777,6 +784,18 @@ impl InputHub {
     pub fn release_ui(self: &Arc<Self>) {
         let _ = self.set_ui_state(0, 0, None, 0, vec![]);
         self.mouse_up(true, false);
+    }
+
+    /// Switch the board's USB mode (it rebuilds its USB side and reconnects).
+    pub fn switch_usb_mode(&self, mode: &str) -> Result<()> {
+        *self.mode_switched.lock().unwrap() = Some(std::time::Instant::now());
+        self.backend.send(Msg::UsbMode(mode.to_string()))
+    }
+
+    /// Within this long after a mode switch, a board that drops off and comes back did so because
+    /// of the switch.
+    pub fn switching_mode(&self) -> bool {
+        self.mode_switched.lock().unwrap().is_some_and(|t| t.elapsed() < std::time::Duration::from_secs(45))
     }
 
     /// Refuse a press from a request that started before the controller moved.

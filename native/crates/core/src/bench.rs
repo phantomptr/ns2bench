@@ -158,18 +158,26 @@ impl Bench {
         self.save_consoles()?;
         match &target {
             Some(c) => {
-                let want = crate::console::model_mode(&c.model.lock().unwrap());
-                let st = self.hub.status();
-                let modes = st["usb_mode"].as_str().is_some();
+                *self.hub.placed.lock().unwrap() = Some(std::time::Instant::now());
                 self.logs.add("bench", format!("controller: now on {} ({})", c.name(), c.id));
-                if modes && st["usb_mode"].as_str() != Some(want) && st["connected"] == true {
-                    self.logs.add("bench", format!("controller: switching the board to {want} mode for {}", c.name()));
-                    let _ = self.hub.backend.send(crate::inputs::Msg::UsbMode(want.to_string()));
-                }
+                // (a board that is restarting gets it when it's back: see watch_controller)
+                self.apply_mode();
             }
             None => self.logs.warn("bench", "controller: where it is plugged in is unknown; input is paused until you pick the console"),
         }
         Ok(())
+    }
+
+    /// Put the board in the USB mode the controller's console needs, if it's connected and in
+    /// another one.
+    pub fn apply_mode(&self) {
+        let Some(c) = self.controller_console() else { return };
+        let want = crate::console::model_mode(&c.model.lock().unwrap());
+        let st = self.hub.status();
+        if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| m != want) {
+            self.logs.add("bench", format!("controller: switching the board to {want} mode for {}", c.name()));
+            let _ = self.hub.switch_usb_mode(want);
+        }
     }
 
     /// Add a console (its capture card must not be in use by another console).
@@ -402,6 +410,18 @@ mod tests {
         b.set_controller_on(Some("switch-1")).unwrap();
         let r = crate::inputs::RUN_GENERATION.scope(Some(started), async { b.hub.hold(&["A".into()], "api") }).await;
         assert!(r.unwrap_err().to_string().contains("moved to another console"));
+    }
+
+    #[tokio::test]
+    async fn its_own_mode_switch_is_not_a_cable_move_and_a_choice_is_remembered() {
+        let b = bench();
+        assert!(!b.hub.switching_mode());
+        let _ = b.hub.switch_usb_mode("standard");     // (no board in tests: only the timing matters)
+        assert!(b.hub.switching_mode(), "the board dropping off right after is the switch, not the cable");
+        b.add_console(&json!({"name": "Switch 1", "model": "switch1"})).unwrap();
+        assert!(b.hub.placed.lock().unwrap().is_none());
+        b.set_controller_on(Some("switch-1")).unwrap();
+        assert!(b.hub.placed.lock().unwrap().is_some(), "said where it is: a board back from restarting won't ask again");
     }
 
     #[tokio::test]

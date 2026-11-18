@@ -52,20 +52,28 @@ pub fn start_console(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
 async fn watch_controller(b: Arc<crate::Bench>) {
     let mut was_connected: Option<bool> = None;
     let mut unplugged = false;
+    let mut down_since: Option<std::time::Instant> = None;
     loop {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let st = b.hub.status();
         let connected = st["connected"] == true;
         let usb = st["usb"].as_str().unwrap_or("");
         let mut moved = false;
+        if was_connected == Some(true) && !connected { down_since = Some(std::time::Instant::now()); }
         if was_connected == Some(false) && connected {
-            moved = true; // the board reconnected: anything could have happened meanwhile
+            // The board reconnected: anything could have happened meanwhile, unless the person
+            // already said where it is while it was away (moved the cable, then clicked).
+            let told = matches!((*b.hub.placed.lock().unwrap(), down_since), (Some(p), Some(d)) if p >= d);
+            if told { b.apply_mode(); } else { moved = true; }
+            down_since = None;
         }
         if connected {
             if usb == "not attached" { unplugged = true; }
             else if unplugged && usb.starts_with("configured") { unplugged = false; moved = true; }
         }
         was_connected = Some(connected);
+        // our own mode switch makes the board drop off and come back: that's not the cable
+        if b.hub.switching_mode() { moved = false; unplugged = false; }
         if moved && b.list().len() > 1 && b.controller_console().is_some() {
             let _ = b.set_controller_on(None);
             b.logs.notify("bench", "warn", "Which console is the controller on?",
