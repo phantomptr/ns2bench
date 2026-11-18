@@ -107,6 +107,15 @@ function chain(s) {
       why = t('%1 is connecting to the board…').replace('%1', name);
     }
   }
+  // Several consoles and nobody knows which one the cable is in: keys are paused. Say it here,
+  // where the person looks when keys do nothing, with the answer one click away.
+  if (inp.connected && consoles.length > 1 && !s.controller_on) {
+    steps.splice(-1, 1, el('li', { className: 'warn', textContent: `${t('Which console?')} …` }));
+    why = s.controller_detecting
+      ? t('Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:')
+      : t('Keys are paused: which console is the controller plugged into?');
+    fixes = consoles.map((c) => button(c.name, () => controllerIsOn(c.id).catch((e) => { $('#chain-why').textContent = String(e.message || e); })));
+  }
   $('#chain').replaceChildren(...steps);
   $('#chain-sum').textContent = inp.backend && inp.backend !== 'none' ? (inp.backend === 'hidd' ? 'NS2Bench Bridge' : inp.backend) : '';
   $('#chain-callout').hidden = !why;

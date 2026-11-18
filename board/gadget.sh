@@ -16,6 +16,8 @@ MODE_FILE=/etc/ns2bench-usb-mode
 CONFIGFS=/sys/kernel/config/usb_gadget
 FFS=/dev/ffs-pro2
 PRO_PID=/run/ns2bench-pro2.pid
+ACTIVE_MODE=/run/ns2bench-usb-mode     # the mode really running (a failed pro falls back to standard)
+LOG=/tmp/ns2bench-gadget.log
 SPEED_SAVE=/run/ns2bench-max-speed
 mode=${1:-$(cat "$MODE_FILE" 2>/dev/null || echo standard)}
 
@@ -74,7 +76,7 @@ release() {
     # Stop the Pro Controller daemon and unbind the UDC before anything else touches USB:
     # vendor helpers stopping a FunctionFS gadget otherwise wait forever in functionfs_unbind.
     if p=$(pro_pid); then kill "$p"; sleep 0.5; fi
-    rm -f "$PRO_PID"
+    rm -f "$PRO_PID" "$ACTIVE_MODE" /run/ns2bench-host
     # one UDC can be owned by one gadget: unbind whichever gadget holds it
     for u in "$CONFIGFS"/*/UDC; do
         if [ -f "$u" ] && [ "$(cat "$u" 2>/dev/null)" = "$UDC" ]; then echo "" > "$u"; fi
@@ -104,9 +106,24 @@ device() {             # vid pid bcdDevice class subclass protocol manufacturer 
     echo "$7" > "$G/strings/0x409/manufacturer"; echo "$8" > "$G/strings/0x409/product"
 }
 
-# Bind the gadget to the UDC and check it took (EBUSY when another gadget still holds it).
+# Bind the gadget to the UDC and check it took (EBUSY when another gadget still holds it: at boot
+# a vendor USB helper may still hold it for a moment, so free it and try again for a few seconds).
 # Callers sit in `build_x || fallback` lists, where set -e is off: every step returns its status.
-bind() { echo "$UDC" > "$G/UDC" && [ "$(cat "$G/UDC" 2>/dev/null)" = "$UDC" ]; }
+bind() {
+    for i in $(seq 1 10); do
+        if echo "$UDC" > "$G/UDC" 2>/dev/null && [ "$(cat "$G/UDC" 2>/dev/null)" = "$UDC" ]; then
+            [ "$i" = 1 ] || echo "bound on try $i"
+            return 0
+        fi
+        for u in "$CONFIGFS"/*/UDC; do
+            if [ "$u" != "$G/UDC" ] && [ -f "$u" ] && [ "$(cat "$u" 2>/dev/null)" = "$UDC" ]; then
+                echo "the UDC is held by $(dirname "$u"): freeing it"; echo "" > "$u" || true
+            fi
+        done
+        sleep 0.5
+    done
+    return 1
+}
 
 # Our Pro Controller daemon's pid from the pidfile, only if that process really is it (a pid in
 # /run outlives a crash and can be reused by anything, an SSH session included).
@@ -173,6 +190,13 @@ fi
 
 case "$mode" in standard|hori|pro) ;; *) echo "usage: gadget.sh [standard|hori|pro|status]" >&2; exit 2 ;; esac
 
+# Every mode change is logged (at boot nothing else keeps the output), with the seconds since boot.
+if [ "${NS2BENCH_GADGET_LOGGED:-}" != 1 ]; then
+    export NS2BENCH_GADGET_LOGGED=1
+    exec > >(tee -a "$LOG") 2>&1
+fi
+echo "== $(cut -d' ' -f1 /proc/uptime)s: gadget.sh ${1:-$mode} (boot default $(cat "$MODE_FILE" 2>/dev/null || echo unset))"
+
 [ -x "$DIR/ns2bench-board" ] || { echo "missing ns2bench-board; install the static Rust NS2Bench Bridge daemon before changing USB mode" >&2; exit 1; }
 release
 quirk_before
@@ -184,6 +208,7 @@ case "$mode" in
     pro)      build_pro || { echo "pro failed; falling back to standard for now (pro stays the saved choice)" >&2; teardown; build_hori 1; mode=standard; } ;;
 esac
 quirk_after
+echo "$mode" > "$ACTIVE_MODE"
 # An explicit mode becomes the boot default, but only once it was actually reached: a fallback
 # must not quietly replace the person's choice.
 if [ -n "${1:-}" ] && [ "$mode" = "$1" ]; then echo "$mode" > "$MODE_FILE"; fi

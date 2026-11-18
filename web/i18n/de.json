@@ -684,5 +684,9 @@
   "Wake": "Wecken",
   "Wake and sleep go to the console the controller is plugged into.": "Wecken und Ruhemodus gehen an die Konsole, an der der Controller steckt.",
   "Wake sent.": "Wecken gesendet.",
-  "Wake the console (HOME, or the power command you set up)": "Konsole wecken (HOME oder dein eingerichteter Power-Befehl)"
+  "Wake the console (HOME, or the power command you set up)": "Konsole wecken (HOME oder dein eingerichteter Power-Befehl)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "Es wird ermittelt, an welcher Konsole der Controller steckt … Bis dahin ist die Eingabe pausiert. Oder wähle sie:",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "Tasten sind pausiert, während NS2Bench ermittelt, an welcher Konsole der Controller steckt (bis zu einer Minute). Oder wähle sie:",
+  "Keys are paused: which console is the controller plugged into?": "Tasten sind pausiert: An welcher Konsole steckt der Controller?",
+  "Which console?": "Welche Konsole?"
 }

@@ -226,6 +226,7 @@ impl Proto {
             }
             (0x03, 0x0D) => {
                 log("console initialised USB: input reports on");
+                set_host(true);
                 r(&[0x01, 0, 0, 0])
             }
             (0x03, 0x0F) => r(&[0x05, 0, 0, 0]),
@@ -531,7 +532,17 @@ fn setup(fd: RawFd, rt: u8, req: u8, val: u16, idx: u16, len: u16, info: &[u8], 
     }
 }
 
+/// Written once a Switch 2 has started this controller (the "input reports on" command, which
+/// only a Switch 2 sends); removed when the console lets go. The bridge reports it, so the bench
+/// can tell which console the controller is plugged into.
+pub const HOST_FILE: &str = "/run/ns2bench-host";
+
+fn set_host(on: bool) {
+    let _ = if on { std::fs::write(HOST_FILE, "switch2\n") } else { std::fs::remove_file(HOST_FILE) };
+}
+
 pub fn main(ffs: &str) -> Result<(), String> {
+    set_host(false);
     let id = load_identity();
     let fd = open(&format!("{ffs}/ep0"), libc::O_RDWR).map_err(|e| format!("{ffs}/ep0: {e}"))?;
     write(fd, &ffs_descriptors()).map_err(|e| format!("descriptors: {e}"))?;
@@ -566,6 +577,7 @@ pub fn main(ffs: &str) -> Result<(), String> {
                 1 | 3 => {
                     log(if ev[8] == 1 { "unbind" } else { "disable" });
                     sh.set_enabled(false);
+                    set_host(false);
                 }
                 4 => setup(fd, rt, req, val, idx, len, &info, &factory),
                 5 => log("suspend"),

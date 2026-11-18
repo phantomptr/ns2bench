@@ -684,5 +684,9 @@
   "Wake": "깨우기",
   "Wake and sleep go to the console the controller is plugged into.": "깨우기와 절전은 컨트롤러가 연결된 콘솔로 갑니다.",
   "Wake sent.": "깨우기를 보냈습니다.",
-  "Wake the console (HOME, or the power command you set up)": "콘솔 깨우기(HOME 또는 설정한 전원 명령)"
+  "Wake the console (HOME, or the power command you set up)": "콘솔 깨우기(HOME 또는 설정한 전원 명령)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "컨트롤러가 연결된 콘솔을 찾는 중… 그때까지 입력이 일시 중지됩니다. 또는 직접 선택하세요:",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "NS2Bench가 컨트롤러가 연결된 콘솔을 찾는 동안 키가 일시 중지됩니다(최대 1분). 또는 직접 선택하세요:",
+  "Keys are paused: which console is the controller plugged into?": "키가 일시 중지됨: 컨트롤러가 어느 콘솔에 연결되어 있나요?",
+  "Which console?": "어느 콘솔?"
 }

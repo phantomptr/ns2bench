@@ -79,6 +79,7 @@ stateDiagram-v2
   [*] --> Unknown: NS2Bench starts with several consoles (the cable may have moved while it was closed)
   Known --> Unknown: the board sees its USB cable out and in again, or the board itself reconnects
   Unknown --> Known: you pick where it is now
+  Unknown --> Known: found by itself (one Switch 2 and one other console)
   Known --> Known: you pick another console (inputs released first)
   note right of Unknown: input is paused, the page asks where the controller went
 ```
@@ -94,7 +95,36 @@ stateDiagram-v2
   page asks "Which console is the controller on now?". A single console needs no question.
 - **Changing the location** releases every held input first, then switches the board's USB mode
   to the console's preferred one (Switch 2: Pro Controller; Switch 1: standard controller),
-  if they differ.
+  if they differ. A mode you pick by hand is kept until the controller is next placed.
+- **Your own mode switch is not a cable move:** the board drops off and comes back when its mode
+  changes; for 45 s after a switch that is not taken as the cable moving. A console picked while
+  the board is restarting is kept, and its mode applied when the board is back.
+
+### Finding the console by itself
+
+Only a Switch 2 starts a Pro Controller: it sends the "input reports on" command (`03/0D`), and
+without it a Switch 2 takes no input, so the board sees it every time a Switch 2 drives it. The
+board notes it (`/run/ns2bench-host`, cleared when the console lets go or the board restarts), and
+the Bridge reports `host: "switch2"`. With the location unknown, exactly one Switch 2 and exactly
+one other console, and a Bridge that reports `host` (older ones don't, and then nothing is
+guessed), the engine (`core/src/detect.rs`) decides:
+
+| The board sees | Then |
+|---|---|
+| Pro mode, the Switch 2 started it | on the Switch 2 |
+| Pro mode, a console there (USB configured, addressed or default) for 15 s, not started | on the other console |
+| Standard mode, a console there | become a Pro Controller once to find out |
+| After that switch: 30 s with no Switch 2 handshake, not asleep | on the other console |
+| Console asleep (USB suspended), USB not attached, or the board away | wait, never guess |
+| Two minutes without an answer | stop, and leave the question to you |
+
+No input is ever sent to find out (input is paused while the location is unknown). You can pick
+the console at any time; that ends detection. A console found this way is announced ("Controller
+found on Switch 1"), so a wrong answer is easy to correct.
+
+The board's real mode: when a Pro Controller start fails, `gadget.sh` falls back to the standard
+pad but keeps "pro" as the saved choice. The Bridge reports the mode really running
+(`/run/ns2bench-usb-mode`, else the gadget's product id) and sends presses to that mode's devices.
 
 ## Models
 

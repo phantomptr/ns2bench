@@ -156,6 +156,11 @@ pub struct BackendStatus {
     pub rtt_ms: Option<f64>,
     pub usb: Option<String>,
     pub usb_mode: Option<String>,
+    /// "switch2" once a Switch 2 has started the board's Pro Controller.
+    pub host: Option<String>,
+    /// The bridge reports `host` at all (older bridges don't: then "no Switch 2 handshake" means
+    /// nothing, and detection must not run).
+    pub reports_host: bool,
     pub devices: Vec<String>,
     pub writes: HashMap<String, u64>,
 }
@@ -248,6 +253,8 @@ async fn run_board(
                 s.detail = None;
                 s.usb = h["udc"].as_str().map(str::to_string);
                 s.usb_mode = Some(h["mode"].as_str().unwrap_or("standard").to_string());
+                s.host = h["host"].as_str().map(str::to_string);
+                s.reports_host = h.get("host").is_some();
                 s.devices = h["devices"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
                     .unwrap_or_else(|| vec!["pad".into(), "kbd".into()]);
                 logs.notify("bench", "info", "Bridge connected", format!("NS2Bench Bridge connected: {} usb={} mode={} devices={}",
@@ -294,6 +301,9 @@ async fn run_board(
                             let mut s = status.lock().unwrap();
                             if let Some(t0) = sent.remove(&p) { s.rtt_ms = Some((t0.elapsed().as_secs_f64() * 10000.0).round() / 10.0); }
                             s.usb = m["udc"].as_str().map(str::to_string).or(s.usb.clone());
+                            // (newer bridges say the mode really running, and who started the controller)
+                            if let Some(mode) = m["mode"].as_str() { s.usb_mode = Some(mode.to_string()); }
+                            if m.get("host").is_some() { s.host = m["host"].as_str().map(str::to_string); s.reports_host = true; }
                             if let Some(wr) = m["writes"].as_object() {
                                 s.writes = wr.iter().map(|(k, v)| (k.clone(), v.as_u64().unwrap_or(0))).collect();
                             }
@@ -316,7 +326,7 @@ async fn run_board(
             }
         }.await;
         if res.is_ok() { return; }
-        let was = { let mut s = status.lock().unwrap(); let w = s.connected; s.connected = false; w };
+        let was = { let mut s = status.lock().unwrap(); let w = s.connected; s.connected = false; s.host = None; w };
         let detail = match res { Ok(()) => "stopped".to_string(), Err(e) => e.to_string() };
         if was {
             logs.notify("bench", "error", "Bridge disconnected", format!("NS2Bench Bridge: {detail}"));
@@ -402,6 +412,12 @@ pub struct InputHub {
     pub mode_switched: Mutex<Option<std::time::Instant>>,
     /// When the person last said which console the controller is on.
     pub placed: Mutex<Option<std::time::Instant>>,
+    /// The person picked the board's mode by hand: automatic mode changes leave it alone until
+    /// the controller is next placed on a console.
+    pub manual_mode: std::sync::atomic::AtomicBool,
+    /// Automatic switches to the console's mode since it was placed (at most 2: a board that
+    /// can't reach a mode must not be switched over and over).
+    pub mode_tries: std::sync::atomic::AtomicU8,
 }
 
 tokio::task_local! {
@@ -430,6 +446,8 @@ impl InputHub {
             generation: 0.into(),
             mode_switched: Mutex::new(None),
             placed: Mutex::new(None),
+            manual_mode: false.into(),
+            mode_tries: 0.into(),
         })
     }
 
@@ -825,7 +843,7 @@ impl InputHub {
         let st = self.st.lock().unwrap();
         json!({
             "backend": b.backend, "connected": b.connected, "detail": b.detail, "rtt_ms": b.rtt_ms, "usb": b.usb,
-            "usb_mode": b.usb_mode, "devices": b.devices, "writes": b.writes,
+            "usb_mode": b.usb_mode, "host": b.host, "reports_host": b.reports_host, "devices": b.devices, "writes": b.writes,
             "agent_busy": self.agent_lock.try_lock().is_err(),
             "manual_only": self.manual_only.load(std::sync::atomic::Ordering::Relaxed),
             "min_press_ms": self.min_press(), "pad": st.last_pad, "kbd": st.last_kbd,

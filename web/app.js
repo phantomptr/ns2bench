@@ -461,7 +461,7 @@ $('#manual-only').addEventListener('change', async (e) => {
 });
 
 $('#btn-shot').addEventListener('click', async () => {
-  const r = await fetch('/api/screenshot?format=png');
+  const r = await fetch('/api/screenshot?format=png', { headers: shown() });
   if (!r.ok) return addEvent({ source: 'error', action: await r.text(), t: Date.now() / 1000 });
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(await r.blob()),
@@ -535,7 +535,7 @@ $('#btn-clip').addEventListener('click', async (e) => {
   label.textContent = 'Saving…';
   let r;
   try {
-    r = await fetch('/api/clip', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    r = await fetch('/api/clip', { method: 'POST', headers: shown({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ label: 'manual' }) });
   } catch (err) {
     label.textContent = 'Save clip';
@@ -569,7 +569,10 @@ $('#video').src = authURL('/stream.mjpg');
 const live = startLive($('#video'), (m) => { $('#screen').dataset.live = m; });
 // Another console picked in the console bar: let go of what this page held, then reconnect the
 // picture, sound and status for that console.
-mountConsoles(() => { releaseAll(); $('#btn-refresh').click(); });
+// Headers naming the console on screen (also when the page follows the controller's console).
+const shown = (h = {}) => (viewed()?.id ? { ...h, 'X-NS2Bench-Console': viewed().id } : h);
+// another console on screen: its picture and sound, and its own video settings in the panel
+mountConsoles(() => { releaseAll(); $('#btn-refresh').click(); loadVideo().catch((e) => { $('#v-note').textContent = String(e); }); });
 
 // ------------------------------------------------------------ video settings
 const vsel = { device: $('#v-device'), size: $('#v-size'), fps: $('#v-fps'), q: $('#v-quality') };
@@ -597,7 +600,7 @@ function fillFps(want) {
 }
 async function loadVideo() {
   $('#v-note').textContent = t('Loading devices…');
-  const d = await (await fetch('/api/video')).json();
+  const d = await (await fetch('/api/video', { headers: shown() })).json();
   // every capture card, also one that didn't say which sizes it offers (it still works)
   vdevices = d.devices.filter((x) => x.kind === 'video' || (x.kind !== 'audio' && (x.formats?.length || x.raw)));
   const s = d.settings;
@@ -608,6 +611,10 @@ async function loadVideo() {
     ...sounds.map((x) => opt(x.id, x.name, x.id === s.audio_device)));
   if (s.audio_device && !sounds.some((x) => x.id === s.audio_device)) $('#v-audio').append(opt(s.audio_device, s.audio_device, true));
   vsel.device.replaceChildren(...vdevices.map((x) => opt(x.id ?? '', `${x.name}${x.in_use ? ' (in use)' : ''} · ${x.id ?? ''}`, x.id === s.device)));
+  // this console's card while it's unplugged (or Apply would hand it whichever card is listed first)
+  if (s.device && !vdevices.some((x) => x.id === s.device)) vsel.device.prepend(opt(s.device, `${s.device} (${t('not connected')})`, true));
+  // no card yet: say so instead of showing another console's
+  if (!s.device) vsel.device.prepend(opt('', t('Not set: use a free card when one is connected'), true));
   vsel.q.value = s.quality; $('#v-qval').textContent = s.quality;
   fillSizes(s);
   $('#v-note').textContent = '';
@@ -619,7 +626,7 @@ $('#v-apply').addEventListener('click', async () => {
   const [width, height] = vsel.size.value.split('x').map(Number);
   const body = { device: vsel.device.value, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
   if (!$('#v-audio-field').hidden) body.audio_device = $('#v-audio').value || null;
-  const r = await fetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetch('/api/video', { method: 'POST', headers: shown({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) });
   $('#v-note').textContent = r.ok ? t('Applied') : await r.text();
   setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
 });

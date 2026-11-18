@@ -13,6 +13,11 @@ quirk_before() {
     for p in usbdevice adbd; do
         for pid in $(pidof "$p" 2>/dev/null || true); do kill "$pid" 2>/dev/null || true; done
     done
+    # udev relaunches that helper on every CONFIGURED uevent, and the helper rebuilds this same
+    # gadget: stop udev before the UDC is taken, not after (a Pro Controller start waits for the
+    # console's handshake, long enough for the helper to take the gadget over at boot).
+    # HID and FunctionFS nodes come from devtmpfs, so nothing here needs udev.
+    if [ -x /etc/init.d/S10udev ]; then /etc/init.d/S10udev stop >/dev/null 2>&1 || true; fi
     # Rockchip logs CONFIGURED for HID SET_REPORT too; console logging of that costs CPU.
     [ -f /run/ns2bench.printk ] || cat /proc/sys/kernel/printk > /run/ns2bench.printk
     dmesg -n 1 2>/dev/null || true

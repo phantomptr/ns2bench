@@ -684,5 +684,9 @@
   "Wake": "Réveiller",
   "Wake and sleep go to the console the controller is plugged into.": "Réveil et veille vont à la console où la manette est branchée.",
   "Wake sent.": "Réveil envoyé.",
-  "Wake the console (HOME, or the power command you set up)": "Réveiller la console (HOME, ou la commande d’alimentation configurée)"
+  "Wake the console (HOME, or the power command you set up)": "Réveiller la console (HOME, ou la commande d’alimentation configurée)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "Recherche de la console où la manette est branchée… Les entrées sont en pause d’ici là. Ou choisissez-la :",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "Les touches sont en pause pendant que NS2Bench cherche la console où la manette est branchée (jusqu’à une minute). Ou choisissez-la :",
+  "Keys are paused: which console is the controller plugged into?": "Les touches sont en pause : sur quelle console la manette est-elle branchée ?",
+  "Which console?": "Quelle console ?"
 }

@@ -684,5 +684,9 @@
   "Wake": "Acordar",
   "Wake and sleep go to the console the controller is plugged into.": "Acordar e repouso vão para o console em que o controle está ligado.",
   "Wake sent.": "Acordar enviado.",
-  "Wake the console (HOME, or the power command you set up)": "Acordar o console (HOME ou o comando de energia configurado)"
+  "Wake the console (HOME, or the power command you set up)": "Acordar o console (HOME ou o comando de energia configurado)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "Descobrindo em qual console o controle está conectado… A entrada fica pausada até lá. Ou escolha:",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "As teclas ficam pausadas enquanto o NS2Bench descobre em qual console o controle está conectado (até um minuto). Ou escolha:",
+  "Keys are paused: which console is the controller plugged into?": "Teclas pausadas: em qual console o controle está conectado?",
+  "Which console?": "Qual console?"
 }

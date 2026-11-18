@@ -684,5 +684,9 @@
   "Wake": "唤醒",
   "Wake and sleep go to the console the controller is plugged into.": "唤醒和睡眠会发送到手柄所连接的主机。",
   "Wake sent.": "已发送唤醒。",
-  "Wake the console (HOME, or the power command you set up)": "唤醒主机（HOME，或你设置的电源命令）"
+  "Wake the console (HOME, or the power command you set up)": "唤醒主机（HOME，或你设置的电源命令）",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "正在查找手柄连接在哪台主机上… 在此之前输入暂停。或者直接选择：",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "NS2Bench 查找手柄连接在哪台主机上时，按键暂停（最多一分钟）。或者直接选择：",
+  "Keys are paused: which console is the controller plugged into?": "按键已暂停：手柄连接在哪台主机上？",
+  "Which console?": "哪台主机？"
 }

@@ -53,8 +53,11 @@ async fn watch_controller(b: Arc<crate::Bench>) {
     let mut was_connected: Option<bool> = None;
     let mut unplugged = false;
     let mut down_since: Option<std::time::Instant> = None;
+    let mut detector: Option<crate::detect::Detector> = None;
+    let mut gave_up = false;
     loop {
         tokio::time::sleep(Duration::from_secs(1)).await;
+        detect_step(&b, &mut detector, &mut gave_up);
         let st = b.hub.status();
         let connected = st["connected"] == true;
         let usb = st["usb"].as_str().unwrap_or("");
@@ -64,7 +67,9 @@ async fn watch_controller(b: Arc<crate::Bench>) {
             // The board reconnected: anything could have happened meanwhile, unless the person
             // already said where it is while it was away (moved the cable, then clicked).
             let told = matches!((*b.hub.placed.lock().unwrap(), down_since), (Some(p), Some(d)) if p >= d);
-            if told { b.apply_mode(); } else { moved = true; }
+            // back from our own mode switch: make sure it's the mode its console needs (the
+            // person may have placed it while a detection switch was under way)
+            if told || b.hub.switching_mode() { b.apply_mode(); } else { moved = true; }
             down_since = None;
         }
         if connected {
@@ -78,6 +83,60 @@ async fn watch_controller(b: Arc<crate::Bench>) {
             let _ = b.set_controller_on(None);
             b.logs.notify("bench", "warn", "Which console is the controller on?",
                 "controller: its USB cable (or the board) was unplugged and came back. Input is paused: pick the console it's plugged into now (under the picture)");
+        }
+    }
+}
+
+/// While the controller's place is unknown, find it by itself when the consoles allow it (exactly
+/// one Switch 2 and one other console): see crate::detect. Never sends input.
+fn detect_step(b: &Arc<crate::Bench>, detector: &mut Option<crate::detect::Detector>, gave_up: &mut bool) {
+    use crate::detect::{Detector, Seen, Step};
+    use std::sync::atomic::Ordering::Relaxed;
+    let list = b.list();
+    let (twos, others): (Vec<_>, Vec<_>) = list.iter().partition(|c| *c.model.lock().unwrap() == "switch2");
+    // (an older bridge doesn't say whether a Switch 2 started it: without that, nothing can be told)
+    let reports = b.hub.status()["reports_host"] == true;
+    let can = list.len() > 1 && b.controller_console().is_none() && twos.len() == 1 && others.len() == 1 && reports;
+    if !can {
+        if detector.take().is_some() { b.detecting.store(false, Relaxed); }
+        // placed (by the person or by us): the next unknown place may be detected again
+        if b.controller_console().is_some() { *gave_up = false; }
+        return;
+    }
+    if *gave_up { return; }
+    let st = b.hub.status();
+    let seen = Seen {
+        connected: st["connected"] == true,
+        mode: st["usb_mode"].as_str().map(str::to_string),
+        usb: st["usb"].as_str().unwrap_or("").to_string(),
+        switch2: st["host"] == "switch2",
+    };
+    let now = std::time::Instant::now();
+    let d = detector.get_or_insert_with(|| {
+        b.logs.add("bench", "controller: finding which console it's plugged into (no buttons are pressed)");
+        Detector::new(now)
+    });
+    b.detecting.store(true, Relaxed);
+    match d.step(now, &seen) {
+        Step::Wait => {}
+        Step::TryPro => {
+            b.logs.add("bench", "controller: a console is there; trying the Pro Controller for a moment to see if it's the Switch 2");
+            let _ = b.hub.switch_usb_mode("pro");
+        }
+        Step::Found { switch2, why } => {
+            let c = if switch2 { twos[0].clone() } else { others[0].clone() };
+            *detector = None;
+            b.detecting.store(false, Relaxed);
+            if b.set_controller_on(Some(&c.id)).is_ok() {
+                b.logs.notify("bench", "info", &format!("Controller found on {}", c.name()),
+                    format!("controller: found on {} ({why}). Wrong? Pick the right console under the picture", c.name()));
+            }
+        }
+        Step::GiveUp => {
+            *detector = None;
+            *gave_up = true;
+            b.detecting.store(false, Relaxed);
+            b.logs.warn("bench", "controller: couldn't tell which console it's on (asleep, or the cable not in?). Pick it under the picture");
         }
     }
 }

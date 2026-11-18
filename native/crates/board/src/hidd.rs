@@ -5,7 +5,7 @@
 //!   {"pad": [buttons, hat, lx, ly, rx, ry]}  17-bit mask, hat 0-8, axes 0-255
 //!   {"kbd": [modifiers, k1, ..., k6]}        boot-keyboard usage codes
 //!   {"mouse": [buttons, dx, dy, wheel]}      relative move (only if the mouse function exists)
-//!   {"ping": n}                              -> {"pong": n, "udc", "writes"}
+//!   {"ping": n}                              -> {"pong": n, "udc", "writes", "mode", "host"}
 //!   {"logs": after_seq}                      -> {"logs": [[seq, time, source, text]], "seq": n}
 //!   {"usb_mode": "standard"|"hori"|"pro"}    rebuild the gadget (detached) and restart
 //! Safety: if the client is silent for 1 s, disconnects or errors, every device goes neutral and
@@ -25,6 +25,8 @@ const WATCHDOG: Duration = Duration::from_secs(1);
 const KEEPALIVE: Duration = Duration::from_millis(500);
 const MAX_LINE: usize = 4096;
 const MODE_FILE: &str = "/etc/ns2bench-usb-mode";
+const ACTIVE_MODE_FILE: &str = "/run/ns2bench-usb-mode";
+const GADGET: &str = "/sys/kernel/config/usb_gadget/rockchip";
 const PRO_SOCK: &str = "/run/ns2bench-pro2.sock";
 const GADGET_CFG: &str = "/sys/kernel/config/usb_gadget/rockchip/configs/b.1";
 const PAD_NEUTRAL: [i64; 6] = [0, 8, 128, 128, 128, 128];
@@ -104,9 +106,22 @@ fn udc_state() -> String {
         .map(|s| s.trim().to_string()).unwrap_or_else(|| "unknown".into())
 }
 
+/// The mode the USB side really runs: what gadget.sh reached (a failed Pro Controller start
+/// falls back to standard while "pro" stays the saved choice), else what the gadget says it is.
 fn usb_mode() -> String {
-    std::fs::read_to_string(MODE_FILE).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "standard".into())
+    let read = |p: &str| std::fs::read_to_string(p).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    if let Some(m) = read(ACTIVE_MODE_FILE) { return m; }
+    match read(&format!("{GADGET}/idProduct")).as_deref() {
+        Some("0x2069") => "pro".into(),
+        Some(_) => read(MODE_FILE).filter(|m| m != "pro").unwrap_or_else(|| "standard".into()),
+        None => read(MODE_FILE).unwrap_or_else(|| "standard".into()),
+    }
+}
+
+/// "switch2" once a Switch 2 has started the Pro Controller (see pro2::HOST_FILE), else null.
+fn host() -> Value {
+    std::fs::read_to_string(crate::pro2::HOST_FILE).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+        .map(Value::from).unwrap_or(Value::Null)
 }
 
 fn exists(p: &str) -> bool {
@@ -383,7 +398,7 @@ impl<'a> Session<'a> {
             self.authed = true;
             let devices: Vec<&str> = self.devices.keys().copied().collect();
             self.send(json!({"ok": "ready", "udc": udc_state(), "watchdog_s": WATCHDOG.as_secs_f64(),
-                             "devices": devices, "log_seq": logbuf::seq(), "mode": self.mode}));
+                             "devices": devices, "log_seq": logbuf::seq(), "mode": self.mode, "host": host()}));
             log(format!("client {} ready", self.peer));
             return true;
         }
@@ -426,7 +441,7 @@ impl<'a> Session<'a> {
             let here = here.display();
             // detached: stop this daemon (it holds the HID devices the rebuild removes), rebuild, start again
             let script = format!("(sleep 0.5; {here}/ns2bench-hidd.sh stop >/dev/null 2>&1; \
-                {here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1; \
+                NS2BENCH_GADGET_LOGGED=1 {here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1; \
                 {here}/ns2bench-hidd.sh start >/dev/null 2>&1) </dev/null >/dev/null 2>&1 &");
             let _ = std::process::Command::new("/bin/sh").arg("-c").arg(script).spawn();
             self.send(json!({"ok": format!("switching to {mode}")}));
@@ -438,7 +453,7 @@ impl<'a> Session<'a> {
         }
         if let Some(n) = msg.get("ping") {
             let writes: serde_json::Map<String, Value> = self.devices.iter().map(|(k, d)| (k.to_string(), json!(d.writes()))).collect();
-            self.send(json!({"pong": n, "udc": udc_state(), "writes": writes}));
+            self.send(json!({"pong": n, "udc": udc_state(), "writes": writes, "mode": usb_mode(), "host": host()}));
         }
         true
     }

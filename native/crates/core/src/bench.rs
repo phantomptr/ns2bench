@@ -21,6 +21,8 @@ pub struct Bench {
     pub consoles: RwLock<Vec<Arc<Console>>>,
     /// The console the controller is plugged into; None: unknown (input is paused then).
     pub controller_on: Mutex<Option<String>>,
+    /// Finding out by itself which console the controller is on (crate::detect).
+    pub detecting: std::sync::atomic::AtomicBool,
     /// One change to the consoles (or the controller's place) at a time, saved before the next.
     changes: Mutex<()>,
     pub screen_log: AtomicBool,
@@ -57,7 +59,7 @@ impl Bench {
         let bench = Arc::new(Bench {
             input_cfg: Mutex::new(cfg.input.clone()), settings_lock: tokio::sync::Mutex::new(()),
             ext: crate::features::Ext::new(&cfg),
-            consoles: RwLock::new(consoles), controller_on: Mutex::new(controller_on), changes: Mutex::new(()),
+            consoles: RwLock::new(consoles), controller_on: Mutex::new(controller_on), changes: Mutex::new(()), detecting: false.into(),
             cfg, logs, hub,
             active_operations: 0.into(), screen_log: screen_log.into(), calibration: Mutex::new(calibration), started: Instant::now(),
         });
@@ -159,6 +161,9 @@ impl Bench {
         match &target {
             Some(c) => {
                 *self.hub.placed.lock().unwrap() = Some(std::time::Instant::now());
+                // placed again: the mode follows this console (a hand-picked mode was for the last one)
+                self.hub.manual_mode.store(false, std::sync::atomic::Ordering::SeqCst);
+                self.hub.mode_tries.store(0, std::sync::atomic::Ordering::SeqCst);
                 self.logs.add("bench", format!("controller: now on {} ({})", c.name(), c.id));
                 // (a board that is restarting gets it when it's back: see watch_controller)
                 self.apply_mode();
@@ -171,10 +176,18 @@ impl Bench {
     /// Put the board in the USB mode the controller's console needs, if it's connected and in
     /// another one.
     pub fn apply_mode(&self) {
+        use std::sync::atomic::Ordering::SeqCst;
         let Some(c) = self.controller_console() else { return };
+        if self.hub.manual_mode.load(SeqCst) { return; }
         let want = crate::console::model_mode(&c.model.lock().unwrap());
         let st = self.hub.status();
         if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| m != want) {
+            if self.hub.mode_tries.fetch_add(1, SeqCst) >= 2 {
+                if self.hub.mode_tries.load(SeqCst) == 3 {
+                    self.logs.warn("bench", format!("controller: the board didn't reach {want} mode for {} after two tries; pick it under Controller", c.name()));
+                }
+                return;
+            }
             self.logs.add("bench", format!("controller: switching the board to {want} mode for {}", c.name()));
             let _ = self.hub.switch_usb_mode(want);
         }
@@ -329,6 +342,7 @@ impl Bench {
             "console": target.as_ref().map(|c| c.id.clone()),
             "consoles": self.list().iter().map(|c| c.info(on.as_deref() == Some(c.id.as_str()))).collect::<Vec<_>>(),
             "controller_on": on,
+            "controller_detecting": self.detecting.load(std::sync::atomic::Ordering::Relaxed),
             "models": crate::console::MODELS.iter().map(|m| json!({"id": m.0, "name": m.1, "mode": m.2})).collect::<Vec<_>>(),
         });
         crate::features::status(self, target.as_deref(), &mut s);

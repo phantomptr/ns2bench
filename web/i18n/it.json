@@ -684,5 +684,9 @@
   "Wake": "Riattiva",
   "Wake and sleep go to the console the controller is plugged into.": "Riattiva e standby vanno alla console a cui è collegato il controller.",
   "Wake sent.": "Riattivazione inviata.",
-  "Wake the console (HOME, or the power command you set up)": "Riattiva la console (HOME o il comando di accensione impostato)"
+  "Wake the console (HOME, or the power command you set up)": "Riattiva la console (HOME o il comando di accensione impostato)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "Ricerca della console a cui è collegato il controller… Fino ad allora l’input è in pausa. Oppure sceglila:",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "I tasti sono in pausa mentre NS2Bench cerca la console a cui è collegato il controller (fino a un minuto). Oppure sceglila:",
+  "Keys are paused: which console is the controller plugged into?": "I tasti sono in pausa: a quale console è collegato il controller?",
+  "Which console?": "Quale console?"
 }

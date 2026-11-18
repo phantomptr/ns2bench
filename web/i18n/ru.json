@@ -684,5 +684,9 @@
   "Wake": "Разбудить",
   "Wake and sleep go to the console the controller is plugged into.": "Пробуждение и сон идут на консоль, к которой подключён контроллер.",
   "Wake sent.": "Команда пробуждения отправлена.",
-  "Wake the console (HOME, or the power command you set up)": "Разбудить консоль (HOME или настроенная команда питания)"
+  "Wake the console (HOME, or the power command you set up)": "Разбудить консоль (HOME или настроенная команда питания)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "Определяем, к какой консоли подключён контроллер… До этого ввод приостановлен. Или выберите её:",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "Клавиши приостановлены, пока NS2Bench определяет, к какой консоли подключён контроллер (до минуты). Или выберите её:",
+  "Keys are paused: which console is the controller plugged into?": "Клавиши приостановлены: к какой консоли подключён контроллер?",
+  "Which console?": "Какая консоль?"
 }

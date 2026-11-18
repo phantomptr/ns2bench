@@ -421,6 +421,8 @@ test('several consoles: add one, switch the view, input only goes where the cont
   // watching the second: the drawn controller can't press there
   await p.click('.console-thumb[data-console] >> nth=1');
   await p.waitForSelector('.console.input-elsewhere');
+  // the panel's video settings are this console's own (its card), not the first console's
+  await p.waitForFunction(() => document.querySelector('#v-device').value === 'test-card-2');
   assert.match(await p.textContent('#console-note'), /Switch 1/);
   // an agent pressing on the console without the controller is refused, with why
   const r = await fetch(`${BASE}/api/press`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': second.id },

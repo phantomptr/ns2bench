@@ -684,5 +684,9 @@
   "Wake": "Despertar",
   "Wake and sleep go to the console the controller is plugged into.": "Despertar y reposo van a la consola donde está conectado el mando.",
   "Wake sent.": "Despertar enviado.",
-  "Wake the console (HOME, or the power command you set up)": "Despertar la consola (HOME o el comando de encendido que configuraste)"
+  "Wake the console (HOME, or the power command you set up)": "Despertar la consola (HOME o el comando de encendido que configuraste)",
+  "Finding which console the controller is plugged into… Input is paused until then. Or pick it:": "Buscando en qué consola está conectado el mando… La entrada está en pausa hasta entonces. O elígela:",
+  "Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:": "Las teclas están en pausa mientras NS2Bench busca en qué consola está conectado el mando (hasta un minuto). O elígela:",
+  "Keys are paused: which console is the controller plugged into?": "Las teclas están en pausa: ¿en qué consola está conectado el mando?",
+  "Which console?": "¿Qué consola?"
 }

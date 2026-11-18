@@ -6,7 +6,7 @@ import { t } from './i18n.js';
 
 const $ = (s) => document.querySelector(s);
 // shownId: the console whose picture and sound this page is connected to now
-let consoles = [], controllerOn = null, onSwitch = () => {}, shownId = null;
+let consoles = [], controllerOn = null, onSwitch = () => {}, shownId = null, detecting = false;
 
 /** The console this page shows (its info from the last status), or null. */
 export function viewed() {
@@ -122,7 +122,9 @@ function render() {
   const note = $('#console-note'), act = $('#console-note-actions');
   act.replaceChildren();
   if (consoles.length > 1 && !controllerOn) {
-    note.textContent = t('Which console is the controller plugged into? Input is paused until you say.');
+    note.textContent = detecting
+      ? t('Finding which console the controller is plugged into… Input is paused until then. Or pick it:')
+      : t('Which console is the controller plugged into? Input is paused until you say.');
     note.className = 'console-note warn';
     for (const c of consoles) {
       const b = Object.assign(document.createElement('button'), { type: 'button', textContent: c.name });
@@ -162,6 +164,9 @@ export function updateConsoles(status) {
   const before = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video?.device, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);
   consoles = status.consoles;
   controllerOn = status.controller_on ?? null;
+  const wasDetecting = detecting;
+  detecting = !!status.controller_detecting;
+  if (wasDetecting !== detecting) render();
   // a console that was removed: show the one with the controller
   if (currentConsole() && !consoles.some((c) => c.id === currentConsole())) setConsole('');
   const after = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video?.device, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);

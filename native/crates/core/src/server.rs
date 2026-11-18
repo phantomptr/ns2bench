@@ -371,6 +371,7 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
         // Not in the middle of an agent's input: the controller disconnects during the switch.
         let _quiet = b.hub.configuration_guard().map_err(|e| ApiError(StatusCode::CONFLICT, e.to_string()))?;
         b.hub.switch_usb_mode(m)?;
+        b.hub.manual_mode.store(true, std::sync::atomic::Ordering::SeqCst);
         b.logs.add("bench", format!("board USB mode -> {m} (the console sees the controller reconnect)"));
     }
     if let Some(on) = body["screen_log"].as_bool() {
