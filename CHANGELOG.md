@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Fixed: the Luckfox could switch controller mode off on a slow start-up.** The early start and the usual start at the end of boot could build the controller at the same time; the second failed, and a failed start turns controller mode off. The end-of-boot start now waits for the early one, and the early start writes to a log (`/tmp/ns2bench-boot.log` on the board). Install the board update from **Settings → Install → Bridge board**.
+
 ## 0.0.25
 
 - **Fixed: the board could fall out of controller mode after a power cut.** If the console cut the board's power while it was saving its start-up mode, the file was left empty, the board's start-up failed and controller mode was switched off. Now an unreadable start-up mode just means "start as standard", and the file is saved in a way a power cut can't empty. Install the board update from **Settings → Install → Bridge board**.

@@ -7,7 +7,13 @@ case "${1:-}" in
     start)
         [ "$(cat /etc/ns2-dev-mode 2>/dev/null || echo network)" = hid ] || exit 0
         [ -x /opt/ns2-dev/profile.sh ] || exit 0
-        ( /opt/ns2-dev/profile.sh boot >/dev/null 2>&1 && : > /run/ns2bench-early-done ) </dev/null &
+        # (marked as running: the start at the end of boot waits for this one instead of building
+        # the USB side at the same time, which failed and switched controller mode off)
+        : > /run/ns2bench-early-running
+        ( NS2BENCH_EARLY=1 /opt/ns2-dev/profile.sh boot >> /tmp/ns2bench-boot.log 2>&1; rc=$?
+          [ "$rc" = 0 ] && : > /run/ns2bench-early-done
+          echo "$(cut -d' ' -f1 /proc/uptime)s: early start finished ($rc)" >> /tmp/ns2bench-boot.log
+          rm -f /run/ns2bench-early-running ) </dev/null &
         ;;
     stop|restart) ;;
     *) echo "Usage: $0 {start|stop|restart}" >&2; exit 1 ;;

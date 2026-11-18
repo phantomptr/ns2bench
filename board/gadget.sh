@@ -195,6 +195,13 @@ fi
 
 case "$mode" in standard|hori|pro) ;; *) echo "usage: gadget.sh [standard|hori|pro|status]" >&2; exit 2 ;; esac
 
+# The early start (S45) may still be building when boot runs this again: wait for it (at most
+# 30 s) rather than build at the same time (two builds at once fail, and a failed start switches
+# controller mode off).
+if [ -z "${1:-}" ] && [ "${NS2BENCH_EARLY:-}" != 1 ] && [ -e /run/ns2bench-early-running ]; then
+    i=0; while [ -e /run/ns2bench-early-running ] && [ "$i" -lt 150 ]; do sleep 0.2; i=$((i + 1)); done
+fi
+
 # Boot runs this twice (early, and again at the end of boot): the second time, with the gadget
 # already built in that mode and bound, leave it alone (a rebuild would make the console reconnect).
 if [ -z "${1:-}" ] && [ -e /run/ns2bench-early-done ] && [ "$(cat "$ACTIVE_MODE" 2>/dev/null)" = "$mode" ] \
