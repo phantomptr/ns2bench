@@ -1,7 +1,7 @@
 [package]
 name = "ns2bench-pico"
 description = "NS2Bench Bridge firmware for a Raspberry Pi Pico (RP2040): console-facing USB HID, host link over UART"
-version = "0.0.24"
+version = "0.0.25"
 edition = "2021"
 license = "GPL-3.0-or-later"
 
