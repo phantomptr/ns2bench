@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.24
+
 - **The Luckfox is ready much sooner after power-up:** usable as a Pro Controller about **5.4 s** after power-on (it was 13 s). Its controller set-up runs early in boot, the vendor's unused USB setup is skipped, and it starts in the mode the console it was last on needs, Switch 1 or Switch 2. Install the board update from **Settings → Install → Bridge board**.
 - **Switching the controller's mode no longer drops the board's connection.** Only the console sees the controller change, about 1 s on the board. There's no "Board ✗", no reconnecting and no "which console?" question afterwards.
 - **NS2Bench notices the board coming back sooner** after a console wakes up (it checks every half second).
