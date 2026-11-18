@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.21
+
 - **A new right panel that follows the console you watch:**
   - **Console:** its name and model, where the controller is, and Edit, Wake and Sleep.
   - **Controller:** shows each link (computer → board → console) and says what to do when one is down. For example: "the board has power but Switch 1 hasn't connected to it".
