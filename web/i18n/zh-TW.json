@@ -610,7 +610,6 @@
   "Name": "名稱",
   "Network address (optional)": "網路位址（選填）",
   "no picture": "無畫面",
-  "Pick automatically": "自動選擇",
   "saved": "已儲存",
   "so buttons go there, not here.": "所以按鍵會送往那裡，而不是這裡。",
   "standard controller": "標準控制器",
@@ -623,9 +622,15 @@
   "Watching": "正在檢視：",
   "Which console is the controller plugged into? Input is paused until you say.": "控制器插在哪台主機上？在你說明之前輸入會暫停。",
   "Which console is the controller plugged into? Pick it above the picture.": "控制器插在哪台主機上？請在畫面上方選擇。",
-  "Pick its capture card": "選擇它的擷取卡",
   "Top buttons": "頂部按鍵",
   "How far ZL, L, R and ZR reach along the top of the drawn console.": "ZL、L、R、ZR 在繪製的主機頂部延伸多遠。",
   "Half span": "一半",
-  "Full span": "全寬"
+  "Full span": "全寬",
+  "added. Pick its capture card here once it is connected.": "已新增。擷取卡連接後，在這裡選擇它。",
+  "Another colour": "其他顏色",
+  "Edit": "編輯",
+  "no capture card yet. Connect it, then pick it in its settings.": "還沒有擷取卡。連接後在它的設定中選擇。",
+  "not connected": "未連接",
+  "Not set: use a free card when one is connected": "未設定：連接空閒擷取卡後自動使用",
+  "Set up": "設定"
 }

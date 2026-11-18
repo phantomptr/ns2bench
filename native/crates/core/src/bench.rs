@@ -187,12 +187,16 @@ impl Bench {
         let base = id.clone();
         let mut n = 2;
         while self.console(&id).is_some() { id = format!("{base}-{n}"); n += 1; }
-        // its own card, picked by the person: "automatic" would find the first console's card
+        // Only the name is needed: the card, address and colour can come later. Without a card it
+        // never inherits another console's (the bench's video settings carry the first one's card):
+        // it starts with none and takes a card no other console uses once one is connected.
         let device = v["video"]["device"].as_str().unwrap_or("");
-        if device.is_empty() { bail!("pick this console's capture card (each console needs its own)"); }
         self.check_device_free(device, None)?;
-        let entry = json!({"id": id, "name": name, "model": model, "color": v["color"].as_str().unwrap_or("#0ab9e6"),
-            "network_ip": v["network_ip"], "video": v["video"]});
+        let mut video = v["video"].as_object().cloned().unwrap_or_default();
+        video.insert("device".into(), if device.is_empty() { Value::Null } else { device.into() });
+        let color = v["color"].as_str().filter(|c| c.len() == 7 && c.starts_with('#') && c[1..].chars().all(|x| x.is_ascii_hexdigit())).unwrap_or("#0ab9e6");
+        let ip = v["network_ip"].as_str().map(str::trim).filter(|s| !s.is_empty());
+        let entry = json!({"id": id, "name": name, "model": model, "color": color, "network_ip": ip, "video": video});
         let c = Console::new(&entry, &self.cfg.video, &self.cfg.raw);
         self.consoles.write().unwrap().push(c.clone());
         self.apply_pause();
@@ -372,7 +376,11 @@ mod tests {
         let b = bench();
         b.add_console(&json!({"name": "Switch 1", "model": "switch1", "video": {"device": "card-2"}})).unwrap();
         assert!(b.add_console(&json!({"name": "switch 1", "video": {"device": "card-3"}})).is_err(), "names are unique, any case");
-        assert!(b.add_console(&json!({"name": "No card"})).is_err(), "a new console picks its own card");
+        // only a name is needed; without a card it doesn't take the first console's
+        let later = b.add_console(&json!({"name": "No card"})).unwrap();
+        assert!(later.video_cfg.lock().unwrap()["device"].is_null());
+        assert_eq!(*later.color.lock().unwrap(), "#0ab9e6");
+        b.remove_console("no-card").unwrap();
         assert!(b.add_console(&json!({"name": "Spare", "video": {"device": "card-2"}})).err().unwrap().to_string().contains("already used by Switch 1"));
         b.update_console("switch-1", &json!({"name": "Switch 1 OLED", "color": "#123abc", "network_ip": "192.168.86.252"})).unwrap();
         assert_eq!(b.console("switch 1 oled").unwrap().network_ip.lock().unwrap().as_deref(), Some("192.168.86.252"));

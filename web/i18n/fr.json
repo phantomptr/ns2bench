@@ -610,7 +610,6 @@
   "Name": "Nom",
   "Network address (optional)": "Adresse réseau (facultatif)",
   "no picture": "pas d’image",
-  "Pick automatically": "Choisir automatiquement",
   "saved": "enregistré",
   "so buttons go there, not here.": "donc les boutons vont là-bas, pas ici.",
   "standard controller": "manette standard",
@@ -623,9 +622,15 @@
   "Watching": "Vous regardez",
   "Which console is the controller plugged into? Input is paused until you say.": "Sur quelle console la manette est-elle branchée ? Les commandes sont en pause jusqu’à ce que vous le disiez.",
   "Which console is the controller plugged into? Pick it above the picture.": "Sur quelle console la manette est-elle branchée ? Choisissez-la au-dessus de l’image.",
-  "Pick its capture card": "Choisissez sa carte de capture",
   "Top buttons": "Boutons du haut",
   "How far ZL, L, R and ZR reach along the top of the drawn console.": "Jusqu’où ZL, L, R et ZR s’étendent en haut de la console dessinée.",
   "Half span": "Mi-largeur",
-  "Full span": "Pleine largeur"
+  "Full span": "Pleine largeur",
+  "added. Pick its capture card here once it is connected.": "ajoutée. Choisissez ici sa carte d’acquisition une fois branchée.",
+  "Another colour": "Autre couleur",
+  "Edit": "Modifier",
+  "no capture card yet. Connect it, then pick it in its settings.": "pas encore de carte d’acquisition. Branchez-la, puis choisissez-la dans ses réglages.",
+  "not connected": "non branchée",
+  "Not set: use a free card when one is connected": "Non choisie : prendre une carte libre dès qu’elle est branchée",
+  "Set up": "Configurer"
 }

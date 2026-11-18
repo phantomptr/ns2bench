@@ -272,7 +272,7 @@ button.badge::after { content: ""; position: absolute; top: 3px; right: 5px; wid
 #settings [data-pane] > h3:first-child, #settings .group > h3:first-child { margin-top: 0; }
 #settings p { overflow-wrap: anywhere; }
 #settings pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: var(--field); border-radius: var(--r-field); max-height: 240px; overflow: auto; }
-#settings input:not([type=checkbox]):not([type=radio]), #settings select { min-width: 0; width: 100%; font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: var(--r-field); padding: 8px 10px; }
+#settings input:not([type=checkbox]):not([type=radio]):not([type=color]), #settings select { min-width: 0; width: 100%; font: inherit; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: var(--r-field); padding: 8px 10px; }
 #settings .field { margin: 12px 0; }
 #settings-message:empty { display: none; }
 #settings-message { border-left: 3px solid var(--accent); padding-left: 10px; }
@@ -287,6 +287,16 @@ button:disabled { opacity: .5; cursor: default; }
 .console-bar { display: grid; gap: 8px; margin: 10px auto 0; width: min(100%, 1400px); }
 .console-bar[hidden], .console-note[hidden] { display: none; }
 .console-strip { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+/* colour: dots to click, and the colour input (small) for any other */
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 2px; }
+#settings .swatch, .swatch { flex: none; width: 26px; height: 26px; min-width: 0; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid var(--line); outline-offset: 0; cursor: pointer; }
+#settings .swatch[aria-pressed="true"], .swatch[aria-pressed="true"] { border-color: var(--bg); outline: 2px solid var(--text); }
+.field input.custom-color { width: 44px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); cursor: pointer; vertical-align: middle; }
+/* a console's tile, with its edit button on top */
+.console-tile { position: relative; display: inline-flex; }
+.console-tile .edit { position: absolute; left: 8px; top: 8px; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgb(0 0 0 / .55); color: #fff; cursor: pointer; opacity: .85; }
+.console-tile .edit:hover, .console-tile .edit:focus-visible { opacity: 1; background: rgb(0 0 0 / .75); }
+.console-tile .edit svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .console-thumb { width: 220px; padding: 0; border-radius: 12px; overflow: hidden; border: 2px solid var(--line); background: var(--field); color: inherit; text-align: left; cursor: pointer; }
 .console-thumb[aria-pressed="true"] { border-color: var(--tab-color); }
 .console-thumb .pic { position: relative; aspect-ratio: 16 / 9; background: #0b0c0e; }

@@ -610,7 +610,6 @@
   "Name": "Nome",
   "Network address (optional)": "Endereço de rede (opcional)",
   "no picture": "sem imagem",
-  "Pick automatically": "Escolher automaticamente",
   "saved": "salvo",
   "so buttons go there, not here.": "então os botões vão para lá, não para cá.",
   "standard controller": "controle padrão",
@@ -623,9 +622,15 @@
   "Watching": "Assistindo",
   "Which console is the controller plugged into? Input is paused until you say.": "Em qual console o controle está ligado? A entrada fica pausada até você dizer.",
   "Which console is the controller plugged into? Pick it above the picture.": "Em qual console o controle está ligado? Escolha acima da imagem.",
-  "Pick its capture card": "Escolha a placa de captura dele",
   "Top buttons": "Botões superiores",
   "How far ZL, L, R and ZR reach along the top of the drawn console.": "Até onde ZL, L, R e ZR se estendem no topo do console desenhado.",
   "Half span": "Meia largura",
-  "Full span": "Largura total"
+  "Full span": "Largura total",
+  "added. Pick its capture card here once it is connected.": "adicionado. Escolha aqui a placa de captura quando ela estiver conectada.",
+  "Another colour": "Outra cor",
+  "Edit": "Editar",
+  "no capture card yet. Connect it, then pick it in its settings.": "ainda sem placa de captura. Conecte-a e escolha-a nas configurações dele.",
+  "not connected": "não conectada",
+  "Not set: use a free card when one is connected": "Não definida: usar uma placa livre quando uma for conectada",
+  "Set up": "Configurar"
 }

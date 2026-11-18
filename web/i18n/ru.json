@@ -610,7 +610,6 @@
   "Name": "Имя",
   "Network address (optional)": "Сетевой адрес (необязательно)",
   "no picture": "нет изображения",
-  "Pick automatically": "Выбрать автоматически",
   "saved": "сохранено",
   "so buttons go there, not here.": "поэтому кнопки идут туда, а не сюда.",
   "standard controller": "стандартный контроллер",
@@ -623,9 +622,15 @@
   "Watching": "Просмотр:",
   "Which console is the controller plugged into? Input is paused until you say.": "К какой консоли подключён контроллер? Ввод приостановлен, пока вы не укажете.",
   "Which console is the controller plugged into? Pick it above the picture.": "К какой консоли подключён контроллер? Выберите её над изображением.",
-  "Pick its capture card": "Выберите её карту захвата",
   "Top buttons": "Верхние кнопки",
   "How far ZL, L, R and ZR reach along the top of the drawn console.": "Насколько далеко ZL, L, R и ZR тянутся по верху нарисованной консоли.",
   "Half span": "Половина ширины",
-  "Full span": "Вся ширина"
+  "Full span": "Вся ширина",
+  "added. Pick its capture card here once it is connected.": "добавлена. Выберите здесь её карту захвата, когда она будет подключена.",
+  "Another colour": "Другой цвет",
+  "Edit": "Изменить",
+  "no capture card yet. Connect it, then pick it in its settings.": "карты захвата пока нет. Подключите её и выберите в настройках консоли.",
+  "not connected": "не подключена",
+  "Not set: use a free card when one is connected": "Не выбрана: взять свободную карту, когда она будет подключена",
+  "Set up": "Настроить"
 }

@@ -63,17 +63,29 @@ function thumb(c) {
   b.append(pic, cap);
   // picking a console pins it (it no longer follows the controller around)
   b.onclick = () => { setConsole(c.id); render(); follow(); };
-  return b;
+  // its settings, from right here
+  const tile = Object.assign(document.createElement('span'), { className: 'console-tile' });
+  const ed = Object.assign(document.createElement('button'), { type: 'button', className: 'edit', title: `${t('Edit')} ${c.name}`,
+    innerHTML: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>' });
+  ed.setAttribute('aria-label', `${t('Edit')} ${c.name}`);
+  ed.onclick = () => editConsole(c.id);
+  tile.append(b, ed);
+  return tile;
+}
+
+/** Open Settings → Consoles at this console (or at the add form): its name field, in view. */
+export function editConsole(id) {
+  document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
+  const go = (n = 0) => {
+    const f = id ? document.querySelector(`#consoles-list [data-console="${CSS.escape(id)}"] input`) : $('#console-add-name');
+    if (f?.offsetParent) { f.scrollIntoView({ block: 'center' }); f.focus(); } else if (n < 30) setTimeout(() => go(n + 1), 100);
+  };
+  go();
 }
 
 function addTile() {
   const b = Object.assign(document.createElement('button'), { type: 'button', className: 'console-thumb add', textContent: `+ ${t('Add console')}` });
-  b.onclick = () => {
-    document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
-    // straight to the form: its name field, in view
-    const go = (n = 0) => { const f = $('#console-add-name'); if (f?.offsetParent) { f.scrollIntoView({ block: 'center' }); f.focus(); } else if (n < 20) setTimeout(() => go(n + 1), 100); };
-    go();
-  };
+  b.onclick = () => editConsole(null);
   return b;
 }
 
@@ -117,6 +129,13 @@ function render() {
       b.onclick = () => controllerIsOn(c.id).catch((e) => alertText(e));
       act.append(b);
     }
+  } else if (v && !v.video?.device && !(v.video_status?.age_s < 3)) {
+    // added without its card (it can come later): say so, with the way to set it
+    note.textContent = `${v.name}: ${t('no capture card yet. Connect it, then pick it in its settings.')}`;
+    note.className = 'console-note';
+    const set = Object.assign(document.createElement('button'), { type: 'button', textContent: t('Set up') });
+    set.onclick = () => editConsole(v.id);
+    act.append(set);
   } else if (v && v.id !== controllerOn) {
     const on = consoles.find((c) => c.id === controllerOn);
     note.textContent = `${t('Watching')} ${v.name}. ${t('The controller is plugged into')} ${on ? on.name : controllerOn}, ${t('so buttons go there, not here.')}`;
@@ -140,12 +159,12 @@ function alertText(e) {
 /** From each status: the consoles, and where the controller is. */
 export function updateConsoles(status) {
   if (!Array.isArray(status.consoles)) return;
-  const before = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);
+  const before = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video?.device, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);
   consoles = status.consoles;
   controllerOn = status.controller_on ?? null;
   // a console that was removed: show the one with the controller
   if (currentConsole() && !consoles.some((c) => c.id === currentConsole())) setConsole('');
-  const after = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);
+  const after = JSON.stringify([consoles.map((c) => [c.id, c.name, c.color, c.controller_here, c.model_name, c.video?.device, c.video_status?.age_s != null && c.video_status.age_s < 3]), controllerOn]);
   if (before !== after) render();
   follow();
 }

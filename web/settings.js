@@ -723,7 +723,9 @@ async function captureCards() {
 }
 function cardSelect(cards, used, mine) {
   const sel = document.createElement('select');
-  sel.append(new Option(t('Pick automatically'), ''));
+  sel.append(new Option(t('Not set: use a free card when one is connected'), ''));
+  // its saved card stays its card while unplugged (or saving would forget it)
+  if (mine && !cards.some((d) => d.id === mine)) sel.append(new Option(`${mine} (${t('not connected')})`, mine));
   for (const d of cards) {
     const by = used.get(d.id);
     const o = new Option(by && d.id !== mine ? `${d.name || d.id} (${t('used by')} ${by})` : (d.name || d.id), d.id);
@@ -751,11 +753,11 @@ async function consolesPane() {
   $('#console-add-model').replaceChildren(...modelSelect('switch1').children);
   $('#console-add-model').value = 'switch1';
   $('#console-add-card').replaceChildren(...cardSelect(cards, used, '').children);
-  // a new console picks its own card ("automatic" would find another console's)
-  $('#console-add-card').options[0].text = t('Pick its capture card');
-  $('#console-add-card').options[0].disabled = true;
+  $('#console-add-card').value = '';
+  swatches($('#console-add-color'));
   $('#consoles-list').replaceChildren(...r.consoles.map((c) => {
     const box = Object.assign(document.createElement('div'), { className: 'group console-card' });
+    box.dataset.console = c.id;
     box.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
     const title = Object.assign(document.createElement('h3'), { textContent: c.name });
     if (c.controller_here) title.append(Object.assign(document.createElement('span'), { className: 'controller-badge', textContent: ` 🎮 ${t('controller here')}` }));
@@ -794,18 +796,42 @@ async function consolesPane() {
       });
       row.append(rm);
     }
-    box.append(title, field(t('Name'), name), field(t('Model'), model), field(t('Capture card'), card), field(t('Network address (optional)'), ip), field(t('Colour'), color), row);
+    const colorField = field(t('Colour'), color);
+    swatches(color);
+    box.append(title, field(t('Name'), name), field(t('Model'), model), field(t('Capture card'), card), field(t('Network address (optional)'), ip), colorField, row);
     return box;
   }));
 }
+// Colour dots to click (a colour input alone shows as an empty bar in some web views), and the
+// colour input itself, small, for any other colour. `input` keeps the value.
+const COLORS = ['#e60012', '#0ab9e6', '#ffdc00', '#1edc00', '#ff3278', '#8c5cff', '#ff8a00', '#8a8f98'];
+function swatches(input) {
+  if (input.parentElement?.classList.contains('swatches')) { input.parentElement.replaceWith(input); }
+  const row = Object.assign(document.createElement('div'), { className: 'swatches' });
+  row.setAttribute('role', 'group');
+  const mark = () => { for (const b of row.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.color === input.value.toLowerCase())); };
+  for (const c of COLORS) {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'swatch', title: c });
+    b.dataset.color = c; b.style.background = c;
+    b.setAttribute('aria-label', c);
+    b.onclick = () => { input.value = c; mark(); };
+    row.append(b);
+  }
+  input.classList.add('custom-color');
+  input.title = t('Another colour');
+  input.oninput = mark;
+  input.replaceWith(row);
+  row.append(input);              // the dots, then the input for any other colour, on one row
+  mark();
+}
+
 $('#console-add').onclick = run(async () => {
   const name = $('#console-add-name').value.trim();
   if (!name) throw new Error(t('Give the console a name.'));
-  if (!$('#console-add-card').value) throw new Error(t('Pick its capture card'));
   const body = { action: 'add', name, model: $('#console-add-model').value, color: $('#console-add-color').value,
     network_ip: $('#console-add-ip').value.trim() || null, video: $('#console-add-card').value ? { device: $('#console-add-card').value } : {} };
   await consoleApi(body);
   $('#console-add-name').value = ''; $('#console-add-ip').value = '';
-  message(`${name}: ${t('added. Its picture starts in a moment.')}`);
+  message(`${name}: ${body.video.device ? t('added. Its picture starts in a moment.') : t('added. Pick its capture card here once it is connected.')}`);
   await consolesPane();
 });

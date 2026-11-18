@@ -610,7 +610,6 @@
   "Name": "이름",
   "Network address (optional)": "네트워크 주소(선택)",
   "no picture": "화면 없음",
-  "Pick automatically": "자동 선택",
   "saved": "저장됨",
   "so buttons go there, not here.": "따라서 버튼 입력은 여기가 아니라 그쪽으로 갑니다.",
   "standard controller": "표준 컨트롤러",
@@ -623,9 +622,15 @@
   "Watching": "보는 중:",
   "Which console is the controller plugged into? Input is paused until you say.": "컨트롤러가 어느 본체에 연결되어 있나요? 알려 주실 때까지 입력이 일시 중지됩니다.",
   "Which console is the controller plugged into? Pick it above the picture.": "컨트롤러가 어느 본체에 연결되어 있나요? 화면 위에서 고르세요.",
-  "Pick its capture card": "캡처 카드를 선택하세요",
   "Top buttons": "상단 버튼",
   "How far ZL, L, R and ZR reach along the top of the drawn console.": "그려진 본체 위쪽에서 ZL, L, R, ZR가 얼마나 길게 이어지는지.",
   "Half span": "절반",
-  "Full span": "전체"
+  "Full span": "전체",
+  "added. Pick its capture card here once it is connected.": "추가됨. 캡처 카드를 연결하면 여기에서 선택하세요.",
+  "Another colour": "다른 색",
+  "Edit": "편집",
+  "no capture card yet. Connect it, then pick it in its settings.": "아직 캡처 카드가 없습니다. 연결한 뒤 콘솔 설정에서 선택하세요.",
+  "not connected": "연결 안 됨",
+  "Not set: use a free card when one is connected": "설정 안 함: 빈 카드가 연결되면 사용",
+  "Set up": "설정"
 }

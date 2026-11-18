@@ -386,19 +386,27 @@ test('several consoles: add one, switch the view, input only goes where the cont
   await p.click('.console-thumb.add');
   await p.waitForSelector('#consoles-list .console-card');
   await p.waitForFunction(() => document.activeElement?.id === 'console-add-name');
-  // the form wants this console's own capture card (a test machine may have none to pick)
+  // only a name is needed (the card, address and colour can come later); colours are dots to click
   await p.fill('#console-add-name', 'Switch 1');
+  await p.click('#console-add-color >> xpath=.. >> .swatch[data-color="#1edc00"]');
+  assert.equal(await p.inputValue('#console-add-color'), '#1edc00');
   await p.click('#console-add');
-  await p.waitForFunction(() => /capture card/i.test(document.body.textContent));
-  // added as the page would, with a card name (its picture is the test source)
-  const added = await p.evaluate(async () => {
-    const r = await (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add', name: 'Switch 1', model: 'switch1', network_ip: '192.168.86.252', video: { device: 'test-card-2' } }) });
-    return r.status;
-  });
-  assert.equal(added, 200);
-  await p.click('[data-tab="network"]'); await p.click('[data-tab="consoles"]');
   await p.waitForFunction(() => document.querySelectorAll('#consoles-list .console-card').length === 2);
+  let list0 = await (await fetch(`${BASE}/api/consoles`)).json();
+  const added = list0.consoles[1];
+  assert.equal(added.color, '#1edc00');
+  assert.ok(!added.video?.device, 'no card yet, and not the first console\'s');
+  // its card, later (as its settings would; the test source stands in for a card)
+  const set = await p.evaluate(async (id) => (await (await import('/static/client.js')).apiFetch('/api/video', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': id }, body: JSON.stringify({ device: 'test-card-2' }) })).status, added.id);
+  assert.equal(set, 200);
+  await p.evaluate(async (id) => (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'update', id, model: 'switch1', network_ip: '192.168.86.252' }) }), added.id);
+  await p.click('#settings-close');
+  // each tile opens its own settings
+  await p.waitForSelector('.console-tile >> nth=1 >> .edit');
+  await p.click('.console-tile >> nth=1 >> .edit');
+  await p.waitForFunction((id) => document.activeElement?.closest('[data-console]')?.dataset.console === id, added.id);
   await p.click('#settings-close');
   // two tabs, the controller on the first
   await p.waitForSelector('#console-bar:not([hidden]) .console-thumb[data-console] >> nth=1', { timeout: 10000 });
