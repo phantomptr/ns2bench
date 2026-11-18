@@ -6,6 +6,12 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **A new right panel that follows the console you watch:**
+  - **Console:** its name and model, where the controller is, and Edit, Wake and Sleep.
+  - **Controller:** shows each link (computer → board → console) and says what to do when one is down. For example: "the board has power but Switch 1 hasn't connected to it".
+  - **Controller mode:** says which mode the console needs, with one click to switch when it's wrong. **Let go of everything** and **Run the check** are here too.
+  - **Picture & sound:** sound, screenshot and "save last 30 s" next to the capture card. Resolution, FPS and quality are folded away.
+  - **Network:** whether the console is protected, how many Nintendo names it was refused, when it last ran the connection test, and whether the helper is running.
 - **A console needs only a name.** Its capture card, network address and colour can come later. Until it has a card, the page says so with a **Set up** button.
 - **Edit a console from the main page:** the ✎ on its picture opens its settings.
 - **A console's saved capture card is kept while unplugged.** Before, Settings showed "Pick automatically" for an offline card, and saving would forget it.

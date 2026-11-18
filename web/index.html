@@ -144,13 +144,28 @@
       </ol>
       <div class="field-row wrap"><button type="button" class="primary" id="welcome-devices">Choose input device</button><a href="https://ns2bench.phantomptr.com/setup/" target="_blank" rel="noopener">Setup guide</a></div>
     </section>
-    <section class="card">
-      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M7 10v4M5 12h4M16 11h.01M18 13h.01"/></svg>Driving</h2>
+    <!-- the console this page shows: filled by panel.js -->
+    <section class="card panel-console" id="panel-console" hidden aria-labelledby="pc-name">
+      <h2 class="pc-head"><span class="pc-dot" id="pc-dot" aria-hidden="true"></span><span id="pc-name" data-no-i18n></span><span class="pc-sum" id="pc-sum"></span></h2>
+      <div class="pc-chips" id="pc-chips"></div>
+      <div class="field-row wrap pc-actions">
+        <button type="button" id="pc-edit">Edit console</button>
+        <button type="button" id="pc-wake" title="Wake the console (HOME, or the power command you set up)">Wake</button>
+        <button type="button" id="pc-sleep" title="Put the console to sleep (needs HDMI-CEC)">Sleep</button>
+      </div>
+      <p class="hint" id="pc-note" hidden></p>
+    </section>
+
+    <section class="card" id="controller-card">
+      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6"/><path d="M7 10v4M5 12h4M16 11h.01M18 13h.01"/></svg>Controller<span class="pc-sum" id="chain-sum" data-no-i18n></span></h2>
+      <ol class="chain" id="chain" aria-label="Connection"></ol>
+      <div class="callout" id="chain-callout" hidden><p id="chain-why"></p><div class="field-row wrap" id="chain-actions"></div></div>
       <span class="seg-label" id="usb-label">The console sees</span>
       <div class="seg" role="radiogroup" aria-labelledby="usb-label" id="seg-usb">
         <button type="button" role="radio" data-v="standard">Controller + keyboard</button><button type="button" role="radio" data-v="pro">Pro Controller</button>
       </div>
       <p class="hint" id="usb-help"></p>
+      <p class="hint" id="mode-pick" hidden></p>
       <p class="hint" id="usb-note"></p>
       <span class="seg-label" id="kb-label">Your keyboard sends</span>
       <div class="seg" role="radiogroup" aria-labelledby="kb-label" id="seg-kb">
@@ -166,22 +181,45 @@
         <label class="row"><input type="checkbox" switch id="show-keys"> Show key labels on Joy-Con</label>
         <label class="row" title="Agents (MCP or API) can't press anything while this is on. Only you can turn it off."><input type="checkbox" switch id="manual-only"> Block agents (manual only)</label>
       </div>
+      <div class="field-row wrap">
+        <button type="button" id="btn-letgo" title="Release every button, stick and key now">Let go of everything</button>
+        <button type="button" id="btn-check" title="Settings → Help: check the capture card, controller and console">Run the check</button>
+      </div>
       <p class="hint" id="driver">Last agent input: —</p>
     </section>
 
     <section class="card video-card" id="video-card">
-      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>Video</h2>
+      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>Picture &amp; sound<span class="pc-sum" id="v-sum" data-no-i18n></span></h2>
       <label class="field">Device <select id="v-device"></select></label>
       <label class="field" id="v-audio-field" hidden>Sound <select id="v-audio"></select></label>
-      <div class="field-row">
-        <label class="field">Resolution <select id="v-size"></select></label>
-        <label class="field">FPS <select id="v-fps"></select></label>
-      </div>
-      <label class="field">Quality <span id="v-qval"></span>
-        <input type="range" id="v-quality" min="30" max="95" step="5"></label>
+      <details class="v-more" id="v-more">
+        <summary>Resolution, FPS, quality</summary>
+        <div class="field-row">
+          <label class="field">Resolution <select id="v-size"></select></label>
+          <label class="field">FPS <select id="v-fps"></select></label>
+        </div>
+        <label class="field">Quality <span id="v-qval"></span>
+          <input type="range" id="v-quality" min="30" max="95" step="5"></label>
+      </details>
       <div class="field-row">
         <button type="button" id="v-apply">Apply</button>
         <span class="hint" id="v-note"></span>
+      </div>
+      <div class="field-row wrap media-actions">
+        <button type="button" id="p-sound" aria-pressed="false">Sound off</button>
+        <button type="button" id="p-shot">Screenshot</button>
+        <button type="button" id="p-clip">Save last 30 s</button>
+      </div>
+    </section>
+
+    <section class="card panel-network" id="panel-network" hidden>
+      <h2><svg class="hi" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M5 16v-4h14v4"/></svg>Network<span class="pc-sum" id="pn-state"></span></h2>
+      <dl class="kv" id="pn-rows"></dl>
+      <p class="hint" id="pn-note" hidden></p>
+      <div class="field-row wrap">
+        <button type="button" id="pn-check">Check now</button>
+        <button type="button" id="pn-addr" hidden>Set its address</button>
+        <button type="button" id="pn-settings">Network settings</button>
       </div>
     </section>
 

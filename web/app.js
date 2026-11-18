@@ -8,6 +8,7 @@ import { BIT, DPAD, mountPad } from './pad.js';
 import { startLive } from './live.js';
 import { toast } from './ui.js';
 import { inputBlock, mountConsoles, updateConsoles, viewed } from './consoles.js';
+import { updatePanel } from './panel.js';
 
 const $ = (s) => document.querySelector(s);
 const KEYMAP = { // KeyboardEvent.code -> controller input (keyboard → controller mode)
@@ -366,6 +367,7 @@ function showStatus(s) {
   const sel = $('#usb-mode');
   if (sel && !sel.dataset.busy) sel.value = mode;
   syncDriving();
+  updatePanel(s);
 }
 
 // ------------------------------------------------------------ Driving card: two plain choices

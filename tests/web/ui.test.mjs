@@ -478,3 +478,40 @@ test('top buttons: half span by default, full span from Appearance, remembered',
   assert.deepEqual(errors, []);
   await ctx.close();
 });
+
+test('right panel follows the shown console: its card, the controller chain, its network', async () => {
+  const { p, errors, ctx } = await page();
+  await p.evaluate(() => {
+    const d = document.querySelector('#whatsnew');
+    new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
+    if (d.open) d.close();
+  });
+  // the console card: its name, and the chain from this computer (no input device in tests)
+  await p.waitForSelector('#panel-console:not([hidden])');
+  const list = await (await fetch(`${BASE}/api/consoles`)).json();
+  const c = list.consoles[0];
+  assert.equal(await p.textContent('#pc-name'), c.name);
+  await p.waitForSelector('#chain li >> nth=1');
+  assert.match(await p.textContent('#chain'), /Computer/);
+  assert.match(await p.textContent('#chain-why'), /no input device/i);
+  // the network card asks for the address, then shows it once set
+  await p.waitForSelector('#panel-network:not([hidden]) #pn-addr:not([hidden])');
+  await p.evaluate(async (id) => (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'update', id, network_ip: '192.168.86.251' }) }), c.id);
+  await p.waitForFunction(() => /192\.168\.86\.251/.test(document.querySelector('#pn-rows').textContent), null, { timeout: 15000 });
+  assert.equal(await p.isHidden('#pn-addr'), true);
+  // Edit opens this console's settings, at its name
+  await p.click('#pc-edit');
+  await p.waitForFunction((id) => document.activeElement?.closest('[data-console]')?.dataset.console === id, c.id);
+  await p.click('#settings-close');
+  // picture shortcuts mirror the top bar's sound button
+  await p.click('#btn-sound');
+  await p.waitForFunction(() => document.querySelector('#p-sound').getAttribute('aria-pressed') === 'true');
+  await p.click('#p-sound');
+  await p.waitForFunction(() => document.querySelector('#btn-sound').getAttribute('aria-pressed') === 'false');
+  // put the address back as it was
+  await p.evaluate(async (id) => (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'update', id, network_ip: '' }) }), c.id);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

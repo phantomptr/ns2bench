@@ -540,3 +540,34 @@ dialog.palette { padding: 8px; top: 12vh; margin-top: 0; }
 #update-bytes { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); white-space: nowrap; }
 #toasts { inset: auto 16px 16px auto; margin: 0; border: 0; padding: 0; background: transparent; overflow: visible; color: inherit; }
 .engine-lost.safe { background: color-mix(in srgb, var(--warn) 16%, transparent); border-bottom-color: var(--warn); }
+
+/* ---------------------------------------------------------------- right panel (panel.js) */
+.pc-sum { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pc-sum.ok { color: var(--ok); } .pc-sum.bad { color: var(--bad, #ff6b6b); } .pc-sum.warn { color: var(--warn); }
+.pc-head { display: flex; align-items: center; gap: 8px; }
+.pc-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--tab-color, #888); flex: none; }
+.pc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--field); color: var(--text); }
+.chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); }
+.chip-btn { font-size: 12px; padding: 3px 10px; }
+.pc-actions { margin: 0; }
+#pc-note { margin: 8px 0 0; }
+/* computer → board → console */
+.chain { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 0; margin: 2px 0 10px; font-size: 12px; }
+.chain li { padding: 3px 8px; border-radius: 8px; background: var(--field); color: var(--muted); white-space: nowrap; font-weight: 600; }
+.chain li.arrow { background: none; padding: 0; font-weight: 400; }
+.chain li.ok { color: var(--ok); } .chain li.bad { color: var(--bad, #ff6b6b); } .chain li.warn { color: var(--warn); }
+.callout { font-size: 13px; padding: 8px 10px; border-radius: 10px; margin: 0 0 10px; background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.callout p { margin: 0; }
+.callout .field-row:not(:empty) { margin-top: 8px; }
+#mode-pick.warn { color: var(--warn); }
+#mode-pick button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-l, var(--accent)); text-decoration: underline; cursor: pointer; }
+/* picture and sound */
+.v-more { margin: 2px 0 8px; }
+.v-more > summary { cursor: pointer; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.media-actions { margin-top: 8px; }
+/* network */
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 2px 0 10px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.kv dd.ok { color: var(--ok); } .kv dd.bad { color: var(--bad, #ff6b6b); }
+.card h2:has(.pc-sum) { display: flex; align-items: center; gap: 6px; }
