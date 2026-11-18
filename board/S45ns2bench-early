@@ -5,7 +5,10 @@
 # Only on a board set up for NS2Bench's controller (ns2-dev profile "hid"); anything else: no-op.
 case "${1:-}" in
     start)
-        [ "$(cat /etc/ns2-dev-mode 2>/dev/null || echo network)" = hid ] || exit 0
+        if [ "$(cat /etc/ns2-dev-mode 2>/dev/null || echo network)" != hid ]; then
+            echo "$(cut -d' ' -f1 /proc/uptime)s boot: controller mode is OFF (no /etc/ns2-dev-mode=hid)" >> /opt/ns2bench/boot-history.log 2>/dev/null
+            exit 0
+        fi
         [ -x /opt/ns2-dev/profile.sh ] || exit 0
         # (marked as running: the start at the end of boot waits for this one instead of building
         # the USB side at the same time, which failed and switched controller mode off)

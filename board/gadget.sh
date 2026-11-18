@@ -28,6 +28,16 @@ fi
 # Atomic write: a power cut leaves the old file or the new one, never an empty one.
 save_file() { printf '%s\n' "$2" > "$1.tmp" && sync && mv -f "$1.tmp" "$1" && sync; }
 
+# At boot (no mode given) this never fails: a failure here made the ns2-dev boot switch the
+# controller mode off for good (seen three times when the console's power came and went). Log it,
+# keep the mode on, and the next boot tries again. Kept in a history that survives restarts.
+HISTORY=/opt/ns2bench/boot-history.log
+history() { echo "$(date '+%F %T' 2>/dev/null) up=$(cut -d' ' -f1 /proc/uptime)s $*" >> "$HISTORY" 2>/dev/null; tail -n 200 "$HISTORY" > "$HISTORY.tmp" 2>/dev/null && mv -f "$HISTORY.tmp" "$HISTORY"; }
+if [ -z "${1:-}" ]; then
+    trap 'rc=$?; if [ "$rc" != 0 ]; then echo "boot: could not build the controller (exit $rc); controller mode stays on, the next boot tries again" >&2; history "gadget.sh boot run FAILED (exit $rc), kept controller mode"; exit 0; fi' EXIT
+fi
+
+
 # quirk hooks (overridden by quirks/*.sh)
 GADGET_NAME=ns2bench               # a quirk may reuse a vendor gadget directory instead
 quirk_before() { :; }
@@ -139,9 +149,15 @@ pro_pid() {
     [ -n "$p" ] && [ -r "/proc/$p/cmdline" ] && tr '\000' ' ' < "/proc/$p/cmdline" | grep -q "ns2bench-board pro2" && echo "$p"
 }
 
+# Remote wakeup (the controller may wake a sleeping console), only while this file exists: an
+# experiment, undone by deleting it (and switching mode or rebooting).
+WAKE_BIT=0
+[ -e /etc/ns2bench-remote-wakeup ] && WAKE_BIT=32
+attrs() { printf '0x%02X' $(( $1 | WAKE_BIT )); }
+
 build_hori() {         # with_mouse(0|1)
     device 0x0F0D 0x0092 0x0100 0x00 0x00 0x00 "PICO SWITCH PRO." "J24 CONTROLLER"
-    echo 0x80 > "$G/configs/b.1/bmAttributes"; echo 500 > "$G/configs/b.1/MaxPower"
+    echo "$(attrs 128)" > "$G/configs/b.1/bmAttributes"; echo 500 > "$G/configs/b.1/MaxPower"
     echo "NS2Bench" > "$G/configs/b.1/strings/0x409/configuration"
     hid_function usb0 0 0 64 0 hid_report_pad
     # keyboard LED SET_REPORT arrives on ep0; an OUT endpoint here made f_hid stall it
@@ -162,7 +178,7 @@ build_hori() {         # with_mouse(0|1)
 build_pro() {
     device 0x057E 0x2069 0x0200 0xEF 0x02 0x01 "Nintendo" "Switch 2 Pro Controller"
     echo "00" > "$G/strings/0x409/serialnumber"
-    echo 0xC0 > "$G/configs/b.1/bmAttributes"; echo 500 > "$G/configs/b.1/MaxPower"
+    echo "$(attrs 192)" > "$G/configs/b.1/bmAttributes"; echo 500 > "$G/configs/b.1/MaxPower"
     echo "Config_0" > "$G/configs/b.1/strings/0x409/configuration"
     if [ -f "$G/max_speed" ]; then
         [ -f "$SPEED_SAVE" ] || cat "$G/max_speed" > "$SPEED_SAVE"
@@ -232,6 +248,7 @@ case "$mode" in
 esac
 quirk_after
 echo "$mode" > "$ACTIVE_MODE"
+[ -n "${1:-}" ] || history "gadget.sh boot run: $mode ready (udc $(cat /sys/class/udc/*/state 2>/dev/null))"
 # An explicit mode becomes the boot default, but only once it was actually reached: a fallback
 # must not quietly replace the person's choice.
 # (NS2BENCH_NO_SAVE=1: a quick look, e.g. the bench finding which console this is; boot stays as it was)

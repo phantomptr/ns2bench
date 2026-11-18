@@ -5,6 +5,9 @@
 # files as *.bak, swaps the new ones in and restarts the daemon.
 set -e
 cd /opt/ns2bench
+# The upload must be on storage before anything is swapped: this board loses the content of
+# recently written files when its power is cut (the console sleeping), leaving them empty.
+sync
 for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new S45ns2bench-early.new quirks/*.new; do sh -n "$f"; done
 bash -n restore-default-gadget.sh.new
 chmod 755 ns2bench-board.new
@@ -28,6 +31,8 @@ mv gadget.sh.new gadget.sh
 mv ns2bench-hidd.sh.new ns2bench-hidd.sh
 ./ns2bench-hidd.sh stop >/dev/null
 mv ns2bench-board.new ns2bench-board
+# on storage now, not only in memory (an empty gadget.sh or hidd script stops the controller)
+sync; sync
 if ! ./ns2bench-hidd.sh start; then
   # Never leave the board without a working Bridge: put the previous version back.
   echo "the new Bridge did not start: putting the previous version back" >&2
