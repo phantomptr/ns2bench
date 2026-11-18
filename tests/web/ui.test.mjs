@@ -379,11 +379,13 @@ test('several consoles: add one, switch the view, input only goes where the cont
     new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
     if (d.open) d.close();
   });
-  // one console: no console bar, as before
-  assert.equal(await p.isHidden('#console-bar'), true);
-  await p.click('#btn-settings');
-  await p.click('[data-tab="consoles"]');
+  // one console: its tile and "+ Add console" are already under the picture, and the tile opens the form
+  await p.waitForSelector('#console-bar:not([hidden]) .console-thumb[data-console]');
+  assert.equal(await p.locator('.console-thumb[data-console]').count(), 1);
+  assert.equal(await p.isHidden('#console-note'), true);
+  await p.click('.console-thumb.add');
   await p.waitForSelector('#consoles-list .console-card');
+  await p.waitForFunction(() => document.activeElement?.id === 'console-add-name');
   // the form wants this console's own capture card (a test machine may have none to pick)
   await p.fill('#console-add-name', 'Switch 1');
   await p.click('#console-add');
@@ -436,7 +438,7 @@ test('several consoles: add one, switch the view, input only goes where the cont
   await p.click('#confirm-ok');
   await waitFor(async () => (await (await fetch(`${BASE}/api/consoles`)).json()).consoles.length === 1);
   await p.click('#settings-close');
-  await p.waitForSelector('#console-bar', { state: 'hidden' });
+  await p.waitForFunction(() => document.querySelectorAll('.console-thumb[data-console]').length === 1);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

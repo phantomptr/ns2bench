@@ -6,6 +6,7 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Adding a console is easy to find:** the console strip under the picture now shows from the first console, with **+ Add console** next to it. Clicking it opens the form, ready to type the name.
 - The network helper walks the computer's adapter list in a way GitHub's code scanning can check (no change in behaviour).
 
 ## 0.0.20

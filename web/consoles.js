@@ -68,7 +68,12 @@ function thumb(c) {
 
 function addTile() {
   const b = Object.assign(document.createElement('button'), { type: 'button', className: 'console-thumb add', textContent: `+ ${t('Add console')}` });
-  b.onclick = () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
+  b.onclick = () => {
+    document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'consoles' }));
+    // straight to the form: its name field, in view
+    const go = (n = 0) => { const f = $('#console-add-name'); if (f?.offsetParent) { f.scrollIntoView({ block: 'center' }); f.focus(); } else if (n < 20) setTimeout(() => go(n + 1), 100); };
+    go();
+  };
   return b;
 }
 
@@ -96,14 +101,15 @@ setInterval(refreshPictures, 1000);
 function render() {
   const bar = $('#console-bar');
   if (!bar) return;
-  bar.hidden = consoles.length < 2;
+  // shown from the first console on, so "+ Add console" is always in sight
+  bar.hidden = consoles.length < 1;
   if (bar.hidden) return;
   $('#console-tabs').replaceChildren(...consoles.map(thumb), addTile());
   refreshPictures();
   const v = viewed();
   const note = $('#console-note'), act = $('#console-note-actions');
   act.replaceChildren();
-  if (!controllerOn) {
+  if (consoles.length > 1 && !controllerOn) {
     note.textContent = t('Which console is the controller plugged into? Input is paused until you say.');
     note.className = 'console-note warn';
     for (const c of consoles) {
