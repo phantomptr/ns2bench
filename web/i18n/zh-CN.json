@@ -596,7 +596,6 @@
   "Colour": "颜色",
   "Consoles": "主机",
   "controller here": "手柄在这里",
-  "Each console has its own capture card and network address, and a name you choose. They share the controller: plug its cable into one console at a time, and say which one here or above the picture.": "每台主机有自己的采集卡、网络地址和你起的名字。它们共用手柄：手柄线一次只插一台主机，并在这里或画面上方说明插在哪台。",
   "Give the console a name.": "请给主机起个名字。",
   "I moved the controller to": "手柄已移到：",
   "Its capture stops and its settings are removed. Clips and test reports stay.": "它的采集会停止，设置会被删除。片段和测试报告会保留。",
@@ -710,5 +709,9 @@
   "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Pro 手柄",
   "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 手柄（Switch 2 也支持）"
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 手柄（Switch 2 也支持）",
+  "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "每台主机有自己的采集卡、网络地址和你起的名字。它们共用手柄：手柄跟随你在画面下方选中的主机（把它的线插到那台）。拖动画面或在这里用 ↑ ↓ 调整顺序。",
+  "Move down": "下移",
+  "Move up": "上移",
+  "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 响应（可能正在重启）…"
 }

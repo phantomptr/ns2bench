@@ -596,7 +596,6 @@
   "Colour": "Cor",
   "Consoles": "Consoles",
   "controller here": "controle aqui",
-  "Each console has its own capture card and network address, and a name you choose. They share the controller: plug its cable into one console at a time, and say which one here or above the picture.": "Cada console tem a própria placa de captura e endereço de rede, e um nome que você escolhe. Eles compartilham o controle: ligue o cabo dele em um console por vez e diga qual aqui ou acima da imagem.",
   "Give the console a name.": "Dê um nome ao console.",
   "I moved the controller to": "Mudei o controle para",
   "Its capture stops and its settings are removed. Clips and test reports stay.": "A captura dele para e as configurações são removidas. Clipes e relatórios de teste ficam.",
@@ -710,5 +709,9 @@
   "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Controle Pro do Switch 1",
   "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "O Controle Pro do Switch 1 (o Switch 2 também aceita)"
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "O Controle Pro do Switch 1 (o Switch 2 também aceita)",
+  "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "Cada console tem sua placa de captura, seu endereço de rede e um nome à sua escolha. Eles compartilham o controle: ele vai para o console escolhido abaixo da imagem (ligue o cabo nele). Arraste as imagens, ou use ↑ ↓ aqui, para mudar a ordem.",
+  "Move down": "Mover para baixo",
+  "Move up": "Mover para cima",
+  "Waiting for NS2Bench to answer (it may be restarting)…": "Aguardando resposta do NS2Bench (pode estar reiniciando)…"
 }

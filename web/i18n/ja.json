@@ -596,7 +596,6 @@
   "Colour": "色",
   "Consoles": "本体",
   "controller here": "コントローラーはここ",
-  "Each console has its own capture card and network address, and a name you choose. They share the controller: plug its cable into one console at a time, and say which one here or above the picture.": "本体ごとにキャプチャカードとネットワークアドレス、好きな名前を設定できます。コントローラーは共有です：ケーブルは一度に1台の本体につなぎ、どれにつないだかをここか映像の上で選んでください。",
   "Give the console a name.": "本体に名前を付けてください。",
   "I moved the controller to": "コントローラーを移した先：",
   "Its capture stops and its settings are removed. Clips and test reports stay.": "キャプチャが止まり、設定が削除されます。クリップとテストレポートは残ります。",
@@ -710,5 +709,9 @@
   "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Proコントローラー",
   "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Proコントローラー（Switch 2 でも使えます）"
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Proコントローラー（Switch 2 でも使えます）",
+  "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "各コンソールには専用のキャプチャーボードとネットワークアドレス、好きな名前があります。コントローラーは共有です：画像の下で選んだコンソールに付きます（ケーブルをそこへ挿してください）。順番は画像をドラッグするか、ここで ↑ ↓ を使って変更します。",
+  "Move down": "下へ",
+  "Move up": "上へ",
+  "Waiting for NS2Bench to answer (it may be restarting)…": "NS2Bench の応答を待っています（再起動中かもしれません）…"
 }

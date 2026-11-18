@@ -596,7 +596,6 @@
   "Colour": "색상",
   "Consoles": "본체",
   "controller here": "컨트롤러 연결됨",
-  "Each console has its own capture card and network address, and a name you choose. They share the controller: plug its cable into one console at a time, and say which one here or above the picture.": "본체마다 캡처 카드와 네트워크 주소, 원하는 이름이 따로 있습니다. 컨트롤러는 함께 씁니다: 케이블을 한 번에 한 본체에만 꽂고, 어느 본체인지 여기나 화면 위에서 알려 주세요.",
   "Give the console a name.": "본체 이름을 입력하세요.",
   "I moved the controller to": "컨트롤러를 옮긴 본체:",
   "Its capture stops and its settings are removed. Clips and test reports stay.": "캡처가 멈추고 설정이 삭제됩니다. 클립과 테스트 보고서는 남습니다.",
@@ -710,5 +709,9 @@
   "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Pro 컨트롤러",
   "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 컨트롤러 (Switch 2에서도 사용 가능)"
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 컨트롤러 (Switch 2에서도 사용 가능)",
+  "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "각 콘솔은 자체 캡처 카드와 네트워크 주소, 원하는 이름을 가집니다. 컨트롤러는 공유됩니다: 화면 아래에서 고른 콘솔로 갑니다 (케이블을 그쪽에 꽂으세요). 순서는 이미지를 드래그하거나 여기서 ↑ ↓로 바꿉니다.",
+  "Move down": "아래로",
+  "Move up": "위로",
+  "Waiting for NS2Bench to answer (it may be restarting)…": "NS2Bench 응답을 기다리는 중 (재시작 중일 수 있음)…"
 }

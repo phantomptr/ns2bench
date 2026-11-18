@@ -119,6 +119,18 @@ async fn watch_controller(b: Arc<crate::Bench>) {
         // our own mode switch makes the board drop off and come back: that's not the cable
         if b.hub.switching_mode() { moved = false; unplugged = false; }
         if moved && b.list().len() > 1 && b.controller_console().is_some() {
+            // Following the console on screen: the controller is where the person pointed it
+            // (the board restarting is the console's power, not the cable moving). The Switch 2
+            // check below still corrects it if a Switch 2 turns out to be driving it.
+            if let Some(a) = b.active_console() {
+                if b.controller_console().is_some_and(|c| c.id == a.id) {
+                    b.apply_mode();
+                } else {
+                    let _ = b.set_controller_on(Some(&a.id));
+                }
+                b.logs.add("bench", format!("controller: the board came back; it stays on {} (the console picked on screen)", a.name()));
+                continue;
+            }
             let _ = b.set_controller_on(None);
             b.logs.notify("bench", "warn", "Which console is the controller on?",
                 "controller: its USB cable (or the board) was unplugged and came back. Input is paused: pick the console it's plugged into now (under the picture)");

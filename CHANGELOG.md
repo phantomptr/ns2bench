@@ -6,6 +6,10 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **The controller goes to the console you pick.** With several consoles, NS2Bench treats the console you last picked under the picture as where the controller is. It no longer asks "which console?" after the board restarts or when NS2Bench starts. A Switch 2 that starts the board as its Pro Controller still overrides that, and NS2Bench tells you.
+- **Reorder consoles:** drag their pictures in the strip, or use ↑ ↓ in **Settings → Consoles**.
+- **Fixed: Settings → Consoles sometimes stayed empty** when NS2Bench didn't answer for a moment (for example right after an update). It now says it's waiting and tries again.
+
 ## 0.0.27
 
 - **New controller mode: Switch 1 Pro Controller** (Luckfox and other Linux boards). The board can now act as the original Pro Controller: HOME, Capture and every Switch 1 button. A Switch 2 takes it too, without C, GL or GR. Pick **Switch 1 Pro** under **The console sees**. A Switch 1 can use it or the standard controller, and NS2Bench won't switch you away from either.

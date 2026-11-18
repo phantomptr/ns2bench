@@ -77,6 +77,22 @@ function thumb(c) {
   ed.setAttribute('aria-label', `${t('Edit')} ${c.name}`);
   ed.onclick = () => editConsole(c.id);
   tile.append(b, ed);
+  // drag a console onto another to put it there
+  tile.draggable = true;
+  tile.dataset.console = c.id;
+  tile.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', c.id); tile.classList.add('dragging'); });
+  tile.addEventListener('dragend', () => tile.classList.remove('dragging'));
+  tile.addEventListener('dragover', (e) => { e.preventDefault(); tile.classList.add('drop'); });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drop'));
+  tile.addEventListener('drop', (e) => {
+    e.preventDefault(); tile.classList.remove('drop');
+    const from = e.dataTransfer.getData('text/plain');
+    if (!from || from === c.id) return;
+    const ids = consoles.map((x) => x.id).filter((x) => x !== from);
+    ids.splice(ids.indexOf(c.id), 0, from);
+    consoles.sort((a, b2) => ids.indexOf(a.id) - ids.indexOf(b2.id)); render();
+    post({ action: 'order', ids }).catch((err) => alertText(err));
+  });
   return tile;
 }
 

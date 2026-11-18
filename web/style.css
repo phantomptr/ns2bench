@@ -294,6 +294,8 @@ button:disabled { opacity: .5; cursor: default; }
 .field input.custom-color { width: 44px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); cursor: pointer; vertical-align: middle; }
 /* a console's tile, with its edit button on top */
 .console-tile { position: relative; display: inline-flex; }
+.console-tile.dragging { opacity: .5; }
+.console-tile.drop .console-thumb { outline: 2px dashed var(--accent-l); outline-offset: 3px; }
 .console-tile .edit { position: absolute; left: 8px; top: 8px; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgb(0 0 0 / .55); color: #fff; cursor: pointer; opacity: .85; }
 .console-tile .edit:hover, .console-tile .edit:focus-visible { opacity: 1; background: rgb(0 0 0 / .75); }
 .console-tile .edit svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

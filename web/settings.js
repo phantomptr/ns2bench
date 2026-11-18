@@ -25,7 +25,7 @@ async function showTab(tab) {
   dialog.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.tab === tab)));
   dialog.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== tab; });
   if (tab === 'network') await network();
-  if (tab === 'consoles') await consolesPane();
+  if (tab === 'consoles') await consolesPaneRetrying();
   // Opening Updates looks again (at most every 10 minutes), instead of showing an old answer.
   if (tab === 'updates' && invoke && Date.now() - lastAttempt > 600000) updateAction('check').then(automaticUpdates).catch(() => {});
   if (tab === 'devices') serialPorts();
@@ -743,6 +743,20 @@ function field(label, input) {
   l.append(document.createTextNode(label), input);
   return l;
 }
+// The engine may not answer for a moment (restarting after an update, busy listing cards): say so
+// and try again every 2 s while the pane is open, instead of leaving it half drawn and empty.
+let consolesRetry = 0;
+async function consolesPaneRetrying() {
+  clearTimeout(consolesRetry);
+  try {
+    await consolesPane();
+  } catch (e) {
+    $('#consoles-list').replaceChildren(Object.assign(document.createElement('p'), { className: 'hint',
+      textContent: `${t('Waiting for NS2Bench to answer (it may be restarting)…')} (${String(e.message || e)})` }));
+    if (dialog.open && !$('[data-pane="consoles"]').hidden) consolesRetry = setTimeout(consolesPaneRetrying, 2000);
+  }
+}
+
 async function consolesPane() {
   const r = await api('/api/consoles');
   const cards = await captureCards();
@@ -838,6 +852,17 @@ async function consolesPane() {
         await consoleApi({ action: 'remove', id: c.id }); await consolesPane();
       });
       row.append(rm);
+      // order: the strip under the picture and this list follow it
+      const ids = r.consoles.map((x) => x.id), i = ids.indexOf(c.id);
+      const move = (to) => run(async () => {
+        const next = ids.slice(); next.splice(i, 1); next.splice(to, 0, c.id);
+        await consoleApi({ action: 'order', ids: next }); await consolesPane();
+      });
+      const up = Object.assign(document.createElement('button'), { type: 'button', textContent: '↑', title: t('Move up'), disabled: i === 0 });
+      const down = Object.assign(document.createElement('button'), { type: 'button', textContent: '↓', title: t('Move down'), disabled: i === ids.length - 1 });
+      up.setAttribute('aria-label', t('Move up')); down.setAttribute('aria-label', t('Move down'));
+      up.onclick = move(i - 1); down.onclick = move(i + 1);
+      row.append(up, down);
     }
     const colorField = field(t('Colour'), color);
     swatches(color);

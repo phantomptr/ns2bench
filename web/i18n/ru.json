@@ -596,7 +596,6 @@
   "Colour": "Цвет",
   "Consoles": "Консоли",
   "controller here": "контроллер здесь",
-  "Each console has its own capture card and network address, and a name you choose. They share the controller: plug its cable into one console at a time, and say which one here or above the picture.": "У каждой консоли своя карта захвата, сетевой адрес и имя, которое вы выбираете. Контроллер у них общий: подключайте его кабель к одной консоли за раз и указывайте, к какой, здесь или над изображением.",
   "Give the console a name.": "Дайте консоли имя.",
   "I moved the controller to": "Я подключил контроллер к:",
   "Its capture stops and its settings are removed. Clips and test reports stay.": "Захват остановится, а её настройки будут удалены. Клипы и отчёты о тестах останутся.",
@@ -710,5 +709,9 @@
   "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Pro Controller для Switch 1",
   "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Pro Controller для Switch 1 (Switch 2 тоже его принимает)"
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Pro Controller для Switch 1 (Switch 2 тоже его принимает)",
+  "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "У каждой консоли своя карта захвата, свой сетевой адрес и имя на ваш выбор. Контроллер у них общий: он идёт к консоли, выбранной под изображением (переключите туда его кабель). Перетаскивайте изображения или используйте ↑ ↓ здесь, чтобы изменить порядок.",
+  "Move down": "Ниже",
+  "Move up": "Выше",
+  "Waiting for NS2Bench to answer (it may be restarting)…": "Ожидание ответа NS2Bench (возможно, он перезапускается)…"
 }

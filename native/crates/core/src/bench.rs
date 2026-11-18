@@ -69,7 +69,12 @@ impl Bench {
         }
         // Several consoles: where the controller is isn't known at start (its cable may have moved
         // while NS2Bench was closed). The page asks; one console needs no answer.
-        let controller_on = controller_on.filter(|id| consoles.iter().any(|c| &c.id == id)).filter(|_| consoles.len() < 2 || cfg!(test));
+        // ...unless the controller follows the console picked on screen: then it's on that one.
+        let follows = crate::console::FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed);
+        let active = crate::console::ACTIVE.lock().unwrap().clone().filter(|id| consoles.iter().any(|c| &c.id == id));
+        let controller_on = if follows && consoles.len() > 1 && !cfg!(test) { active } else {
+            controller_on.filter(|id| consoles.iter().any(|c| &c.id == id)).filter(|_| consoles.len() < 2 || cfg!(test))
+        };
         let bench = Arc::new(Bench {
             input_cfg: Mutex::new(cfg.input.clone()), settings_lock: tokio::sync::Mutex::new(()),
             ext: crate::features::Ext::new(&cfg),
@@ -194,6 +199,11 @@ impl Bench {
     pub fn follow_view(self: &Arc<Self>, id: &str) -> Result<bool> {
         use std::sync::atomic::Ordering::Relaxed;
         let c = self.console(id).ok_or_else(|| anyhow!("no console {id:?}"))?;
+        // the console on screen now: remembered, so the controller is placed there after a restart
+        if *crate::console::ACTIVE.lock().unwrap() != Some(c.id.clone()) {
+            *crate::console::ACTIVE.lock().unwrap() = Some(c.id.clone());
+            let _ = self.save_consoles();
+        }
         if !crate::console::FOLLOW_VIEW.load(Relaxed) || !c.uses_controller.load(Relaxed) || self.list().len() < 2 {
             return Ok(false);
         }
@@ -207,6 +217,28 @@ impl Bench {
         self.set_controller_on(Some(&c.id))?;
         self.logs.add("bench", format!("controller: follows the console on screen: {}", c.name()));
         Ok(true)
+    }
+
+    /// The console the controller follows to (the one picked on screen), when following is on.
+    pub fn active_console(&self) -> Option<Arc<Console>> {
+        use std::sync::atomic::Ordering::Relaxed;
+        if !crate::console::FOLLOW_VIEW.load(Relaxed) { return None; }
+        let id = crate::console::ACTIVE.lock().unwrap().clone()?;
+        self.console(&id).filter(|c| c.uses_controller.load(Relaxed))
+    }
+
+    /// Reorder the consoles (the strip and Settings show them in this order).
+    pub fn reorder(&self, ids: &[String]) -> Result<()> {
+        let _one = self.changes.lock().unwrap();
+        {
+            let mut list = self.consoles.write().unwrap();
+            if ids.len() != list.len() || !list.iter().all(|c| ids.contains(&c.id)) {
+                bail!("the new order must list every console once");
+            }
+            list.sort_by_key(|c| ids.iter().position(|i| i == &c.id).unwrap_or(usize::MAX));
+        }
+        self.save_consoles()?;
+        Ok(())
     }
 
     /// Put the board in the USB mode the controller's console needs, if it's connected and in
@@ -469,6 +501,19 @@ mod tests {
         b.set_controller_on(Some("switch-1")).unwrap();
         let r = crate::inputs::RUN_GENERATION.scope(Some(started), async { b.hub.hold(&["A".into()], "api") }).await;
         assert!(r.unwrap_err().to_string().contains("moved to another console"));
+    }
+
+    #[tokio::test]
+    async fn the_console_picked_on_screen_is_where_the_controller_is_and_consoles_reorder() {
+        let b = bench();
+        b.add_console(&json!({"name": "Switch 1", "model": "switch1"})).unwrap();
+        b.follow_view("switch-1").unwrap();
+        assert_eq!(b.active_console().unwrap().id, "switch-1", "remembered as the console picked");
+        // the board restarting doesn't make it unknown: it's still on the console picked
+        assert_eq!(b.controller_console().unwrap().id, "switch-1");
+        b.reorder(&["switch-1".into(), "switch-2".into()]).unwrap();
+        assert_eq!(b.list().iter().map(|c| c.id.clone()).collect::<Vec<_>>(), ["switch-1", "switch-2"]);
+        assert!(b.reorder(&["switch-1".into()]).is_err(), "every console, once");
     }
 
     #[tokio::test]

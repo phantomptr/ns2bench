@@ -596,7 +596,6 @@
   "Colour": "顏色",
   "Consoles": "主機",
   "controller here": "控制器在這裡",
-  "Each console has its own capture card and network address, and a name you choose. They share the controller: plug its cable into one console at a time, and say which one here or above the picture.": "每台主機有自己的擷取卡、網路位址和你取的名字。它們共用控制器：控制器線一次只插一台主機，並在這裡或畫面上方說明插在哪台。",
   "Give the console a name.": "請替主機取個名字。",
   "I moved the controller to": "控制器已移到：",
   "Its capture stops and its settings are removed. Clips and test reports stay.": "它的擷取會停止，設定會被刪除。片段和測試報告會保留。",
@@ -710,5 +709,9 @@
   "Switch 1 Pro": "Switch 1 Pro",
   "Switch 1 Pro Controller": "Switch 1 Pro 控制器",
   "Switch 2 Pro": "Switch 2 Pro",
-  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 控制器（Switch 2 也支援）"
+  "The Switch 1 Pro Controller (a Switch 2 takes it too)": "Switch 1 Pro 控制器（Switch 2 也支援）",
+  "Each console has its own capture card and network address, and a name you choose. They share the controller: it goes to the console you pick under the picture (move its cable there). Drag the pictures, or use ↑ ↓ here, to change their order.": "每台主機有自己的擷取卡、網路位址和你取的名字。它們共用控制器：控制器跟隨你在畫面下方選中的主機（把它的線插到那台）。拖動畫面或在這裡用 ↑ ↓ 調整順序。",
+  "Move down": "下移",
+  "Move up": "上移",
+  "Waiting for NS2Bench to answer (it may be restarting)…": "正在等待 NS2Bench 回應（可能正在重新啟動）…"
 }

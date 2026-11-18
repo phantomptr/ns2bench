@@ -167,6 +167,7 @@ pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
             .filter(|c| c["id"].as_str().is_some_and(|s| !s.is_empty())).collect();
         if !list.is_empty() {
             FOLLOW_VIEW.store(v["controller_follows_view"].as_bool().unwrap_or(true), std::sync::atomic::Ordering::Relaxed);
+            *ACTIVE.lock().unwrap() = v["active"].as_str().or(v["controller_on"].as_str()).map(str::to_string);
             return (list, v["controller_on"].as_str().map(str::to_string));
         }
     }
@@ -179,11 +180,16 @@ pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
 /// Switching to a console (on the page) moves the shared controller there too.
 pub static FOLLOW_VIEW: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
+/// The console the person picked last (the one on screen). With the controller following the
+/// console on screen, that's where the controller is: after the board restarts, at start, always.
+pub static ACTIVE: Mutex<Option<String>> = Mutex::new(None);
+
 pub fn save(consoles: &[Arc<Console>], controller_on: Option<&str>) -> std::io::Result<()> {
     // unit tests never write the person's consoles.json
     if cfg!(test) { return Ok(()); }
     write_json(&file(), &json!({"consoles": consoles.iter().map(|c| c.entry()).collect::<Vec<_>>(), "controller_on": controller_on,
-        "controller_follows_view": FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed)}))
+        "controller_follows_view": FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed),
+        "active": *ACTIVE.lock().unwrap()}))
 }
 
 tokio::task_local! {

@@ -543,6 +543,11 @@ async fn post_consoles(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
         "controller" => { b.set_controller_on(if id.is_empty() { None } else { Some(id) })?; Ok(Json(json!({"ok": true}))) }
         // the page switched to this console: the shared controller follows when set to
         "follow" => { let moved = b.follow_view(id)?; Ok(Json(json!({"ok": true, "moved": moved}))) }
+        "order" => {
+            let ids: Vec<String> = v["ids"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()).unwrap_or_default();
+            b.reorder(&ids)?;
+            Ok(Json(json!({"ok": true})))
+        }
         "settings" => {
             if let Some(f) = v["controller_follows_view"].as_bool() {
                 crate::console::FOLLOW_VIEW.store(f, std::sync::atomic::Ordering::Relaxed);
@@ -550,7 +555,7 @@ async fn post_consoles(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
             }
             Ok(Json(json!({"ok": true})))
         }
-        other => Err(bad(format!("unknown action {other:?}: add, update, remove, controller, follow or settings"))),
+        other => Err(bad(format!("unknown action {other:?}: add, update, remove, controller, follow, order or settings"))),
     }
 }
 
