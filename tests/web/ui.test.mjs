@@ -512,7 +512,19 @@ test('top buttons: half span by default, full span from Appearance, remembered',
     new MutationObserver(() => { if (d.open) d.close(); }).observe(d, { attributes: true, attributeFilter: ['open'] });
     if (d.open) d.close();
   });
-  const reach = () => p.evaluate(() => document.querySelector('.joycon.left .shoulders').getBoundingClientRect().right - document.querySelector('.joycon.left').getBoundingClientRect().right);
+  // (relative to the Joy-Con's own height: the drawn console resizes while the page settles,
+  // e.g. when the console strip appears, and a slow machine may measure on either side of that)
+  const reach = () => p.evaluate(() => {
+    const j = document.querySelector('.joycon.left').getBoundingClientRect();
+    return (document.querySelector('.joycon.left .shoulders').getBoundingClientRect().right - j.right) / j.height * 400;
+  });
+  // the layout settled: the drawn console keeps its size for half a second
+  await p.waitForFunction(() => {
+    const h = document.querySelector('.joycon.left')?.getBoundingClientRect().height;
+    const w = window.__jcSize ??= { h, t: performance.now() };
+    if (w.h !== h) { window.__jcSize = { h, t: performance.now() }; return false; }
+    return performance.now() - w.t > 500;
+  }, null, { timeout: 10000, polling: 100 });
   const half = await reach();
   assert.ok(half > 20, `L reaches in over the screen (${half}px)`);
   await p.click('#btn-settings');
