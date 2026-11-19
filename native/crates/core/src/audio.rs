@@ -124,7 +124,9 @@ impl AudioHub {
             let device = device.as_str();
             self.st.lock().unwrap().device = Some(device.to_string());
             let input: Vec<String> = if cfg!(windows) {
-                vec!["-f".into(), "dshow".into(), "-i".into(), format!("audio={device}")]
+                // (small chunks: the default hands sound over in half-second bursts, which the player
+                // can only drop part of and then run dry)
+                vec!["-f".into(), "dshow".into(), "-audio_buffer_size".into(), "50".into(), "-i".into(), format!("audio={device}")]
             } else {
                 vec!["-f".into(), "alsa".into(), "-i".into(), device.into()]
             };

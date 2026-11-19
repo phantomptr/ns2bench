@@ -47,15 +47,29 @@ history() {            # never fails (it runs inside the boot trap; a full or re
 LOCK=/run/ns2bench-gadget.lock
 LOCKED=0
 lock() {
-    local i=0
+    local i=0 owner
     while ! mkdir "$LOCK" 2>/dev/null; do
+        owner=$(cat "$LOCK/pid" 2>/dev/null || true)
         i=$((i + 1))
-        if [ "$i" -gt 150 ]; then echo "taking over a stale build lock" >&2; rmdir "$LOCK" 2>/dev/null || true; i=0; fi
+        # its owner is gone (stopped, or the power went mid-build on a board whose /run is kept): take over now
+        if { [ -n "$owner" ] && [ ! -d "/proc/$owner" ]; } || [ "$i" -gt 150 ]; then
+            echo "taking over a build lock left behind" >&2
+            rm -rf "$LOCK"; i=0; continue
+        fi
         sleep 0.2
     done
+    echo $$ > "$LOCK/pid"
     LOCKED=1
 }
-unlock() { if [ "$LOCKED" = 1 ]; then rmdir "$LOCK" 2>/dev/null || true; LOCKED=0; fi; }
+# (only its owner removes it: a run that lost the lock to a takeover must not remove the taker's)
+unlock() {
+    if [ "$LOCKED" = 1 ]; then
+        if [ "$(cat "$LOCK/pid" 2>/dev/null || true)" = "$$" ]; then rm -rf "$LOCK"; fi
+        LOCKED=0
+    fi
+}
+# Asked to stop (the Bridge gives a switch 25 s): leave through the EXIT trap, which unlocks.
+trap 'exit 143' TERM INT
 if [ -z "${1:-}" ]; then
     trap 'rc=$?; unlock; if [ "$rc" != 0 ]; then echo "boot: could not build the controller (exit $rc); controller mode stays on, the next boot tries again" >&2; history "gadget.sh boot run FAILED (exit $rc), kept controller mode" || true; exit 0; fi' EXIT
 else

@@ -19,18 +19,33 @@ fn load_config() -> ns2bench_core::Config {
     let explicit = std::env::var("NS2BENCH_CONFIG").ok();
     ns2bench_core::Config::load(explicit.as_deref()).unwrap_or_else(|e| {
         eprintln!("NS2Bench: config: {e}; using defaults");
-        // A settings file that can't be read: keep a copy aside (the next save writes a fresh
-        // one in its place) and leave a note where bug reports look, instead of silently
-        // starting as if nothing had ever been set up.
-        let path = ns2bench_core::config::find(explicit.as_deref());
-        if let Some(p) = &path {
-            let aside = p.with_extension(format!("json.unreadable-{}", ns2bench_core::logs::stamp()));
-            let kept = std::fs::copy(p, &aside).is_ok();
-            ns2bench_core::crashlog::write("config", &format!("the settings file {} could not be read ({e}); NS2Bench started with default settings{}",
-                p.display(), if kept { format!("; a copy of the unreadable file is at {}", aside.display()) } else { String::new() }));
-        }
-        ns2bench_core::Config::from_raw(path, serde_json::json!({}))
+        ns2bench_core::Config::from_raw(None, serde_json::json!({}))
     })
+}
+
+/// At startup only: a settings file that is there but can't be read is copied aside and noted
+/// where bug reports look, instead of the app silently starting as if nothing was ever set up.
+/// The next save then writes a fresh file in its place (only if the copy was made).
+fn load_config_at_start() -> ns2bench_core::Config {
+    let explicit = std::env::var("NS2BENCH_CONFIG").ok();
+    match ns2bench_core::Config::load(explicit.as_deref()) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("NS2Bench: config: {e}; using defaults");
+            // (a file named by NS2BENCH_CONFIG that doesn't exist is not "unreadable", and no
+            // other file is to blame for it)
+            let path = ns2bench_core::config::find(explicit.as_deref())
+                .filter(|p| explicit.as_deref().is_none_or(|x| ns2bench_core::config::expand(x) == *p));
+            let mut kept = None;
+            if let Some(p) = &path {
+                let aside = p.with_extension(format!("json.unreadable-{}", ns2bench_core::logs::stamp()));
+                if std::fs::copy(p, &aside).is_ok() { kept = Some(aside); }
+                ns2bench_core::crashlog::write("config", &format!("the settings file {} could not be read ({e}); NS2Bench started with default settings{}",
+                    p.display(), kept.as_ref().map(|a| format!("; a copy of the unreadable file is at {}", a.display())).unwrap_or_default()));
+            }
+            ns2bench_core::Config::from_raw(path.filter(|_| kept.is_some()), serde_json::json!({}))
+        }
+    }
 }
 
 /// The desktop's opener, started with the system's libraries (not an AppImage's bundled ones).
@@ -210,7 +225,7 @@ fn main() {
         eprintln!("NS2Bench: the last run ended unexpectedly; its startup trace:\n{prev}");
     }
     ns2bench_core::report::trace(if ns2bench_core::config::safe_mode() { "safe mode: no capture, input or sound" } else { "normal start" });
-    let cfg = load_config();
+    let cfg = load_config_at_start();
     std::thread::spawn(updates::remove_old_downloads);
     ns2bench_core::report::trace(format!("config loaded ({})", cfg.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "defaults".into())));
     let url = format!("{}/", cfg.url());

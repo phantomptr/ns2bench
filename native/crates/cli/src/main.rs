@@ -21,6 +21,9 @@ struct Cli {
     /// API token (default: from the config)
     #[arg(long, global = true, env = "NS2BENCH_TOKEN", hide_env_values = true)]
     token: Option<String>,
+    /// the console a command is about, by name or id (with several consoles; default: the one with the controller)
+    #[arg(long, global = true, env = "NS2BENCH_CONSOLE")]
+    console: Option<String>,
     /// print raw JSON instead of a summary
     #[arg(long, global = true)]
     json: bool,
@@ -31,7 +34,7 @@ struct Cli {
 #[derive(Clone, Copy, ValueEnum)]
 enum Stick { Left, Right }
 #[derive(Clone, Copy, ValueEnum)]
-enum Mode { Standard, Pro }
+enum Mode { Standard, Hori, Pro, Pro1 }
 #[derive(Clone, Copy, ValueEnum, PartialEq)]
 enum OnOff { On, Off }
 #[derive(Clone, Copy, ValueEnum, PartialEq)]
@@ -390,6 +393,7 @@ async fn run(cli: Cli) -> Res<ExitCode> {
         c.base = u.trim_end_matches('/').to_string();
     }
     if let Some(t) = cli.token { c.token = Some(t); }
+    if cli.console.is_some() { c.console = cli.console; }
     let raw = cli.json;
     let ok = |v: &Value| if raw { pretty(v) } else { println!("ok") };
     match cli.cmd {
@@ -610,7 +614,7 @@ async fn run(cli: Cli) -> Res<ExitCode> {
         }
 
         Cmd::UsbMode { mode } => {
-            let m = match mode { Mode::Standard => "standard", Mode::Pro => "pro" };
+            let m = match mode { Mode::Standard => "standard", Mode::Hori => "hori", Mode::Pro => "pro", Mode::Pro1 => "pro1" };
             let v = post(&c, "/api/control", json!({"usb_mode": m})).await?;
             if raw { pretty(&v) } else { println!("switching to {m}: the console sees the controller reconnect (about 10 s)"); }
         }
@@ -663,7 +667,8 @@ async fn run(cli: Cli) -> Res<ExitCode> {
             let ctl = &cur["controls"];
             let topology = topology.unwrap_or_else(|| ctl["topology"].as_str().unwrap_or("direct").into());
             // With a router or no managed network, local services must be off unless asked.
-            let keep = |k: &str| topology == "direct" && ctl[k] == true;
+            // (a shared home network keeps its name answers and connection test too; never DHCP there)
+            let keep = |k: &str| (topology == "direct" || (topology == "shared" && k != "dhcp")) && ctl[k] == true;
             let b = json!({
                 "topology": topology,
                 "dhcp": on(dhcp).unwrap_or_else(|| keep("dhcp")),
@@ -780,9 +785,13 @@ fn stamp() -> String {
 async fn main() -> ExitCode {
     // `ns2bench logs | head`: the reader closing the pipe ends the command quietly, as with any
     // other tool (Rust ignores SIGPIPE, so the next print would panic and be recorded as a crash).
+    // Not for `serve` (the engine itself): it writes to its own helper processes' pipes, and one
+    // of those ending early must stay an error to handle, not end the engine.
     #[cfg(unix)]
-    // SAFETY: restoring the default action for a signal, before any thread or handler exists.
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
+    if !std::env::args().any(|a| a == "serve" || a == "mcp") {
+        // SAFETY: restoring the default action for a signal, before any thread or handler exists.
+        unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
+    }
     ns2bench_core::crashlog::install("cli", |p| eprintln!("ns2bench stopped unexpectedly. Details: {}", p.display()));
     match run(Cli::parse()).await {
         Ok(c) => c,

@@ -327,7 +327,7 @@ async fn netd_install() -> Result<Value> {
     let os = netd_os().context("The network helper runs on macOS and Linux. On Windows, run it on a Linux board or PC (see the setup guide).")?;
     let cfg = crate::load_config();
     let config = cfg.path.clone().filter(|p| p.is_file())
-        .context("Save your network settings first (Settings → Network), then install the helper.")?;
+        .context("The helper needs a settings file that says which network adapter the console is on (~/.ns2bench/config.json). The setup guide's network step creates it; then install the helper.")?;
     let config = std::fs::canonicalize(&config)?;
     let dl = fetch(&format!("ns2bench-netd-{VERSION}-{os}-{}", arch())).await?;
     tokio::task::spawn_blocking(move || -> Result<Value> {

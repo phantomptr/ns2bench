@@ -128,7 +128,7 @@ jobs:
           }
           case "${{ matrix.platform }}" in
             mac)
-              cp "$(find "$b/dmg" -name '*.dmg' | head -n1)" "out/$n.dmg"
+              f="$(one "$b/dmg" "*_${V}_*.dmg")"; cp "$f" "out/$n.dmg"
               # the updater mounts the image unattended: no licence prompt allowed
               info="$(hdiutil imageinfo "out/$n.dmg")"
               case "$info" in *"Software License Agreement: true"*)

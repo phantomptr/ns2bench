@@ -267,7 +267,8 @@ impl Bench {
         if st["backend"] != "hidd" || !st["usb_mode"].as_str().is_some_and(|m| matches!(m, "standard" | "hori" | "pro" | "pro1")) { return; }
         // The board's own word wins: a Switch 2 is driving it as its Pro Controller. A console
         // set up as another type doesn't get to take that away.
-        if st["host"] == "switch2" && want != "pro" && st["usb_mode"] == "pro" { return; }
+        // (a Switch 2's own choice of controller + keyboard is its to make)
+        if st["host"] == "switch2" && want != "pro" && st["usb_mode"] == "pro" && *c.model.lock().unwrap() != "switch2" { return; }
         // next time the board powers up (the console woke), it starts as what this console needs,
         // instead of starting as the other and switching over (seconds, and a reconnect)
         if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
@@ -395,6 +396,7 @@ impl Bench {
         }
         self.apply_pause();
         self.save_consoles()?;
+        self.apply_mode();          // (one console left: the board becomes what that one needs)
         self.logs.add("bench", format!("console removed: {} ({})", c.name(), c.id));
         Ok(())
     }
@@ -430,7 +432,7 @@ impl Bench {
             let mut v = c.video_cfg.lock().unwrap();
             for (k, x) in obj { v[k] = x.clone(); }
             // new settings: ask the card for them again (it may accept these)
-            if let Some(o) = v.as_object_mut() { o.remove("_device_default"); o.remove("_raw"); }
+            if let Some(o) = v.as_object_mut() { o.remove("_device_default"); o.remove("_raw"); o.remove("_raw_tried"); }
             if self.list().first().is_some_and(|f| f.id == c.id) { save_video_json(&v); }
         }
         self.save_consoles()?;
@@ -441,7 +443,8 @@ impl Bench {
 
     pub fn status(&self) -> Value {
         let target = self.target().ok();
-        let on = self.controller_on.lock().unwrap().clone();
+        // (as the engine sees it: with one console the controller is that console's)
+        let on = self.controller_console().map(|c| c.id.clone());
         let mut s = json!({
             "video": target.as_ref().map(|c| c.frames.status()).unwrap_or(json!({})),
             "input": self.hub.status(),

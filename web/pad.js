@@ -164,7 +164,8 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
       e.preventDefault(); e.stopPropagation(); tip.classList.remove('show');
       if (active !== null) return;
       active = e.pointerId;
-      base.setPointerCapture(e.pointerId); s.classList.add('grab');
+      try { base.setPointerCapture(e.pointerId); } catch { active = null; return; }
+      s.classList.add('grab');
       downAt = performance.now(); travel = 0; move(e);
       if (travel < TAP_TRAVEL) vstick[which] = [0, 0];
     });

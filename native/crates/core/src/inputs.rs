@@ -354,8 +354,13 @@ async fn run_board(
                             logs.add("bench", format!("NS2Bench Bridge: now in {mode} mode (switched without reconnecting)"));
                             let _ = on_connect.send(());     // re-send what's held, as after a reconnect
                         } else if let Some(err) = m.get("error") {
-                            // (a refused mode switch isn't under way: presses go through again)
-                            status.lock().unwrap().switching_until = None;
+                            // (a refused mode switch isn't under way: presses go through again.
+                            // Other errors, like a mouse move while the devices are closed, or
+                            // "already under way", say nothing of the kind)
+                            let text = err.as_str().unwrap_or("").to_lowercase();
+                            if !text.contains("already under way") && (text.contains("usb_mode") || text.contains("usb mode") || text.contains("mode switch")) {
+                                status.lock().unwrap().switching_until = None;
+                            }
                             logs.error("board", format!("error: {err}"));
                             status.lock().unwrap().detail = Some(err.to_string());
                         }

@@ -52,6 +52,9 @@ export function startLive(img, onMode = () => {}) {
   function connect() {
     if (!('VideoDecoder' in window)) return mjpeg('browser has no WebCodecs');
     let configured = false;
+    // Frames that arrive while the decoder is being set up (the engine sends a keyframe right
+    // after "init"): kept and decoded once it's ready, instead of waiting a second for the next.
+    let early = [];
     const sock = new WebSocket(authURL('/video').replace(/^http/, 'ws'));
     ws = sock;
     sock.binaryType = 'arraybuffer';
@@ -59,6 +62,7 @@ export function startLive(img, onMode = () => {}) {
       if (typeof ev.data === 'string') {
         const m = JSON.parse(ev.data);
         if (m.t !== 'init') return;
+        configured = false; early = [];
         try { await configure(m); configured = true; needKey = true; }
         catch (e) {
           if (sock !== ws) return;                          // closed meanwhile: a retry is on its way
@@ -71,16 +75,24 @@ export function startLive(img, onMode = () => {}) {
         img.removeAttribute('src');                         // stop the MJPEG download
         onMode(mode);
         if (!painting) { painting = true; requestAnimationFrame(paint); }
+        const waiting = early; early = [];
+        for (const d of waiting) feed(d);
         return;
       }
-      if (!configured || dec?.state !== 'configured') return;
+      if (!configured) { if (early.length < 240) early.push(ev.data); return; }
+      feed(ev.data);
+    };
+    const feed = (buf) => {
+      if (dec?.state !== 'configured') return;
       // Hidden tab: don't decode frames nobody sees; start again from a keyframe when shown.
       if (document.hidden) { needKey = true; return; }
-      const data = new Uint8Array(ev.data);
+      const data = new Uint8Array(buf);
       const key = isKey(data);
       // Decoder behind: drop frames, then wait for a keyframe (a delta without the frames
       // it builds on decodes to a smeared picture).
-      if (dec.decodeQueueSize > 6) { needKey = true; return; }
+      // (only a real backlog, about a third of a second: a brief hiccup catches up by itself,
+      // and dropping then froze the picture until the next keyframe)
+      if (dec.decodeQueueSize > 20) { needKey = true; return; }
       if (needKey && !key) return;
       needKey = false;
       try { dec.decode(new EncodedVideoChunk({ type: key ? 'key' : 'delta', timestamp: (ts += 16667), data })); }

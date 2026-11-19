@@ -27,9 +27,8 @@ pub fn home() -> PathBuf {
 /// `~/.ns2bench` (created on demand).
 pub fn state_dir() -> PathBuf {
     let d = home().join(".ns2bench");
-    // (created once, not on every call: status and logs ask many times a second)
-    static MADE: std::sync::Once = std::sync::Once::new();
-    MADE.call_once(|| { let _ = std::fs::create_dir_all(&d); });
+    // (only when it's missing: status and logs ask many times a second)
+    if !d.is_dir() { let _ = std::fs::create_dir_all(&d); }
     d
 }
 
@@ -75,6 +74,11 @@ pub fn find(explicit: Option<&str>) -> Option<PathBuf> {
     None
 }
 
+fn saved_setting(name: &str) -> std::io::Result<String> {
+    if cfg!(test) { return Err(std::io::ErrorKind::NotFound.into()); }
+    std::fs::read_to_string(state_dir().join(name))
+}
+
 impl Config {
     pub fn load(explicit: Option<&str>) -> anyhow::Result<Config> {
         let path = find(explicit);
@@ -92,13 +96,14 @@ impl Config {
         let d = defaults();
         let mut video = merge(&d["video"], raw.get("video"));
         // settings chosen in the UI win over the config file
-        if let Ok(s) = std::fs::read_to_string(state_dir().join("video.json")) {
+        // (never in tests: a developer's saved Bridge address would point a test at a real board)
+        if let Ok(s) = saved_setting("video.json") {
             if let Ok(saved) = serde_json::from_str::<Value>(&s) {
                 video = merge(&video, Some(&saved));
             }
         }
         let mut input = merge(&d["input"], raw.get("input"));
-        if let Ok(s) = std::fs::read_to_string(state_dir().join("input.json")) {
+        if let Ok(s) = saved_setting("input.json") {
             if let Ok(saved) = serde_json::from_str::<Value>(&s) {
                 if crate::settings::validate_input(&saved).is_ok() { input = merge(&input, Some(&saved)); }
             }

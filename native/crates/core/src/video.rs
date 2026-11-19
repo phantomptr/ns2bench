@@ -512,6 +512,7 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
                 None => {
                     *hub.error.lock().unwrap() = Some("no capture card found".into());
                     logs.error("bench", "video: no capture card found. Connect one (and close OBS or other apps using it), then pick it in the Video panel");
+                    drop(_one);        // (others may look while this one waits)
                     tokio::time::sleep(Duration::from_secs(15)).await;
                     continue;
                 }
@@ -533,11 +534,19 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
             // Linux asks the card for MJPEG and passes it on untouched. A card that only gives
             // raw frames fails that at once, every time: try the other way next (and back, if
             // that fails too: the card may simply be busy or unplugged).
-            if cfg!(target_os = "linux") && name == "ffmpeg" && c["ffmpeg_input"].is_null() && started.elapsed() < Duration::from_secs(8) {
+            // (once per settings: a card that fails both ways is busy or unplugged, and goes back
+            // to MJPEG for good. Not while a hardware H.264 encoder is the likelier reason, and
+            // not for errors that name another cause.)
+            let text = e.to_string().to_lowercase();
+            let other_cause = ["busy", "no such file", "no such device", "permission denied"].iter().any(|w| text.contains(w));
+            if cfg!(target_os = "linux") && name == "ffmpeg" && c["ffmpeg_input"].is_null() && c["h264_encoder"].is_null()
+                && started.elapsed() < Duration::from_secs(8) && !other_cause {
                 let mut g = cfg.lock().unwrap();
-                let raw = g["_raw"] != true;
-                g["_raw"] = raw.into();
-                if raw { logs.add("bench", "video: no MJPEG picture from this card; trying its raw output next"); }
+                if g["_raw"] == true { g["_raw"] = false.into(); g["_raw_tried"] = true.into(); }
+                else if g["_raw_tried"] != true {
+                    g["_raw"] = true.into();
+                    logs.add("bench", "video: no MJPEG picture from this card; trying its raw output next");
+                }
             }
             *hub.error.lock().unwrap() = Some(e.to_string());
             logs.error("bench", format!("video ({name}): {e}; retrying in {}s", delay.as_secs()));

@@ -132,7 +132,7 @@ fn ours(p: &Path) -> bool {
 
 #[cfg(not(windows))]
 fn appimage() -> bool {
-    cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some()
+    crate::updates::appimage().is_some()
 }
 
 pub fn status() -> Value {
@@ -143,7 +143,9 @@ pub fn status() -> Value {
     let ours = found.as_deref().is_some_and(ours);
     let dir_on_path = target()
         .and_then(|t| t.parent().map(Path::to_path_buf))
-        .is_some_and(|d| cfg!(windows) || path_dirs().contains(&d));
+        // (macOS: the app started from Finder has a bare PATH; /usr/local/bin is on every
+        // terminal's, through /etc/paths)
+        .is_some_and(|d| cfg!(windows) || path_dirs().contains(&d) || (cfg!(target_os = "macos") && d == Path::new("/usr/local/bin")));
     json!({
         "available": bundled().is_some(),
         "installed": found.is_some(),

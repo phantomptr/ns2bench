@@ -21,6 +21,12 @@ A deep review of the whole app, in several rounds. Fixed so far:
 - **If the engine can't start,** the window says why instead of staying blank. An unreadable settings file is kept aside and reported.
 - **Old downloaded installers are removed** (about 100 MB per update stayed on disk).
 - **The page:** the right panel no longer rebuilds its buttons every second (focus and clicks were lost), switching console no longer drops the control connection, the "no capture card" note shows for a console that never had a picture, clicking the word "Colour" no longer picks red, double clicks can't save twice, refused changes are put back and say why, changing language updates every text, and many sentences now translate as a whole.
+- **60 frames a second with two capture cards on a Mac.** Two fixes, measured on two 1080p60 cards sharing one USB hub: about 43 before, 60 after. The capture helper dropped a frame whenever the one before arrived a few milliseconds late, and it asked the cards for a heavier picture format than it needed. When a card itself sends too few pictures, the log now says so and what to check.
+- **The live picture comes back faster** after connecting or switching console (the first full frame was thrown away), and a brief hiccup no longer freezes it for up to a second.
+- **Sound no longer stays a third of a second behind** after a stall. On Windows it arrives in small pieces instead of half-second bursts.
+- **Settings:** saving the power settings no longer erases the power-button command; switching the input device to "none" and back keeps the Bridge's address; "Run the check" works with several consoles; a reopened Settings window shows the open tab afresh.
+- **Updates:** a downloaded update is no longer downloaded again on every start, and one whose file was deleted can be downloaded again. On Linux the updater makes sure the AppImage it replaces is NS2Bench's own.
+- **Command line tool:** `--console` picks the console a command is about, `usb-mode` knows all four modes, and piping into `head` no longer counts as a crash.
 - **Releases:** the installer for the right version is always the one published, the release key is checked against the app before publishing, and the tag push is retried.
 
 ## 0.0.31

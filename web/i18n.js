@@ -59,6 +59,8 @@ function swapText(node) {
   let orig = source.get(node);
   // Text the app replaced since we last saw it is new English source.
   if (orig === undefined || (text !== orig.text && text !== orig.shown)) orig = { text: english(text), shown: text };
+  // (text set already translated, in the language before this one: its English is looked up now)
+  else orig.text = english(orig.text);
   // Same normalisation as scripts/i18n.mjs: collapsed whitespace, trimmed.
   const key = orig.text.replace(/\s+/g, ' ').trim();
   const lead = orig.text.match(/^\s*/)[0], trail = orig.text.match(/\s*$/)[0];
@@ -76,6 +78,7 @@ function swapAttrs(el) {
     origs ??= {};
     const o = origs[a];
     if (!o || (v !== o.text && v !== o.shown)) origs[a] = { text: english(v), shown: v };
+    else o.text = english(o.text);
     const want = t(origs[a].text.replace(/\s+/g, ' ').trim());
     origs[a].shown = want;
     if (v !== want) el.setAttribute(a, want);

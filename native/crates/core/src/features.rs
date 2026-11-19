@@ -573,8 +573,11 @@ async fn get_clip_file(Path(name): Path<String>) -> Response {
 async fn get_doctor(State(b): State<S>) -> Json<Value> {
     Json(crate::doctor::run(&b, false).await)
 }
-async fn post_doctor(State(b): State<S>, Json(v): Json<Value>) -> Json<Value> {
-    Json(crate::doctor::run(&b, v["probe"].as_bool() == Some(true)).await)
+async fn post_doctor(State(b): State<S>, Json(v): Json<Value>) -> R<Json<Value>> {
+    let probe = v["probe"].as_bool() == Some(true);
+    // (only the probe presses buttons: the checks themselves run whatever the controller is on)
+    if probe { b.check_input_target()?; }
+    Ok(Json(crate::doctor::run(&b, probe).await))
 }
 
 fn local(t: f64, f: &str) -> String {

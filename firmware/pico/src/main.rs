@@ -371,6 +371,13 @@ async fn link_task(mut rx: BufferedUartRx, mut tx: BufferedUartTx) {
                     }
                 }
                 if whole { last = Instant::now(); }
+                // (bytes that keep coming without ever making a line must not hold the timer off)
+                else if authed && Instant::now() >= last + limit {
+                    log("watchdog: no whole line, releasing");
+                    authed = false;
+                    neutral_all();
+                    last = Instant::now();
+                }
             }
             Either::First(Err(_)) => {}
             Either::Second(()) => {

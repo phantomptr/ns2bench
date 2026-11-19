@@ -203,6 +203,16 @@ async fn download(u: &mut Update) -> Result<()> {
         u.latest_version.as_deref().context("version missing")?,
         suffix
     ));
+    // Already here from an earlier run (auto-download on, install-on-quit off or not possible)?
+    // Checked against the signed hash, then used: no second 100 MB download on every start.
+    if let Some(hash) = u.hash.as_deref() {
+        if path.is_file() && verify(&path, hash).await.is_ok() {
+            u.path = Some(path);
+            u.downloaded = true;
+            u.message = "Verified update ready to install".into();
+            return Ok(());
+        }
+    }
     let tmp = path.with_extension("partial");
     let response = client()?.get(url).send().await?.error_for_status()?;
     ensure!(
@@ -380,8 +390,7 @@ async fn install(path: &Path, relaunch: bool) -> Result<()> {
 #[cfg(target_os = "linux")]
 async fn install(path: &Path, relaunch: bool) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
-    let current=std::env::var_os("APPIMAGE").context("Automatic installation needs the AppImage build; use your package manager for a system package")?;
-    let current = PathBuf::from(current);
+    let current = appimage().context("Automatic installation needs the AppImage build; use your package manager for a system package")?;
     let stage = current.with_extension("ns2bench-new");
     let backup = current.with_extension("ns2bench-backup");
     // The running AppImage is the proof the previous update worked: its backup is spent.
@@ -396,6 +405,7 @@ async fn install(path: &Path, relaunch: bool) -> Result<()> {
     if let Err(e) = std::process::Command::new("/bin/sh")
         .arg("-c")
         .arg(r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done; [ "$3" = 1 ] && exec "$2""#)
+        .env_remove("LD_LIBRARY_PATH")
         .arg("ns2bench-update")
         .arg(std::process::id().to_string())
         .arg(&current)
@@ -464,7 +474,7 @@ pub async fn update_action(
                 }
                 // Only the AppImage can replace itself. A .deb install is told where the new one is,
                 // instead of downloading an AppImage it could never install.
-                if cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_none() && u.available {
+                if cfg!(target_os = "linux") && appimage().is_none() && u.available {
                     u.manual = true;
                     u.message = "This copy was installed as a system package: download the new .deb from https://github.com/phantomptr/ns2bench/releases/latest".into();
                 }
@@ -472,8 +482,15 @@ pub async fn update_action(
             "download" if u.manual => bail!("{}", u.message.clone()),
             "download" => download(&mut u).await?,
             "install" => {
-                let path = u.path.as_deref().context("Download the update first")?;
-                verify(path, u.hash.as_deref().context("checksum missing")?).await?;
+                let path = u.path.clone().context("Download the update first")?;
+                let path = path.as_path();
+                if let Err(e) = verify(path, u.hash.as_deref().context("checksum missing")?).await {
+                    // (the file is gone or damaged: it can be downloaded again, not stuck "ready")
+                    u.downloaded = false;
+                    u.path = None;
+                    u.message = "The downloaded update is no longer usable; download it again".into();
+                    return Err(e.context("The downloaded update could not be used; download it again"));
+                }
                 install(path, true).await?;
                 // Installing now: nothing left to install as NS2Bench quits (no second installer).
                 INSTALLING.store(true, std::sync::atomic::Ordering::SeqCst);
@@ -524,6 +541,17 @@ pub fn install_on_quit(app: &AppHandle) {
     }
 }
 
+/// The AppImage this app runs from, if it does. `APPIMAGE` alone isn't proof: a terminal or
+/// launcher that is itself an AppImage passes its own on to what it starts, and the updater
+/// would replace that program's file. This app must be running out of the mounted image.
+pub fn appimage() -> Option<PathBuf> {
+    if !cfg!(target_os = "linux") { return None; }
+    let image = PathBuf::from(std::env::var_os("APPIMAGE")?);
+    let mounted = PathBuf::from(std::env::var_os("APPDIR")?);
+    let exe = std::env::current_exe().ok()?;
+    (exe.starts_with(&mounted) && image.is_file()).then_some(image)
+}
+
 /// Installers of versions already installed (or older), and component files fetched for other
 /// versions: about 100 MB per update otherwise stays in ~/.ns2bench for good.
 pub fn remove_old_downloads() {
@@ -539,6 +567,8 @@ pub fn remove_old_downloads() {
             let _ = std::fs::remove_file(e.path());
         }
     }
+    // (the AppImage before the last update: this one started, so that one is spent)
+    if let Some(image) = appimage() { let _ = std::fs::remove_file(image.with_extension("ns2bench-backup")); }
     for e in std::fs::read_dir(state.join("downloads")).into_iter().flatten().flatten() {
         let name = e.file_name().to_string_lossy().into_owned();
         if name != VERSION && semver::Version::parse(&name).is_ok() && e.path().is_dir() {

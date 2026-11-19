@@ -68,7 +68,7 @@ pub fn has_ui_key() -> bool {
     UI_KEY.get().is_some()
 }
 
-fn ui_key_ok(given: Option<&str>) -> bool {
+pub(crate) fn ui_key_ok(given: Option<&str>) -> bool {
     match UI_KEY.get() {
         Some(k) => given.is_some_and(|g| same(g.as_bytes(), k.as_bytes())),
         None => true,
@@ -96,7 +96,10 @@ pub fn guard_request(headers: &HeaderMap, path: &str) -> std::result::Result<(),
     }
     // A cross-site <img> or link sends no Origin, but browsers label it: another site may not
     // make this engine take screenshots, list devices or build report bundles.
-    if headers.get("sec-fetch-site").and_then(|v| v.to_str().ok()).is_some_and(|v| v == "cross-site" || v == "same-site") {
+    // (following a link to the page itself is fine: that is a navigation, to the page or its files)
+    let fetch = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let opening_the_page = fetch("sec-fetch-mode") == "navigate" && (path == "/" || path.starts_with("/static/") || path.starts_with("/setup") || path.starts_with("/donate"));
+    if matches!(fetch("sec-fetch-site"), "cross-site" | "same-site") && !opening_the_page {
         return Err("cross-site request refused");
     }
     match headers.get(header::ORIGIN).map(|o| o.to_str().unwrap_or("")) {
@@ -302,7 +305,9 @@ pub fn encode_image(jpeg: &[u8], fmt: &str, max_width: Option<u32>) -> Result<(V
     if let Some(w) = max_width {
         if img.width() > w {
             let h = (img.height() as f64 * w as f64 / img.width() as f64).round() as u32;
-            img = img.resize_exact(w, h, image::imageops::FilterType::Lanczos3);
+            // (small pictures, like the console strip's every two seconds: the cheap filter is plenty)
+            let filter = if w <= 480 { image::imageops::FilterType::Triangle } else { image::imageops::FilterType::Lanczos3 };
+            img = img.resize_exact(w, h, filter);
         }
     }
     let mut out = std::io::Cursor::new(vec![]);
@@ -521,7 +526,7 @@ async fn post_video(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -> R
 /// closed: a new route that presses is guarded without anyone remembering to list it), and only
 /// goes through for the console the controller is plugged into.
 const NOT_INPUT: &[&str] = &["/api/release", "/api/control", "/api/clip", "/api/wait_screen", "/api/wait_text", "/mcp",
-    "/api/network/shared", "/api/power/settings", "/api/input", "/api/network", "/api/video", "/api/consoles", "/api/prefs"];
+    "/api/network/shared", "/api/power/settings", "/api/doctor", "/api/input", "/api/network", "/api/video", "/api/consoles", "/api/prefs"];
 
 async fn console_layer(State(b): State<S>, req: axum::extract::Request, next: axum::middleware::Next) -> Response {
     let sel = crate::console::requested(&req);

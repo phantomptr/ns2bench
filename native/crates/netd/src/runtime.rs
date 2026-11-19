@@ -539,6 +539,8 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     // the user why: set it aside (nothing is discarded) and start with an empty table.
     let mut leases = match load_leases(&lease_path) {
         Ok(l) => l,
+        // (a file that can't be read at all right now, e.g. a disk error, is not thrown over)
+        Err(e) if fs::read(&lease_path).is_err() => return Err(e),
         Err(e) => {
             let aside = lease_path.with_extension("json.unreadable");
             let kept = fs::rename(&lease_path, &aside).is_ok();

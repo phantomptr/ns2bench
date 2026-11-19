@@ -105,13 +105,22 @@ func formats() {
 
 /// Try to switch the device to width x height at fps. Never steals: if another app holds
 /// the configuration (OBS), keep the current format and say so on stderr.
-func configure(_ d: AVCaptureDevice, width: Int32, height: Int32, fps: Double) {
+func configure(_ d: AVCaptureDevice, width: Int32, height: Int32, fps: Double, compressed: Bool = false) {
     let candidates = d.formats.filter {
         let dims = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
         return dims.width == width && dims.height == height &&
             $0.videoSupportedFrameRateRanges.contains { $0.maxFrameRate + 0.5 >= fps && $0.minFrameRate - 0.5 <= fps }
     }
-    guard let f = candidates.first(where: { fourcc(CMFormatDescriptionGetMediaSubType($0.formatDescription)) != "dmb1" }) ?? candidates.first else {
+    // Uncompressed by default (no second compression, lowest delay), and of the uncompressed
+    // formats the lighter one first: 4:2:0 ("420v") is three quarters of the USB traffic of
+    // 4:2:2 ("yuvs") and what the encoders here take anyway. Measured with two 1080p60 cards on
+    // one USB hub: 4:2:2 gave ~43 frames a second each, 4:2:0 ~50.
+    // `compressed`: the card's own MJPEG instead (a tenth of the traffic), where it has one.
+    let pixel = { (x: AVCaptureDevice.Format) in fourcc(CMFormatDescriptionGetMediaSubType(x.formatDescription)) }
+    let isMjpeg = { (x: AVCaptureDevice.Format) in pixel(x) == "dmb1" }
+    let pick = compressed ? candidates.first(where: isMjpeg)
+        : candidates.first(where: { pixel($0) == "420v" }) ?? candidates.first(where: { !isMjpeg($0) })
+    guard let f = pick ?? candidates.first else {
         FileHandle.standardError.write("ns2capture: \(width)x\(height)@\(fps) not offered; using current format\n".data(using: .utf8)!)
         return
     }
@@ -124,7 +133,7 @@ func configure(_ d: AVCaptureDevice, width: Int32, height: Int32, fps: Double) {
         d.activeVideoMinFrameDuration = target
         d.activeVideoMaxFrameDuration = target
         d.unlockForConfiguration()
-        FileHandle.standardError.write("ns2capture: configured \(width)x\(height)@\(fps)\n".data(using: .utf8)!)
+        FileHandle.standardError.write("ns2capture: configured \(width)x\(height)@\(fps) \(pixel(f))\n".data(using: .utf8)!)
     } catch {
         FileHandle.standardError.write("ns2capture: device busy (another app owns its format); sharing current format\n".data(using: .utf8)!)
     }
@@ -158,6 +167,8 @@ final class Streamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let ctx = CIContext()
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
     var next = 0.0
+    var throttle = true           // false: the card sends at the asked rate, every frame is kept
+    var got = 0, kept = 0, statAt = 0.0, saidAt = 0.0
     var vt: VTCompressionSession?
     var vtSize = (0, 0)
     var vtFailed = false
@@ -169,6 +180,22 @@ final class Streamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     var h264Failed = false
     init(fps: Double, quality: Double, typed: Bool = false) {
         interval = 1.0 / fps; self.quality = quality; self.typed = typed
+    }
+
+    /// Every 5 s: if the card delivers clearly fewer frames than asked, say so (at most once a
+    /// minute). The engine adds what to check (the card or its USB path, not this computer).
+    func report(_ now: Double) {
+        // (the first seconds don't count: a card takes a moment to reach its rate)
+        if statAt == 0 { statAt = now + 5; return }
+        let dt = now - statAt
+        if dt < 0 { got = 0; kept = 0; return }
+        if dt < 5 { return }
+        let delivered = Double(got) / dt, sent = Double(kept) / dt, asked = 1.0 / interval
+        got = 0; kept = 0; statAt = now
+        if delivered < asked * 0.9 && now - saidAt > 60 {
+            saidAt = now
+            FileHandle.standardError.write(String(format: "ns2capture: the capture card delivers only %.0f frames a second (asked %.0f), %.0f passed on\n", delivered, asked, sent).data(using: .utf8)!)
+        }
     }
 
     func emit(_ data: Data, kind: UInt8 = 1) {
@@ -269,11 +296,20 @@ final class Streamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 
     func captureOutput(_ o: AVCaptureOutput, didOutput sb: CMSampleBuffer, from c: AVCaptureConnection) {
-        // Keep a frame once 80% of the interval has passed: tolerant of capture jitter, so a
-        // 60 fps source at a 60 fps target keeps every frame and at 30 keeps every other one.
+        // A card at the asked rate: every frame is kept. (This used to measure from the last
+        // kept frame's arrival: one frame arriving a few ms late made the next, on-time one look
+        // early and it was dropped. Two cards on one USB hub jitter that much: 60 became ~43.)
+        // A faster card: frames are kept on a fixed schedule, not from arrival times, so jitter
+        // doesn't add up; a frame may be up to a quarter interval early.
         let now = CACurrentMediaTime()
-        if now - next < interval * 0.8 { return }
-        next = now
+        got += 1
+        if throttle {
+            if next == 0 { next = now }
+            if now < next - interval * 0.25 { report(now); return }
+            next = max(next + interval, now - interval)
+        }
+        kept += 1
+        report(now)
         guard let px = CMSampleBufferGetImageBuffer(sb) else { return }
         if typed { encodeH264(px, pts: CMSampleBufferGetPresentationTimeStamp(sb)) }
         if let s = session(for: px) {
@@ -365,7 +401,7 @@ case "snap" where args.count == 4:
     session.addOutput(o)
     session.startRunning()
     DispatchQueue.main.asyncAfter(deadline: .now() + 10) { fail(7, "no frame within 10s (is the source powered and docked?)") }
-case "stream" where args.count == 5 || args.count == 7, "stream2" where args.count == 5 || args.count == 7:
+case "stream" where (5...8).contains(args.count) && args.count != 6, "stream2" where (5...8).contains(args.count) && args.count != 6:
     guard let fps = Double(args[3]), fps > 0, fps <= 120,
           let q = Double(args[4]), q > 0, q <= 100 else { fail(2, "stream <video> <fps 1-120> <quality 1-100> [width height]") }
     signal(SIGPIPE, SIG_IGN)
@@ -381,7 +417,12 @@ case "stream" where args.count == 5 || args.count == 7, "stream2" where args.cou
     session.startRunning()
     // macOS resets the device format to the session preset when the input is added,
     // so apply the requested format only once the session runs.
-    if args.count == 7, let w = Int32(args[5]), let h = Int32(args[6]) { configure(dev, width: w, height: h, fps: fps) }
+    if args.count >= 7, let w = Int32(args[5]), let h = Int32(args[6]) {
+        configure(dev, width: w, height: h, fps: fps, compressed: args.count == 8 && args[7] == "compressed")
+    }
+    // the card's real rate, now that its format is set: at (or under) the asked rate nothing is dropped
+    let dur = dev.activeVideoMinFrameDuration
+    if dur.isValid && dur.seconds > 0 && 1.0 / dur.seconds <= fps + 1 { s.throttle = false }
 case "audio" where args.count == 3:
     signal(SIGPIPE, SIG_IGN)
     addInput(session, device(args[2], "audio"))

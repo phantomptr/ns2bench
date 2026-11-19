@@ -124,6 +124,13 @@ pub async fn set_input(State(b): State<S>, h: axum::http::HeaderMap, Json(v): Js
     let _lock = b.settings_lock.lock().await;
     let _agent = b.hub.configuration_guard()?;
     // Persist before touching the working connection; a write failure keeps it running.
+    // (on top of what was saved: switching to "view only" and back must not forget the
+    // Bridge's address or the serial port of the other kind of device)
+    if let Some(Value::Object(old)) = std::fs::read(state_dir().join("input.json")).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok()) {
+        if let Some(new) = v.as_object_mut() {
+            for (k, x) in old { new.entry(k).or_insert(x); }
+        }
+    }
     write_json(&state_dir().join("input.json"), &v).map_err(anyhow::Error::from)?;
     b.hub.release_all();
     b.hub.backend.replace(&v, b.logs.clone()).await;

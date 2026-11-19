@@ -52,7 +52,7 @@ function consoleCard(s, v) {
   const chip = (text, cls = '') => chips.push([text, cls]);
   const on = consoles.find((c) => c.id === s.controller_on);
   if (v.controller_here) chip(`🎮 ${t('Controller here')}`, 'ok');
-  else if (consoles.length > 1) chip(on ? t('Controller on %1').replace('%1', on.name) : t('Controller: which console?'), 'warn');
+  else if (consoles.length > 1) chip(on ? t('Controller on %1').replace('%1', () => on.name) : t('Controller: which console?'), 'warn');
   const live = v.video_status?.age_s != null && v.video_status.age_s < 3;
   chip(live ? `● ${t('live')}` : t('no picture'), live ? 'ok' : '');
   if (v.network_ip) chip(v.network_ip);
@@ -118,14 +118,14 @@ function chain(s) {
     if (usb.startsWith('configured')) step(name, 'ok');
     else if (usb === 'suspended') {
       step(name, 'warn');
-      why = t('%1 is asleep. A button press wakes it.').replace('%1', name);
+      why = t('%1 is asleep. A button press wakes it.').replace('%1', () => name);
     } else if (usb === 'not attached') {
       step(name, 'bad');
-      why = t('The board has power but %1 hasn’t connected to it. Wake the console, reseat the cable, or try another USB port.').replace('%1', name);
+      why = t('The board has power but %1 hasn’t connected to it. Wake the console, reseat the cable, or try another USB port.').replace('%1', () => name);
     } else if (inp.usb == null) step(name, '');
     else {
       step(name, 'warn');
-      why = t('%1 is connecting to the board…').replace('%1', name);
+      why = t('%1 is connecting to the board…').replace('%1', () => name);
     }
   }
   // Several consoles and nobody knows which one the cable is in: keys are paused. Say it here,
@@ -160,9 +160,9 @@ function modePick(s, target) {
   // (pro vs pro1: both are "Pro Controller", so name whose)
   const wantName = now.startsWith('pro') && want.startsWith('pro') ? `${t(MODE_NAME[want])} (${target.model_name || target.model})` : t(MODE_NAME[want]);
   keyed(p, [fits, want, now, target.name, target.model_name || target.model, document.documentElement.lang], () => (fits
-    ? [t('Picked for %1: %2 needs this one.').replace('%1', target.name).replace('%2', target.model_name || target.model)]
-    : [`${t('%1 needs “%2”.').replace('%1', target.name).replace('%2', wantName)} `,
-      button(t('Use %1').replace('%1', wantName), () => $(`#seg-usb [data-v="${want}"]`)?.click(), 'link')]));
+    ? [t('Picked for %1: %2 needs this one.').replace('%1', () => target.name).replace('%2', () => target.model_name || target.model)]
+    : [`${t('%1 needs “%2”.').replace('%1', () => target.name).replace('%2', () => wantName)} `,
+      button(t('Use %1').replace('%1', () => wantName), () => $(`#seg-usb [data-v="${want}"]`)?.click(), 'link')]));
 }
 $('#btn-letgo').onclick = () => post('/api/release', {}).then(() => toast(t('Let go of everything.'), 'ok')).catch(failed);
 $('#btn-check').onclick = () => {
@@ -213,7 +213,7 @@ function network(v) {
   if (!v.network_ip) {
     state.textContent = ''; state.className = 'pc-sum';
     note.hidden = false;
-    note.textContent = t('No network address set for %1. Add it to see whether it is protected.').replace('%1', v.name);
+    note.textContent = t('No network address set for %1. Add it to see whether it is protected.').replace('%1', () => v.name);
     $('#pn-rows').replaceChildren();
     return;
   }
@@ -232,7 +232,7 @@ function network(v) {
     // only what the helper reports: without it running, NS2Bench can't tell
     if (running) row(t('Internet'), d.forwarding_off === true ? t('Blocked: no route out') : t('Check: this computer may pass traffic'), d.forwarding_off === true ? 'ok' : 'bad');
     if (w) {
-      row(t('Nintendo names'), t('%1 refused · %2 lookups').replace('%1', w.refused || 0).replace('%2', w.lookups || 0));
+      row(t('Nintendo names'), t('%1 refused · %2 lookups').replace('%1', () => w.refused || 0).replace('%2', () => w.lookups || 0));
       row(t('Connection test'), w.last_ctest ? `${t('answered')} · ${ago(w.last_ctest)}` : t('never'), w.last_ctest ? 'ok' : '');
     } else if (running) {
       note.hidden = false;

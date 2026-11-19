@@ -265,8 +265,11 @@ impl Dev {
         match self {
             // (already due: None. The device is then watched for "writable", which wakes the loop;
             // a zero wait here spun at full speed whenever the console wasn't reading)
+            // (rounded up: under a millisecond left must wait that millisecond, not fall back to
+            // the 50 ms idle wait)
             Dev::Pro1 { proto, last, .. } if proto.started => last
-                .map(|l| crate::pro1::REPORT.saturating_sub(now - l).as_millis() as i32).filter(|ms| *ms > 0),
+                .map(|l| crate::pro1::REPORT.saturating_sub(now - l)).filter(|d| !d.is_zero())
+                .map(|d| (d.as_micros().div_ceil(1000) as i32).max(1)),
             Dev::Pro { retry: true, last: Some(l), .. } => Some((PRO_RETRY.saturating_sub(now - *l).as_millis() as i32).max(1)),
             _ => None,
         }
@@ -475,7 +478,7 @@ impl<'a> Session<'a> {
         let built = built_at();
         if built == self.built { return; }
         for (_, d) in std::mem::take(&mut self.devices) { d.close(); }
-        if built.is_none() { return; }                  // being rebuilt: wait for it
+        if built.is_none() { self.built = None; return; }   // being rebuilt: wait for it
         match self.open_devices() {
             Ok(()) => {
                 let devices: Vec<&str> = self.devices.keys().copied().collect();
@@ -483,7 +486,8 @@ impl<'a> Session<'a> {
                 let mode = self.mode.clone();
                 self.send(json!({"switched": mode, "devices": devices, "udc": udc_state(), "host": host()}));
             }
-            Err(e) => log(format!("after a USB rebuild, opening devices: {e}")),
+            // (not remembered: tried again at the next look)
+            Err(e) => { self.built = None; for (_, d) in std::mem::take(&mut self.devices) { d.close(); } log(format!("after a USB rebuild, opening devices: {e}")); }
         }
     }
 
@@ -521,8 +525,18 @@ impl<'a> Session<'a> {
         // session answering pings with no devices and every later switch refused.
         if matches!(done, Ok(None)) && since.elapsed() > SWITCH_LIMIT {
             log("the mode switch did not finish in time: stopping it");
-            let _ = child.kill();
-            done = child.wait().map(Some);
+            // asked first (the script then unlocks and leaves), forced after; never waited on
+            // without end: a script stuck inside the kernel doesn't die when told to
+            // SAFETY: a signal to our own child's pid.
+            unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM); }
+            let until = Instant::now() + Duration::from_secs(2);
+            while matches!(child.try_wait(), Ok(None)) && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
+            if matches!(child.try_wait(), Ok(None)) {
+                let _ = child.kill();
+                let until = Instant::now() + Duration::from_millis(500);
+                while matches!(child.try_wait(), Ok(None)) && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
+            }
+            done = Err(std::io::Error::other("stopped"));
         }
         match done {
             Ok(None) => {}
@@ -550,7 +564,12 @@ impl<'a> Session<'a> {
         if let Some((mut c, _)) = self.switching.take() {
             let until = Instant::now() + Duration::from_secs(3);
             while matches!(c.try_wait(), Ok(None)) && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
-            if matches!(c.try_wait(), Ok(None)) { let _ = c.kill(); let _ = c.wait(); }
+            if matches!(c.try_wait(), Ok(None)) {
+                // SAFETY: a signal to our own child's pid.
+                unsafe { libc::kill(c.id() as libc::pid_t, libc::SIGTERM); }
+                std::thread::sleep(Duration::from_millis(300));
+                if matches!(c.try_wait(), Ok(None)) { let _ = c.kill(); let _ = c.try_wait(); }
+            }
         }
         for (_, d) in std::mem::take(&mut self.devices) {
             d.close();

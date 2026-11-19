@@ -30,7 +30,9 @@ fn config_path(b: &S) -> std::path::PathBuf {
 /// The settings file this engine was started with, as it is on disk now. None when the engine
 /// has no file (then its in-memory settings are the only ones: never some other file's).
 fn config_doc(b: &crate::Bench) -> Option<Value> {
-    let path = b.cfg.path.as_ref().filter(|p| p.is_file())?;
+    // (an engine started without a file: the one the shared setup wrote since then, if any)
+    let made = crate::config::state_dir().join("config.json");
+    let path = match &b.cfg.path { Some(p) => Some(p), None => Some(&made) }.filter(|p| p.is_file())?;
     std::fs::read(path).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok())
 }
 

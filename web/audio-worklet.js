@@ -12,11 +12,14 @@ class PcmPlayer extends AudioWorkletProcessor {
       for (let i = 0; i < i16.length; i++) f[i] = i16[i] / 32768;
       this.queue.push(f);
       this.buffered += f.length / 2;
-      // keep latency bounded: drop the oldest audio beyond ~300 ms
-      while (this.buffered > sampleRate * 0.3 && this.queue.length > 1) {
-        const old = this.queue.shift();
-        this.buffered -= (old.length - this.offset) / 2;
-        this.offset = 0;
+      // keep latency bounded: past ~300 ms waiting, drop the oldest down to ~100 ms (not just
+      // back under 300: the sound would trail the picture by a third of a second from then on)
+      if (this.buffered > sampleRate * 0.3) {
+        while (this.buffered > sampleRate * 0.1 && this.queue.length > 1) {
+          const old = this.queue.shift();
+          this.buffered -= (old.length - this.offset) / 2;
+          this.offset = 0;
+        }
       }
     };
   }

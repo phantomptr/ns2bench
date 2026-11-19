@@ -446,10 +446,18 @@ test('several consoles: add one, switch the view, input only goes where the cont
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, writable: true, value: real });
     navigator.getGamepads = () => [{ buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === 0 })), axes: [0, 0, 0, 0] }];
     await new Promise((r) => setTimeout(r, 2600));
+    const seen = document.querySelector('#pill-pad').textContent;
     navigator.getGamepads = real; WebSocket.prototype.send = send;
-    return sent;
+    return { sent, seen };
   });
-  assert.equal(leaked, 0, 'a refused gamepad press was sent by the keep-alive');
+  assert.match(leaked.seen, /1/, 'the page should have seen the test gamepad');
+  assert.equal(leaked.sent, 0, 'a refused gamepad press was sent by the keep-alive');
+  // a freshly loaded page saves video changes too (its form loads before the first status)
+  await p.reload();
+  await p.waitForFunction(() => !document.querySelector('#v-quality').disabled && document.querySelector('#v-device').value === 'test-card-2', null, { timeout: 15000 });
+  await p.evaluate(() => { const q = document.querySelector('#v-quality'); q.value = String(Number(q.value) - 5); q.dispatchEvent(new Event('change')); });
+  await p.waitForFunction(() => /Saved/.test(document.querySelector("#v-note").textContent), null, { timeout: 8000 });
+  await p.waitForSelector('.console.input-elsewhere');
   assert.match(await p.textContent('#console-note'), /Switch 1/);
   // an agent pressing on the console without the controller is refused, with why
   const r = await fetch(`${BASE}/api/press`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': second.id },

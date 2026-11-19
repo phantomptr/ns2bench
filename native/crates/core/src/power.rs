@@ -334,7 +334,11 @@ pub async fn get_power(State(_b): State<S>, h: HeaderMap) -> Json<Value> {
     let mut s = settings();
     let set = !s["button_command"].as_str().unwrap_or("").is_empty();
     // The command may hold a secret (a webhook address): only the page sees it.
-    if !crate::server::from_browser(&h) {
+    // (a page's own GET carries no Origin header; browsers mark it same-origin instead. Without
+    // this the page never got the command back, and its next save wrote an empty one.)
+    let same_origin = h.get("sec-fetch-site").and_then(|v| v.to_str().ok()) == Some("same-origin");
+    let page = crate::server::from_browser(&h) || (same_origin && crate::server::ui_key_ok(h.get("x-ns2bench-ui").and_then(|v| v.to_str().ok())));
+    if !page {
         s["button_command"] = Value::Null;
     }
     s["button_command_set"] = set.into();
@@ -348,6 +352,9 @@ pub async fn set_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
     if !crate::server::from_browser(&h) {
         return Err(ApiError(StatusCode::FORBIDDEN, "only the person at the NS2Bench page can change power settings".into()));
     }
+    // (no command sent: the saved one stays. Only a page that was shown it can clear it.)
+    let mut v = v;
+    if v.get("button_command").is_none_or(Value::is_null) { v["button_command"] = settings()["button_command"].clone(); }
     let v = validate(&v).map_err(|e| bad(e.to_string()))?;
     write_json(&path(), &v).map_err(anyhow::Error::from)?;
     CEC.store(0, std::sync::atomic::Ordering::Relaxed);

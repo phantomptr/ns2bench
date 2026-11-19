@@ -18,7 +18,13 @@ async function api(path, body) {
   return r.json();
 }
 function run(fn) { return async (event) => { event?.preventDefault(); try { await fn(event); } catch (e) { message(e.message || String(e), 'error'); } }; }
-$('#btn-settings').onclick = run(async () => { document.activeElement?.blur(); dialog.showModal(); await refresh(); });
+// (the tab left open is shown afresh: its list may have changed, or it was still waiting)
+$('#btn-settings').onclick = run(async () => {
+  document.activeElement?.blur(); dialog.showModal();
+  const open = dialog.querySelector('[data-tab][aria-pressed="true"]')?.dataset.tab;
+  if (open) showTab(open).catch(() => {});
+  await refresh();
+});
 $('#settings-close').onclick = () => dialog.close();
 dialog.addEventListener('keydown', (e) => e.stopPropagation());
 async function showTab(tab) {
@@ -183,7 +189,7 @@ function renderShared(n, loadForm) {
   const rows = s.watch?.consoles;
   const items = rows ? rows.map((c) => {
     const li = document.createElement('li');
-    const seen = t('last asked NS2Bench %1 · connection test %2 · %3 names refused').replace('%1', ago(c.last_dns)).replace('%2', ago(c.last_ctest)).replace('%3', c.refused || 0);
+    const seen = t('last asked NS2Bench %1 · connection test %2 · %3 names refused').replace('%1', () => ago(c.last_dns)).replace('%2', () => ago(c.last_ctest)).replace('%3', c.refused || 0);
     const text = {
       protected: [`${c.console}: ${t('protected')} · ${seen}`, 'ok'],
       warning: [`${c.console}: ${t('on your network but not using NS2Bench. It may be back on automatic settings and online: check its gateway and DNS.')}`, 'bad'],
@@ -313,7 +319,9 @@ const ls = {
 const pref = (key) => ls.get(`ns2bench.update.${key}`) === 'true';
 let update = null, busy = false, lastActivity = Date.now(), failedAutoInstall = false, lastAttempt = 0, failedDownload = false;
 for (const event of ['keydown', 'pointerdown', 'pointermove']) addEventListener(event, () => { lastActivity = Date.now(); }, { passive: true });
-const invoke = window.__TAURI__?.core?.invoke;
+// The app's own commands, only in the app window whose engine the app itself started (attached
+// to an engine started elsewhere, the commands exist but are refused: nothing to offer there).
+const invoke = typeof window.__NS2BENCH_UI__ === 'string' ? window.__TAURI__?.core?.invoke : undefined;
 // Defaults: find, download in the background, install when NS2Bench closes.
 // (A choice saved before these existed keeps its value; "download" was off by default then.)
 const quitInstall = () => invoke?.('update_action', { action: $('#update-auto-quit').checked ? 'quit_install_on' : 'quit_install_off' }).catch(() => {});
@@ -647,11 +655,13 @@ prefsReady.then(() => api('/api/status')).then(async (s) => {
 }).catch(() => {});
 
 // ---------------------------------------------------------------- Devices: power and wake
+let powerHidden = false;
 async function power() {
   const p = await api('/api/power');
   const s = p.settings;
   $('#power-cec').checked = !!s.cec; $('#power-cec-port').value = s.cec_port || ''; $('#power-cec-address').value = s.cec_address || 4;
   $('#power-command').value = s.button_command || ''; $('#power-wake-button').checked = !!s.wake_with_button;
+  powerHidden = s.button_command === null && !!s.button_command_set;
   $('#power-command').placeholder = s.button_command === null && s.button_command_set ? t('(set; only visible in the NS2Bench app window)') : 'curl -X POST http://homeassistant.local:8123/api/webhook/switch-power';
   $('#power-cec-tool').textContent = p.cec_tool ? `${t('CEC tool found:')} ${p.cec_tool}` : t('No CEC tool on this computer yet: install libcec (macOS: brew install libcec; Windows: the Pulse-Eight installer; Linux: the libcec or cec-utils package).');
   powerButtons(p);
@@ -664,7 +674,8 @@ function powerButtons(p) {
 $('#power-cec').onchange = () => { $('#power-cec-fields').hidden = !$('#power-cec').checked; };
 $('#power-settings').onsubmit = run(async () => {
   await api('/api/power/settings', { cec: $('#power-cec').checked, cec_port: $('#power-cec-port').value.trim(),
-    cec_address: Number($('#power-cec-address').value) || 4, button_command: $('#power-command').value.trim(), wake_with_button: $('#power-wake-button').checked });
+    cec_address: Number($('#power-cec-address').value) || 4, // (a command this page was never shown stays as it is: an empty field then means "unchanged")
+    button_command: !$('#power-command').value.trim() && powerHidden ? null : $('#power-command').value.trim(), wake_with_button: $('#power-wake-button').checked });
   toast(t('Power settings saved.'), 'ok');
   await power();
 });
@@ -731,7 +742,7 @@ function cardSelect(cards, used, mine) {
   if (mine && !cards.some((d) => d.id === mine)) sel.append(new Option(`${mine} (${t('not connected')})`, mine));
   for (const d of cards) {
     const by = used.get(d.id);
-    const o = new Option(by && d.id !== mine ? t('%1 (used by %2)').replace('%1', d.name || d.id).replace('%2', by) : (d.name || d.id), d.id);
+    const o = new Option(by && d.id !== mine ? t('%1 (used by %2)').replace('%1', () => d.name || d.id).replace('%2', () => by) : (d.name || d.id), d.id);
     o.disabled = !!by && d.id !== mine;
     sel.append(o);
   }
@@ -827,7 +838,7 @@ async function consolesPane() {
       status.textContent = t('Saving…');
       try {
         await consoleApi({ action: 'update', id: c.id, ...body });
-        status.textContent = t('%1: saved').replace('%1', what);
+        status.textContent = t('%1: saved').replace('%1', () => what);
         after?.();
         updateTitle();
       } catch (e) { await refused(e); }
@@ -849,7 +860,7 @@ async function consolesPane() {
         cardChanged(c.id);
         // every console's picker shows who has which card now; focus stays on this one
         await redraw(c.id, 'card');
-        message(t('%1: saved').replace('%1', `${c.name} · ${t('Capture card')}`), 'ok');
+        message(t('%1: saved').replace('%1', () => `${c.name} · ${t('Capture card')}`), 'ok');
       } catch (e) { await refused(e); }
     };
     // its network traffic says what it is: point out a type that doesn't match
@@ -857,8 +868,8 @@ async function consolesPane() {
     const warnType = () => {
       typeNote.replaceChildren();
       if (!c.network_model || c.network_model === model.value) return;
-      typeNote.append(document.createTextNode(`${t('Its network traffic looks like a %1.').replace('%1', modelName(c.network_model))} `));
-      const fix = Object.assign(document.createElement('button'), { type: 'button', textContent: t('Make it a %1').replace('%1', modelName(c.network_model)) });
+      typeNote.append(document.createTextNode(`${t('Its network traffic looks like a %1.').replace('%1', () => modelName(c.network_model))} `));
+      const fix = Object.assign(document.createElement('button'), { type: 'button', textContent: t('Make it a %1').replace('%1', () => modelName(c.network_model)) });
       fix.onclick = () => { model.value = c.network_model; model.onchange(); };
       typeNote.append(fix);
     };
@@ -872,7 +883,7 @@ async function consolesPane() {
     if (r.consoles.length > 1) {
       const rm = Object.assign(document.createElement('button'), { type: 'button', className: 'danger', textContent: t('Remove') });
       rm.onclick = run(async () => {
-        if (!(await ask({ title: t('Remove %1?').replace('%1', c.name), body: t('Its capture stops and its settings are removed. Clips and test reports stay.'), confirm: t('Remove'), destructive: true }))) return;
+        if (!(await ask({ title: t('Remove %1?').replace('%1', () => c.name), body: t('Its capture stops and its settings are removed. Clips and test reports stay.'), confirm: t('Remove'), destructive: true }))) return;
         await consoleApi({ action: 'remove', id: c.id }); await consolesPane();
       });
       row.append(rm);

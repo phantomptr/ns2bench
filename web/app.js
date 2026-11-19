@@ -221,13 +221,17 @@ function compose() {
   }
   if (pads !== lastPads) {
     lastPads = pads;
-    $('#pill-pad').textContent = pads ? (pads > 1 ? t('%1 gamepads').replace('%1', pads) : t('1 gamepad')) : t('no gamepad');
+    $('#pill-pad').textContent = pads ? (pads > 1 ? t('%1 gamepads').replace('%1', () => pads) : t('1 gamepad')) : t('no gamepad');
     $('#pill-pad').className = pads ? 'pill ok' : 'pill';
   }
   return { t: 'state', buttons, dpad, sticks: sticks.flat().map(axis), mods, keynames: keynames.slice(0, 6) };
 }
 
+let refused = false;
 function tick(now) {
+  // (a state that was refused is offered again once input is allowed: a button still held on a
+  // gamepad can't be "pressed again" the way a key can)
+  if (refused && !inputUnavailable()) { refused = false; lastSent = ''; }
   const state = compose();
   const key = JSON.stringify(state);
   if (key !== lastSent) {
@@ -235,6 +239,7 @@ function tick(now) {
     if (!ok && activeInput(state)) { held.clear(); pad.release(); aim[0] = aim[1] = 0; }
     lastSent = key;
     lastOk = ok ? key : '';
+    refused = !ok;
   }
   if (mouse.dirty && now - mouse.last >= MOUSE_BATCH_MS) {
     if (!send({ t: 'mouse', dx: Math.round(mouse.dx), dy: Math.round(mouse.dy), wheel: mouse.wheel, buttons: mouse.buttons })) {
@@ -259,7 +264,7 @@ function releaseAll() {
   Object.assign(mouse, { dx: 0, dy: 0, wheel: 0, buttons: 0, dirty: false });
   send({ t: 'state', buttons: 0, dpad: 0, sticks: [128, 128, 128, 128], mods: 0, keynames: [] });
   send({ t: 'mouse', dx: 0, dy: 0, wheel: 0, buttons: 0 });
-  lastSent = '';
+  lastSent = ''; lastOk = '';                      // (nothing held any more: nothing to keep alive)
 }
 
 // ------------------------------------------------------------ keyboard and mouse on the screen
@@ -390,6 +395,12 @@ function showStatus(s) {
   const inp = s.input;
   const wasReady = bridgeStatus?.connected && bridgeStatus?.usb === 'configured';
   bridgeStatus = inp; bridgeSeen = performance.now();
+  // The video form isn't this console's yet (the page loaded before the first status, or its
+  // load failed while the engine was away): load it again, at most every 3 s.
+  if (!videoFor && viewed() && performance.now() - videoRetry > 3000 && $('#v-note').textContent !== t('Loading devices…')) {
+    videoRetry = performance.now();
+    loadVideo().catch((e) => { $('#v-note').textContent = String(e); });
+  }
   if (wasReady && (!inp.connected || inp.usb !== 'configured')) releaseAll();
   if (!inputUnavailable()) inputWarning.hidden = true;
   const extra = inp.usb_mode === 'pro' ? ` · ${t('Pro Controller')}` : inp.usb_mode === 'pro1' ? ` · ${t('Switch 1 Pro Controller')}` : inp.devices?.includes('mouse') ? ` · ${t('keyboard + mouse')}` : '';
@@ -618,18 +629,24 @@ $('#btn-clip').addEventListener('click', async (e) => {
     delete btn.dataset.busy;
     return;
   }
-  let d = null;
-  if (r.ok) { try { d = await r.json(); } catch { /* not the engine's answer */ } }
-  if (d) {
-    label.textContent = `${t('Saved')} ${d.seconds} s`;
-    toast(`${t('Clip saved:')} ${d.seconds} s. ${t('It is in your Downloads folder.')}`, 'ok');
-    // Download through the engine (the desktop app saves it to Downloads).
-    Object.assign(document.createElement('a'), { href: authURL(d.url), download: d.url.split('/').pop() }).click();
-  } else {
+  try {
+    let d = null;
+    if (r.ok) { try { d = await r.json(); } catch { /* not the engine's answer */ } }
+    if (d?.url) {
+      label.textContent = `${t('Saved')} ${d.seconds} s`;
+      toast(`${t('Clip saved:')} ${d.seconds} s. ${t('It is in your Downloads folder.')}`, 'ok');
+      // Download through the engine (the desktop app saves it to Downloads).
+      Object.assign(document.createElement('a'), { href: authURL(d.url), download: d.url.split('/').pop() }).click();
+    } else {
+      label.textContent = 'Save clip';
+      addEvent({ source: 'error', action: r.ok ? t('The engine gave an answer NS2Bench could not read.') : await r.text(), t: Date.now() / 1000 });
+    }
+  } catch (err) {
     label.textContent = 'Save clip';
-    addEvent({ source: 'error', action: r.ok ? t('The engine gave an answer NS2Bench could not read.') : await r.text(), t: Date.now() / 1000 });
+    addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 });
+  } finally {
+    done();                                       // (whatever happened: the button works again)
   }
-  done();
 });
 // Keys keep driving in and out of fullscreen: focus goes back to the picture.
 $('#btn-full').addEventListener('click', async () => {
@@ -683,7 +700,7 @@ function fillFps(want) {
 let videoLoad = 0;
 // The console whose settings the form shows now (null while another console's are loading: the
 // form still holds the previous console's values then, and a change must not save them to this one).
-let videoFor = null;
+let videoFor = null, videoRetry = 0;
 const videoFields = () => [vsel.device, vsel.size, vsel.fps, vsel.q, $('#v-audio')];
 async function loadVideo() {
   clearTimeout(saveTimer);                              // a change waiting to save was for the console before
@@ -696,6 +713,7 @@ async function loadVideo() {
   if (mine !== videoLoad) return;                       // a newer load (another console) is on its way
   // (errors are plain text: show the engine's words, not a JSON parse error)
   if (!r.ok) { $('#v-note').textContent = (await r.text()) || `HTTP ${r.status}`; return; }
+  if (!forId && viewed()) return loadVideo();           // the console became known while this loaded
   const d = await r.json();
   if (mine !== videoLoad) return;
   // every capture card, also one that didn't say which sizes it offers (it still works)
@@ -730,7 +748,7 @@ async function saveVideo(who) {
   const r = await fetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': who.id }, body: JSON.stringify(body) });
   if (who.id !== viewed()?.id) return;
   if (r.ok) {
-    $('#v-note').textContent = who ? t('Saved for %1').replace('%1', who.name) : t('Saved');
+    $('#v-note').textContent = who ? t('Saved for %1').replace('%1', () => who.name) : t('Saved');
     setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
   } else {
     const why = await r.text();

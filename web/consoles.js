@@ -22,7 +22,7 @@ export function inputBlock() {
   const v = viewed();
   if (v && v.id !== controllerOn) {
     const on = consoles.find((c) => c.id === controllerOn);
-    return t('The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.').replace('%1', on ? on.name : controllerOn);
+    return t('The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.').replace('%1', () => on ? on.name : controllerOn);
   }
   return '';
 }
@@ -73,9 +73,9 @@ function thumb(c) {
   b.onclick = () => pick(c);
   // its settings, from right here
   const tile = Object.assign(document.createElement('span'), { className: 'console-tile' });
-  const ed = Object.assign(document.createElement('button'), { type: 'button', className: 'edit', title: t('Edit %1').replace('%1', c.name),
+  const ed = Object.assign(document.createElement('button'), { type: 'button', className: 'edit', title: t('Edit %1').replace('%1', () => c.name),
     innerHTML: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>' });
-  ed.setAttribute('aria-label', t('Edit %1').replace('%1', c.name));
+  ed.setAttribute('aria-label', t('Edit %1').replace('%1', () => c.name));
   ed.onclick = () => editConsole(c.id);
   tile.append(b, ed);
   // drag a console onto another to put it there
@@ -205,16 +205,16 @@ function render() {
     }
   } else if (v && !v.video?.device && !(v.video_status?.age_s != null && v.video_status.age_s < 3)) {
     // added without its card (it can come later): say so, with the way to set it
-    note.textContent = t('%1: no capture card yet. Connect it, then pick it in its settings.').replace('%1', v.name);
+    note.textContent = t('%1: no capture card yet. Connect it, then pick it in its settings.').replace('%1', () => v.name);
     note.className = 'console-note';
     const set = Object.assign(document.createElement('button'), { type: 'button', textContent: t('Set up') });
     set.onclick = () => editConsole(v.id);
     act.append(set);
   } else if (v && v.id !== controllerOn) {
     const on = consoles.find((c) => c.id === controllerOn);
-    note.textContent = t('Watching %1. The controller is plugged into %2, so buttons go there, not here.').replace('%1', v.name).replace('%2', on ? on.name : controllerOn);
+    note.textContent = t('Watching %1. The controller is plugged into %2, so buttons go there, not here.').replace('%1', () => v.name).replace('%2', () => on ? on.name : controllerOn);
     note.className = 'console-note';
-    const move = Object.assign(document.createElement('button'), { type: 'button', textContent: t('I moved the controller to %1').replace('%1', v.name) });
+    const move = Object.assign(document.createElement('button'), { type: 'button', textContent: t('I moved the controller to %1').replace('%1', () => v.name) });
     move.onclick = () => controllerIsOn(v.id).catch((e) => alertText(e));
     act.append(move);
   } else {
