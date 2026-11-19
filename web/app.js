@@ -709,12 +709,14 @@ async function loadVideo() {
   const forId = viewed()?.id ?? '';
   videoFor = null;
   for (const f of videoFields()) f.disabled = true;
+  // Which console is on screen isn't known before the first status: the form waits for it (the
+  // status handler loads it then), instead of showing settings it can't say whose they are.
+  if (!forId) return;
   $('#v-note').textContent = t('Loading devices…');
   const r = await fetch('/api/video', { headers: shown() });
   if (mine !== videoLoad) return;                       // a newer load (another console) is on its way
   // (errors are plain text: show the engine's words, not a JSON parse error)
   if (!r.ok) { $('#v-note').textContent = (await r.text()) || `HTTP ${r.status}`; return; }
-  if (!forId && viewed()) return loadVideo();           // the console became known while this loaded
   const d = await r.json();
   if (mine !== videoLoad) return;
   // every capture card, also one that didn't say which sizes it offers (it still works)
