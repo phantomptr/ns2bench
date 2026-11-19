@@ -591,7 +591,7 @@ impl<'a> Session<'a> {
         }
         if let Some(v) = msg.get("logs") {
             let after = v.as_u64().unwrap_or(0);
-            self.send(json!({"logs": logbuf::after(after), "seq": logbuf::seq(), "now": logbuf::now()}));
+            self.send(json!({"logs": logbuf::after(after), "seq": logbuf::seq(), "now": logbuf::steady()}));
         }
         if let Some(n) = msg.get("ping") {
             let writes: serde_json::Map<String, Value> = self.devices.iter().map(|(k, d)| (k.to_string(), json!(d.writes()))).collect();

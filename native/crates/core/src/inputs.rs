@@ -246,6 +246,9 @@ async fn run_board(
 ) {
     let mut delay = Duration::from_millis(300);
     let mut log_seq: u64 = 0;
+    let mut up_since: Option<Instant> = None;
+    let mut short_drops: u32 = 0;      // connections in a row that lasted under two minutes
+    let mut quiet = false;             // after a drop: failed reconnects are details until it's back
     loop {
         let res: Result<()> = async {
             let (r, mut w) = link.connect().await?;
@@ -273,6 +276,8 @@ async fn run_board(
             }
             log_seq = h["log_seq"].as_u64().unwrap_or(0).saturating_sub(50);
             delay = Duration::from_millis(300);
+            up_since = Some(Instant::now());
+            quiet = false;
             let _ = on_connect.send(());
             let mut beat = tokio::time::interval(Duration::from_millis(250));
             let mut n: u64 = 0;
@@ -322,12 +327,16 @@ async fn run_board(
                         } else if let Some(entries) = m.get("logs").and_then(Value::as_array) {
                             // boards often have no real clock (offline, no RTC): shift their times by
                             // the difference between the board's "now" and ours
-                            let shift = m["now"].as_f64().map_or(0.0, |b| crate::logs::now() - b);
+                            let ours = crate::logs::now();
+                            let shift = m["now"].as_f64().map_or(0.0, |b| ours - b);
                             for e in entries {
                                 let seq = e[0].as_u64().unwrap_or(0);
                                 log_seq = log_seq.max(seq);
                                 let src = if e[2] == "kernel" { "kernel" } else { "board" };
-                                logs.add_guess(src, e[3].as_str().unwrap_or(""), e[1].as_f64().map(|t| t + shift));
+                                // (an older Bridge stamps with a wall clock that jumps during boot: a line that
+                                // lands weeks away or in the future is given the time it arrived)
+                                let t = e[1].as_f64().map(|t| t + shift).filter(|t| *t <= ours + 5.0 && *t > ours - 14.0 * 86400.0);
+                                logs.add_guess(src, e[3].as_str().unwrap_or(""), t);
                             }
                         } else if m["stays"] == true {
                             // a newer Bridge switches without restarting: no disconnect to expect
@@ -362,9 +371,19 @@ async fn run_board(
         } else if was {
             // Usually the console went to sleep (the board powers from its USB port): logged, not
             // a notification. watch_controller notifies when it stays away while a console is on.
-            logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
+            // A sleeping console powers its USB port in short bursts: the board starts, connects
+            // and loses power again within a minute, over and over. One warning for the first
+            // drop; the repeats are ordinary lines, not a wall of warnings.
+            let lasted = up_since.take().map_or(0, |t| t.elapsed().as_secs());
+            short_drops = if lasted < 120 { short_drops + 1 } else { 0 };
+            quiet = true;
+            if short_drops >= 1 {
+                logs.add("bench", format!("NS2Bench Bridge: lost again after {lasted} s ({short_drops} short connections in a row). Usual while the console sleeps: its USB port gives power only in short bursts"));
+            } else {
+                logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
+            }
         } else if status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
-            logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
+            if quiet { logs.debug("bench", format!("NS2Bench Bridge: {detail}")); } else { logs.warn("bench", format!("NS2Bench Bridge: {detail}")); }
         }
         status.lock().unwrap().detail = Some(detail);
         tokio::time::sleep(delay).await;

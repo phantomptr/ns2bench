@@ -6,6 +6,10 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **The Bridge board starts more reliably.** Backup copies of two start-up scripts were kept in the board's start-up folder, where the board ran them too, as a second start racing the real one. About one start in ten failed its first try and had to recover. Installing the Bridge (Settings → Install → Bridge board) now moves those copies out.
+- **No more wall of warnings while the console sleeps.** A sleeping console powers its USB port in short bursts, so the board connects and drops again and again. The first drop is still a warning; the repeats are ordinary log lines.
+- **Board log lines carry the right date.** Lines from the first seconds after the board started were dated 1972 and landed in their own log files.
+
 ## 0.0.30
 
 A full review of everything since 0.0.20. Fixed:

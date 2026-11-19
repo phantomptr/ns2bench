@@ -15,6 +15,16 @@ pub fn now() -> f64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
 }
 
+/// Seconds on a clock that never jumps, for the ring's entries and the "now" sent with them. The
+/// host places entries by their distance from "now"; this board's wall clock jumps from 1970 to
+/// its build date during boot, which dated every earlier line decades off.
+pub fn steady() -> f64 {
+    let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: clock_gettime only writes the timespec it is given.
+    if unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut ts) } != 0 { return now(); }
+    ts.tv_sec as f64 + ts.tv_nsec as f64 / 1e9
+}
+
 fn clock() -> String {
     let s = now() as i64;
     format!("{:02}:{:02}:{:02}", (s / 3600) % 24, (s / 60) % 60, s % 60)
@@ -24,7 +34,7 @@ pub fn remember(source: &str, text: String) {
     let mut r = RING.lock().unwrap();
     r.seq += 1;
     let seq = r.seq;
-    r.entries.push_back((seq, (now() * 1000.0).round() / 1000.0, source.into(), text));
+    r.entries.push_back((seq, (steady() * 1000.0).round() / 1000.0, source.into(), text));
     while r.entries.len() > 500 {
         r.entries.pop_front();
     }
