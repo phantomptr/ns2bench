@@ -175,7 +175,7 @@ pub fn load(raw: &Value) -> (Vec<Value>, Option<String>) {
             .filter(|c| c["id"].as_str().is_some_and(|s| !s.is_empty())).collect();
         if !list.is_empty() {
             FOLLOW_VIEW.store(v["controller_follows_view"].as_bool().unwrap_or(true), std::sync::atomic::Ordering::Relaxed);
-            *ACTIVE.lock().unwrap() = v["active"].as_str().or(v["controller_on"].as_str()).map(str::to_string);
+            set_active(v["active"].as_str().or(v["controller_on"].as_str()).map(str::to_string));
             return (list, v["controller_on"].as_str().map(str::to_string));
         }
     }
@@ -190,14 +190,30 @@ pub static FOLLOW_VIEW: std::sync::atomic::AtomicBool = std::sync::atomic::Atomi
 
 /// The console the person picked last (the one on screen). With the controller following the
 /// console on screen, that's where the controller is: after the board restarts, at start, always.
-pub static ACTIVE: Mutex<Option<String>> = Mutex::new(None);
+static ACTIVE: Mutex<Option<String>> = Mutex::new(None);
+#[cfg(test)]
+thread_local! { static TEST_ACTIVE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) }; }
+/// The console last picked as the controller's. (In unit tests each test has its own: they run
+/// side by side, and one test's pick showed up in another's bench.)
+pub fn active() -> Option<String> {
+    #[cfg(test)]
+    { TEST_ACTIVE.with(|a| a.borrow().clone()) }
+    #[cfg(not(test))]
+    { ACTIVE.lock().unwrap().clone() }
+}
+pub fn set_active(id: Option<String>) {
+    #[cfg(test)]
+    { let _ = &ACTIVE; TEST_ACTIVE.with(|a| *a.borrow_mut() = id) }
+    #[cfg(not(test))]
+    { *ACTIVE.lock().unwrap() = id; }
+}
 
 pub fn save(consoles: &[Arc<Console>], controller_on: Option<&str>) -> std::io::Result<()> {
     // unit tests never write the person's consoles.json
     if cfg!(test) { return Ok(()); }
     write_json(&file(), &json!({"consoles": consoles.iter().map(|c| c.entry()).collect::<Vec<_>>(), "controller_on": controller_on,
         "controller_follows_view": FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed),
-        "active": *ACTIVE.lock().unwrap()}))
+        "active": active()}))
 }
 
 tokio::task_local! {

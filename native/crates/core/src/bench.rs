@@ -71,7 +71,7 @@ impl Bench {
         // while NS2Bench was closed). The page asks; one console needs no answer.
         // ...unless the controller follows the console picked on screen: then it's on that one.
         let follows = crate::console::FOLLOW_VIEW.load(std::sync::atomic::Ordering::Relaxed);
-        let active = crate::console::ACTIVE.lock().unwrap().clone()
+        let active = crate::console::active()
             .filter(|id| consoles.iter().any(|c| &c.id == id && c.uses_controller.load(std::sync::atomic::Ordering::Relaxed)));
         let controller_on = if follows && consoles.len() > 1 && !cfg!(test) { active } else {
             controller_on.filter(|id| consoles.iter().any(|c| &c.id == id)).filter(|_| consoles.len() < 2 || cfg!(test))
@@ -187,7 +187,7 @@ impl Bench {
         let new = target.as_ref().map(|c| c.id.clone());
         // where the controller was really placed (by the person, by following, or found) is where
         // it's put again after the board restarts and at the next start
-        if let Some(id) = &new { *crate::console::ACTIVE.lock().unwrap() = Some(id.clone()); }
+        if let Some(id) = &new { crate::console::set_active(Some(id.clone())); }
         let moved = *self.controller_on.lock().unwrap() != new;
         *self.controller_on.lock().unwrap() = new;
         // anything still running for the old place (a sequence, a test) stops pressing
@@ -235,7 +235,7 @@ impl Bench {
     pub fn active_console(&self) -> Option<Arc<Console>> {
         use std::sync::atomic::Ordering::Relaxed;
         if !crate::console::FOLLOW_VIEW.load(Relaxed) { return None; }
-        let id = crate::console::ACTIVE.lock().unwrap().clone()?;
+        let id = crate::console::active()?;
         self.console(&id).filter(|c| c.uses_controller.load(Relaxed))
     }
 
