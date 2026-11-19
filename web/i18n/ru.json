@@ -711,5 +711,11 @@
   "The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.": "Контроллер подключён к %1. Переключитесь на неё или переставьте кабель и укажите это над изображением.",
   "The engine gave an answer NS2Bench could not read.": "Движок вернул ответ, который NS2Bench не смог прочитать.",
   "Use %1": "Использовать %1",
-  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "На экране %1. Контроллер подключён к %2, поэтому кнопки идут туда, а не сюда."
+  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "На экране %1. Контроллер подключён к %2, поэтому кнопки идут туда, а не сюда.",
+  "Restart the network helper to apply it.": "Перезапустите сетевой помощник, чтобы применить.",
+  "Stop using it": "Больше не использовать",
+  "Stop using the shared home network?": "Больше не использовать общую домашнюю сеть?",
+  "Stop using the shared network": "Больше не использовать общую сеть",
+  "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "Консоли перестанут получать ответы от этого компьютера, и их проверка подключения не пройдёт, пока вы снова не настроите сеть для консолей. В домашней сети ничего не раздаётся. Настройки сначала сохраняются в резервную копию.",
+  "The shared home network is no longer used. Backup of your settings:": "Общая домашняя сеть больше не используется. Резервная копия настроек:"
 }

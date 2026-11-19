@@ -6,6 +6,14 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Stop using the shared home network from Settings.** Settings → Network → *Stop using the shared network*. Your settings are backed up first, and nothing is ever handed out on your home network.
+- **Your bug reports no longer carry personal details.** Your user name, this computer's name, the full network hardware addresses and the consoles' network names are taken out before the report is saved.
+- **Linux: pick the sound device, or let NS2Bench find it.** Picture & sound now lists the recording devices, and each capture card's own sound is found by itself (even with two identical cards).
+- **Windows: two identical capture cards work side by side.** Each is told apart by its device path, shown as *(1)* and *(2)*, and gets its own sound. A card that sends its own MJPEG picture is passed through untouched, which saves roughly a core per console at 1080p60.
+- **Picking a console on screen while the controller is still plugged into another one** no longer moves it there by mistake. NS2Bench now knows when the cable can't have moved, says so, and switches over by itself as soon as you move the cable.
+- **Long labels in the controller card wrap onto two lines** instead of being cut off (German, Russian, Japanese).
+- **The console strip can be dragged to reorder in every browser**, also with pictures hidden, and its tiles work from the keyboard.
+
 ## 0.0.32
 
 A deep review of the whole app, in several rounds. Fixed so far:

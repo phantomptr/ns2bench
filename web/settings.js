@@ -1,4 +1,4 @@
-import { apiFetch, authURL, setToken } from './client.js';
+import { apiFetch, authURL, hasUiKey, setToken } from './client.js';
 import { t } from './i18n.js';
 import { inboxAdd, notify } from './notify.js';
 import { ask, toast } from './ui.js';
@@ -180,6 +180,8 @@ function renderShared(n, loadForm) {
   if (loadForm && !sharedEdited && s.consoles?.length) $('#shared-consoles').value = s.consoles.join(', ');
   const shared = n.controls?.topology === 'shared' && s.consoles?.length;
   $('#shared-settings-box').hidden = !shared;
+  // (only in the app window or with the page's key: the engine refuses it to anyone else)
+  $('#shared-stop').hidden = !(s.consoles?.length) || !hasUiKey;
   if (!shared) return;
   $('#shared-settings').replaceChildren(...s.settings.map((row) => {
     const tr = document.createElement('tr');
@@ -214,6 +216,17 @@ $('#shared-save').onclick = run(async () => {
   $('#shared-restart').hidden = !invoke;
   await network(false);
   $('#network-topology').value = 'shared'; networkFields();
+});
+// Leaving the shared home network: the helper then answers no console and hands out nothing
+// (a direct console network is set up again with its own adapter, from the setup guide).
+$('#shared-stop').onclick = run(async () => {
+  if (!(await ask({ title: t('Stop using the shared home network?'), body: t('The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.'), confirm: t('Stop using it'), destructive: true }))) return;
+  const r = await api('/api/network/shared', { stop: true });
+  const box = $('#shared-result'); box.hidden = false; box.className = 'status ok';
+  box.textContent = `${t('The shared home network is no longer used. Backup of your settings:')} ${r.backup}. ${t('Restart the network helper to apply it.')}${invoke ? '' : ' launchctl kickstart -k gui/$(id -u)/com.phantomptr.ns2bench.netd (macOS) · sudo systemctl restart ns2bench-netd (Linux)'}`;
+  $('#shared-restart').hidden = !invoke; $('#shared-stop').hidden = true;
+  await network(false);
+  $('#network-topology').value = 'none'; networkFields();
 });
 $('#shared-restart').onclick = run(async () => {
   const r = await component('netd', 'restart');

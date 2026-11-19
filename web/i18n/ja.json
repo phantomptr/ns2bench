@@ -711,5 +711,11 @@
   "The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.": "コントローラーは %1 に接続されています。そちらに切り替えるか、ケーブルを差し替えて映像の上で選んでください。",
   "The engine gave an answer NS2Bench could not read.": "エンジンから NS2Bench が読めない応答が返りました。",
   "Use %1": "%1 を使う",
-  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "%1 を表示中。コントローラーは %2 に接続されているため、ボタン操作はここではなくそちらに送られます。"
+  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "%1 を表示中。コントローラーは %2 に接続されているため、ボタン操作はここではなくそちらに送られます。",
+  "Restart the network helper to apply it.": "反映するにはネットワークヘルパーを再起動してください。",
+  "Stop using it": "使用をやめる",
+  "Stop using the shared home network?": "共有ホームネットワークの使用をやめますか？",
+  "Stop using the shared network": "共有ネットワークの使用をやめる",
+  "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "コンソール用ネットワークを再設定するまで、コンソールはこのコンピューターから応答を受け取れず、接続テストは失敗します。ホームネットワークには何も配布されません。設定は事前にバックアップされます。",
+  "The shared home network is no longer used. Backup of your settings:": "共有ホームネットワークは使用されなくなりました。設定のバックアップ："
 }

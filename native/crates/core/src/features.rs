@@ -124,12 +124,25 @@ async fn watch_controller(b: Arc<crate::Bench>) {
         }
         // our own mode switch makes the board drop off and come back: that's not the cable
         if b.hub.switching_mode() { moved = false; unplugged = false; }
+        if moved { *b.hub.cable_event.lock().unwrap() = Some(std::time::Instant::now()); }
         if moved && b.list().len() > 1 && b.controller_console().is_some() {
+            // The person picked another console on screen while the cable was still in this one,
+            // and now the cable moved: that is where it went.
+            if let Some(c) = b.take_pending_follow() {
+                if b.set_controller_on(Some(&c.id)).is_ok() {
+                    b.logs.add("bench", format!("controller: its cable moved; now on {} (the console picked on screen)", c.name()));
+                    continue;
+                }
+            }
             // Following the console on screen: the controller is where the person pointed it
             // (the board restarting is the console's power, not the cable moving). The Switch 2
             // check below still corrects it if a Switch 2 turns out to be driving it.
             if let Some(a) = b.active_console() {
                 if b.controller_console().is_some_and(|c| c.id == a.id) {
+                    // (picked on screen, and then the cable was seen to move or the board came
+                    // back: from here on it counts as being there)
+                    *b.hub.placed.lock().unwrap() = Some(std::time::Instant::now());
+                    b.hub.placed_sure.store(true, std::sync::atomic::Ordering::SeqCst);
                     b.apply_mode();
                 } else {
                     let _ = b.set_controller_on(Some(&a.id));

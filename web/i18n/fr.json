@@ -711,5 +711,11 @@
   "The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.": "La manette est branchée sur %1. Passez à cette console, ou déplacez le câble et indiquez-le au-dessus de l’image.",
   "The engine gave an answer NS2Bench could not read.": "Le moteur a donné une réponse que NS2Bench n’a pas pu lire.",
   "Use %1": "Utiliser %1",
-  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "Affichage de %1. La manette est branchée sur %2 : les boutons vont là-bas, pas ici."
+  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "Affichage de %1. La manette est branchée sur %2 : les boutons vont là-bas, pas ici.",
+  "Restart the network helper to apply it.": "Redémarrez l’assistant réseau pour l’appliquer.",
+  "Stop using it": "Ne plus l’utiliser",
+  "Stop using the shared home network?": "Ne plus utiliser le réseau domestique partagé ?",
+  "Stop using the shared network": "Ne plus utiliser le réseau partagé",
+  "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "Les consoles ne recevront plus de réponses de cet ordinateur, leur test de connexion échouera donc, jusqu’à ce que vous configuriez à nouveau un réseau pour consoles. Rien n’est distribué sur votre réseau domestique. Vos réglages sont sauvegardés avant.",
+  "The shared home network is no longer used. Backup of your settings:": "Le réseau domestique partagé n’est plus utilisé. Sauvegarde de vos réglages :"
 }

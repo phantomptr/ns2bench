@@ -217,7 +217,7 @@ pub async fn set_network(State(b): State<S>, h: axum::http::HeaderMap, Json(v): 
     ns2bench_netd::validate_controls(&v).map_err(bad)?;
     // the settings say this is a shared home network: the router hands out addresses there
     if crate::shared_net::is_shared(&b) && (v["dhcp"] == true || v["topology"] != "shared") {
-        return Err(bad("this computer's network helper is set up for a shared home network: use the shared setup, or change it in Settings → Network first (DHCP stays off on a home network)"));
+        return Err(bad("this computer's network helper is set up for a shared home network: to use another setup, first press \"Stop using the shared network\" below (DHCP stays off on a home network)"));
     }
     if let Some(c) = helper(&b) {
         helper_call(&c, "POST", "/controls", Some(&v)).await.map_err(|e| bad(e.to_string()))?;

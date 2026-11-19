@@ -44,9 +44,18 @@ export async function controllerIsOn(id) {
 const lastPic = new Map();
 const DRAG_TYPE = 'application/x-ns2bench-console';
 
+// The tile is a button for people (focusable, Enter and Space pick it) but not a <button> element:
+// Firefox starts no drag from inside a <button>, so dragging to reorder didn't work there.
+function asButton(el, onPick) {
+  el.setAttribute('role', 'button');
+  el.tabIndex = 0;
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(); }
+  });
+}
+
 function thumb(c) {
-  const b = document.createElement('button');
-  b.type = 'button';
+  const b = document.createElement('div');
   b.className = 'console-thumb';
   b.dataset.console = c.id;
   b.setAttribute('aria-pressed', String(c.id === viewed()?.id));
@@ -71,6 +80,7 @@ function thumb(c) {
   // picking a console pins it (it no longer follows the controller around); the shared controller
   // comes along when set to (Settings → Consoles), unless the board shows it's still elsewhere
   b.onclick = () => pick(c);
+  asButton(b, () => pick(c));
   // its settings, from right here
   const tile = Object.assign(document.createElement('span'), { className: 'console-tile' });
   const ed = Object.assign(document.createElement('button'), { type: 'button', className: 'edit', title: t('Edit %1').replace('%1', () => c.name),
@@ -78,25 +88,7 @@ function thumb(c) {
   ed.setAttribute('aria-label', t('Edit %1').replace('%1', () => c.name));
   ed.onclick = () => editConsole(c.id);
   tile.append(b, ed);
-  // drag a console onto another to put it there
-  tile.draggable = true;
-  tile.dataset.console = c.id;
-  tile.addEventListener('dragstart', (e) => { e.dataTransfer.setData(DRAG_TYPE, c.id); e.dataTransfer.setData('text/plain', c.name); tile.classList.add('dragging'); });
-  tile.addEventListener('dragend', () => tile.classList.remove('dragging'));
-  // (only a console tile can be dropped here: not selected text, a file or a link)
-  tile.addEventListener('dragover', (e) => { if (![...e.dataTransfer.types].includes(DRAG_TYPE)) return; e.preventDefault(); tile.classList.add('drop'); });
-  tile.addEventListener('dragleave', () => tile.classList.remove('drop'));
-  tile.addEventListener('drop', (e) => {
-    e.preventDefault(); tile.classList.remove('drop');
-    const from = e.dataTransfer.getData(DRAG_TYPE);
-    const all = consoles.map((x) => x.id);
-    if (!from || from === c.id || !all.includes(from)) return;
-    const after = all.indexOf(from) < all.indexOf(c.id);     // dragged rightwards: lands after the target
-    const ids = all.filter((x) => x !== from);
-    ids.splice(ids.indexOf(c.id) + (after ? 1 : 0), 0, from);
-    consoles.sort((a, b2) => ids.indexOf(a.id) - ids.indexOf(b2.id)); render();
-    post({ action: 'order', ids }).catch((err) => alertText(err));
-  });
+  dragToReorder(tile, c);
   return tile;
 }
 
@@ -119,15 +111,39 @@ function pick(c) {
   if (moving && consoles.length > 1) post({ action: 'follow', id: c.id }).catch((e) => alertText(e));
 }
 
+// Drag a console onto another to put it there (pictures or name chips alike).
+function dragToReorder(tile, c) {
+  tile.draggable = true;
+  tile.dataset.console = c.id;
+  tile.addEventListener('dragstart', (e) => { e.dataTransfer.setData(DRAG_TYPE, c.id); e.dataTransfer.setData('text/plain', c.name); tile.classList.add('dragging'); });
+  tile.addEventListener('dragend', () => tile.classList.remove('dragging'));
+  // (only a console tile can be dropped here: not selected text, a file or a link)
+  tile.addEventListener('dragover', (e) => { if (![...e.dataTransfer.types].includes(DRAG_TYPE)) return; e.preventDefault(); tile.classList.add('drop'); });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drop'));
+  tile.addEventListener('drop', (e) => {
+    e.preventDefault(); tile.classList.remove('drop');
+    const from = e.dataTransfer.getData(DRAG_TYPE);
+    const all = consoles.map((x) => x.id);
+    if (!from || from === c.id || !all.includes(from)) return;
+    const after = all.indexOf(from) < all.indexOf(c.id);     // dragged rightwards: lands after the target
+    const ids = all.filter((x) => x !== from);
+    ids.splice(ids.indexOf(c.id) + (after ? 1 : 0), 0, from);
+    consoles.sort((a, b2) => ids.indexOf(a.id) - ids.indexOf(b2.id)); render();
+    post({ action: 'order', ids }).catch((err) => alertText(err));
+  });
+}
+
 // The strip as small name chips: no pictures, still one click to switch.
 function chip(c) {
-  const b = Object.assign(document.createElement('button'), { type: 'button', className: 'console-chip' });
+  const b = Object.assign(document.createElement('div'), { className: 'console-chip' });
   b.dataset.console = c.id;
   b.setAttribute('aria-pressed', String(c.id === viewed()?.id));
   b.style.setProperty('--tab-color', /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888');
   b.append(Object.assign(document.createElement('span'), { className: 'dot' }), document.createTextNode(c.name));
   if (c.controller_here) b.append(Object.assign(document.createElement('span'), { className: 'pad', textContent: ' 🎮', title: t('The controller is plugged into this console') }));
   b.onclick = () => pick(c);
+  asButton(b, () => pick(c));
+  dragToReorder(b, c);
   return b;
 }
 

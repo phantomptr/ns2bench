@@ -276,6 +276,7 @@ pub fn ffmpeg_input_args(cfg: &Value) -> Vec<String> {
         let mut a: Vec<String> = vec!["-f".into(), "dshow".into(), "-rtbufsize".into(), "256M".into()];
         // (this console's card refused the size it was asked for: let it use its own default)
         if cfg["_device_default"] != true {
+            if cfg["_mjpeg"] == true { a.extend(["-vcodec".into(), "mjpeg".into()]); }
             a.extend(["-video_size".into(), size, "-framerate".into(), fps]);
         }
         a.extend(["-i".into(), format!("video={}", dev.unwrap_or_default())]);
@@ -389,11 +390,16 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
             let formats = dshow_formats(dev).await;
             let (w, h, f) = pick_format(&formats, cfg["width"].as_u64().unwrap_or(1920), cfg["height"].as_u64().unwrap_or(1080), cfg["fps"].as_u64().unwrap_or(60));
             cfg["width"] = w.into(); cfg["height"] = h.into(); cfg["fps_exact"] = f.into();
+            // the card's own JPEG at this size: asked for by name and passed on as it comes
+            // (decoding and encoding it again cost about a core per console at 1080p60)
+            let mjpeg = formats.iter().any(|x| x["width"] == w && x["height"] == h && x["pixel"] == "mjpeg");
+            cfg["_mjpeg"] = (mjpeg && cfg["_device_default"] != true && cfg["_raw"] != true).into();
         }
     }
     let cfg = &cfg;
     let q = (31.0 - cfg["quality"].as_f64().unwrap_or(80.0) * 0.29).round().clamp(2.0, 31.0) as u32;
-    let passthrough = cfg!(target_os = "linux") && cfg["ffmpeg_input"].is_null() && cfg["_raw"] != true;
+    let passthrough = cfg["ffmpeg_input"].is_null() && cfg["_raw"] != true
+        && (cfg!(target_os = "linux") || (cfg!(windows) && cfg["_mjpeg"] == true));
     let mut args: Vec<String> = vec!["-hide_banner".into(), "-loglevel".into(), "error".into(), "-nostdin".into()];
     args.extend(ffmpeg_input_args(cfg));
     args.push("-an".into());
@@ -544,7 +550,7 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
             // not for errors that name another cause.)
             let text = e.to_string().to_lowercase();
             let other_cause = ["busy", "no such file", "no such device", "permission denied"].iter().any(|w| text.contains(w));
-            if cfg!(target_os = "linux") && name == "ffmpeg" && c["ffmpeg_input"].is_null() && c["h264_encoder"].is_null()
+            if (cfg!(target_os = "linux") || (cfg!(windows) && c["_mjpeg"] == true)) && name == "ffmpeg" && c["ffmpeg_input"].is_null() && c["h264_encoder"].is_null()
                 && started.elapsed() < Duration::from_secs(8) && !other_cause {
                 let mut g = cfg.lock().unwrap();
                 if g["_raw"] == true { g["_raw"] = false.into(); g["_raw_tried"] = true.into(); }
@@ -575,26 +581,59 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
 /// `ffmpeg -list_devices true -f dshow -i dummy`: (video names, audio names). Handles both the
 /// current `"Name" (video)` lines and older ffmpeg's "DirectShow video devices" sections.
 pub fn parse_dshow_devices(text: &str) -> (Vec<String>, Vec<String>) {
-    let (mut video, mut audio) = (vec![], vec![]);
+    let (v, a) = dshow_entries(text);
+    (v.into_iter().map(|d| d.id).collect(), a.into_iter().map(|d| d.id).collect())
+}
+
+/// One DirectShow device as ffmpeg lists it: `id` is what `video=`/`audio=` takes, `name` what
+/// people read. Usually both are its name; two identical cards share a name, so each then gets
+/// its "Alternative name" (the device path, unique) as id and a number in its name.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DshowDevice { pub id: String, pub name: String }
+
+pub fn dshow_entries(text: &str) -> (Vec<DshowDevice>, Vec<DshowDevice>) {
+    // (name, alternative name, kinds) in the order listed
+    let mut raw: Vec<(String, Option<String>, Vec<String>)> = vec![];
     let mut section = "";
     for line in text.lines() {
         let l = line.split_once(']').map_or(line, |(_, r)| r).trim();
         if l.starts_with("DirectShow video devices") { section = "video"; continue; }
         if l.starts_with("DirectShow audio devices") { section = "audio"; continue; }
-        if l.starts_with("Alternative name") || !l.starts_with('"') { continue; }
+        if let Some(alt) = l.strip_prefix("Alternative name") {
+            let alt = alt.trim().trim_matches('"').to_string();
+            if let Some(last) = raw.last_mut() { if last.1.is_none() && !alt.is_empty() { last.1 = Some(alt); } }
+            continue;
+        }
+        if !l.starts_with('"') { continue; }
         let Some(end) = l[1..].find('"') else { continue };
         let name = l[1..1 + end].to_string();
         // "(video)", "(audio)", "(video, audio)" (one device with both pins), "(none)"; older
         // ffmpeg: no parentheses, the section says which.
         let rest = l[1 + end + 1..].trim();
-        let kinds: Vec<&str> = match rest.strip_prefix('(').and_then(|r| r.strip_suffix(')')) {
-            Some(list) => list.split(',').map(str::trim).collect(),
-            None => vec![section],
+        let kinds: Vec<String> = match rest.strip_prefix('(').and_then(|r| r.strip_suffix(')')) {
+            Some(list) => list.split(',').map(|k| k.trim().to_string()).collect(),
+            None => vec![section.to_string()],
         };
-        if kinds.contains(&"video") && !video.contains(&name) { video.push(name.clone()); }
-        if kinds.contains(&"audio") && !audio.contains(&name) { audio.push(name); }
+        raw.push((name, None, kinds));
     }
-    (video, audio)
+    let of = |kind: &str| -> Vec<DshowDevice> {
+        let list: Vec<&(String, Option<String>, Vec<String>)> = raw.iter().filter(|d| d.2.iter().any(|k| k == kind)).collect();
+        let mut out: Vec<DshowDevice> = vec![];
+        for (i, d) in list.iter().enumerate() {
+            let twins = list.iter().filter(|x| x.0 == d.0).count();
+            let nth = list[..i].iter().filter(|x| x.0 == d.0).count() + 1;
+            // ffmpeg can't open a name with a colon, nor tell twins apart by name: their path then
+            let by_path = twins > 1 || d.0.contains(':');
+            match (&d.1, by_path) {
+                (Some(alt), true) => out.push(DshowDevice { id: alt.clone(), name: if twins > 1 { format!("{} ({nth})", d.0) } else { d.0.clone() } }),
+                // (no path known: one entry per name, as before)
+                _ if out.iter().any(|o| o.id == d.0) => {}
+                _ => out.push(DshowDevice { id: d.0.clone(), name: d.0.clone() }),
+            }
+        }
+        out
+    };
+    (of("video"), of("audio"))
 }
 
 /// `ffmpeg -f dshow -list_options true -i video=NAME`: one entry per size with its best frame rate.
@@ -619,7 +658,8 @@ pub fn parse_dshow_options(text: &str) -> Vec<Value> {
             let min = if found.iter().all(|f| f.0 == w && f.1 == h) { lo } else { fps };
             match best.iter_mut().find(|b| b.0 == w && b.1 == h) {
                 Some(b) => {
-                    if fps > b.3 { b.3 = fps; b.4 = pixel.clone(); }
+                    // (at the same rate the card's own MJPEG: passed on untouched, no work here)
+                    if fps > b.3 || (fps == b.3 && pixel == "mjpeg" && b.4 != "mjpeg") { b.3 = fps; b.4 = pixel.clone(); }
                     if min < b.2 { b.2 = min; }
                 }
                 None => best.push((w, h, min, fps, pixel.clone())),
@@ -676,20 +716,51 @@ async fn ffmpeg_text(args: &[&str], limit: Duration) -> String {
     }
 }
 
+/// DirectShow devices (video, audio) with their ids: quick, bounded.
+pub async fn dshow_devices_entries() -> (Vec<DshowDevice>, Vec<DshowDevice>) {
+    dshow_entries(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await)
+}
+
 /// DirectShow device names only (video, audio): quick, bounded.
 pub async fn dshow_devices_names() -> (Vec<String>, Vec<String>) {
     parse_dshow_devices(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await)
 }
 
 /// DirectShow capture and sound devices, each video device with the sizes it offers.
-pub async fn dshow_devices() -> (Vec<Value>, Vec<String>) {
-    let (video, audio) = parse_dshow_devices(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await);
+pub async fn dshow_devices() -> (Vec<Value>, Vec<DshowDevice>) {
+    let (video, audio) = dshow_entries(&ffmpeg_text(&["-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"], Duration::from_secs(5)).await);
     // All cards at once: the Video panel waits at most 8 s for the whole list.
-    let out = futures::future::join_all(video.into_iter().map(|name| async move {
-        let formats = dshow_formats(&name).await;
-        json!({"id": name, "name": name, "kind": "video", "formats": formats})
+    let out = futures::future::join_all(video.into_iter().map(|d| async move {
+        let formats = dshow_formats(&d.id).await;
+        json!({"id": d.id, "name": d.name, "kind": "video", "formats": formats})
     })).await;
     (out, audio)
+}
+
+/// Windows: the sound device that belongs to this capture card. By name (a card's sound usually
+/// carries its name); for twin cards, the one in the same place among the twins (the first card's
+/// sound with the first card: DirectShow lists both in the order Windows found the devices).
+pub fn dshow_pair(video_id: &str, video: &[DshowDevice], audio: &[DshowDevice]) -> Option<String> {
+    let v = video.iter().find(|d| d.id == video_id)?;
+    let base = |n: &str| n.rsplit_once(" (").filter(|(_, r)| r.trim_end_matches(')').parse::<u32>().is_ok()).map_or(n, |(b, _)| b).to_string();
+    let vname = base(&v.name);
+    let twins: Vec<&DshowDevice> = video.iter().filter(|d| base(&d.name) == vname).collect();
+    let nth = twins.iter().position(|d| d.id == video_id).unwrap_or(0);
+    let names: Vec<String> = audio.iter().map(|a| a.name.clone()).collect();
+    let matched = pair_name_all(&vname, &names);
+    let pick = if twins.len() > 1 && matched.len() == twins.len() { matched.get(nth) } else { matched.first() };
+    pick.and_then(|n| audio.iter().find(|a| &a.name == n)).map(|a| a.id.clone())
+}
+
+/// Every sound device name that matches a capture card's name, in the order listed.
+fn pair_name_all(video: &str, audio: &[String]) -> Vec<String> {
+    let v = video.to_lowercase();
+    if v.is_empty() { return vec![]; }
+    let words = |s: &str| s.to_lowercase().split(|c: char| !c.is_alphanumeric()).filter(|w| w.len() > 1).map(str::to_string).collect::<std::collections::HashSet<_>>();
+    let vw = words(video);
+    let direct: Vec<String> = audio.iter().filter(|a| { let a = a.to_lowercase(); a == v || a.contains(&v) || v.contains(&a) }).cloned().collect();
+    if !direct.is_empty() { return direct; }
+    audio.iter().filter(|a| vw.intersection(&words(a)).count() >= 2).cloned().collect()
 }
 
 pub async fn dshow_formats(name: &str) -> Vec<Value> {
@@ -752,7 +823,7 @@ pub async fn list_devices() -> Value {
     }
     if cfg!(windows) {
         let (mut video, audio) = dshow_devices().await;
-        video.extend(audio.into_iter().map(|a| json!({"id": a, "name": a, "kind": "audio", "formats": []})));
+        video.extend(audio.into_iter().map(|a| json!({"id": a.id, "name": a.name, "kind": "audio", "formats": []})));
         return Value::Array(video);
     }
     // Linux: every /dev/videoN that offers capture sizes, with the card's name.
@@ -768,7 +839,86 @@ pub async fn list_devices() -> Value {
         (!formats.is_empty()).then(|| json!({"id": dev, "name": name, "kind": "video", "formats": formats}))
     })).await;
     out.extend(found.into_iter().flatten());
+    // the sound side of capture cards (and other recording devices): picked under Picture & sound,
+    // or paired with the card by itself (the same USB device)
+    out.extend(alsa_captures(std::path::Path::new("/")).into_iter().map(|a| json!({"id": a.id, "name": a.name, "kind": "audio", "formats": []})));
     Value::Array(out)
+}
+
+/// A sound recording device on Linux: its ffmpeg ALSA name, its name for people, and the USB
+/// device it belongs to (if any).
+pub struct AlsaCapture { pub id: String, pub name: String, pub usb: Option<std::path::PathBuf> }
+
+/// Every ALSA card that can record (`root`: "/", or a test's fake tree).
+pub fn alsa_captures(root: &std::path::Path) -> Vec<AlsaCapture> {
+    let cards = std::fs::read_to_string(root.join("proc/asound/cards")).unwrap_or_default();
+    let mut out = vec![];
+    for e in std::fs::read_dir(root.join("proc/asound")).into_iter().flatten().flatten() {
+        let dir = e.file_name().to_string_lossy().into_owned();
+        let Some(n) = dir.strip_prefix("card").and_then(|n| n.parse::<u32>().ok()) else { continue };
+        let Ok(card_id) = std::fs::read_to_string(e.path().join("id")).map(|s| s.trim().to_string()) else { continue };
+        // " 1 [Capture        ]: USB-Audio - UGREEN 25854" -> "UGREEN 25854"
+        let name = cards.lines().find(|l| l.trim_start().starts_with(&format!("{n} ["))).and_then(|l| l.split_once(" - "))
+            .map(|(_, n)| n.trim().to_string()).filter(|n| !n.is_empty()).unwrap_or_else(|| card_id.clone());
+        let usb = usb_device(&root.join(format!("sys/class/sound/card{n}/device")));
+        let mut devs: Vec<u32> = std::fs::read_dir(e.path()).into_iter().flatten().flatten()
+            .filter_map(|p| { let f = p.file_name().to_string_lossy().into_owned(); f.strip_prefix("pcm")?.strip_suffix('c')?.parse().ok() })
+            .collect();
+        devs.sort();
+        for d in devs {
+            let id = format!("hw:CARD={card_id},DEV={d}");
+            let name = if d == 0 { name.clone() } else { format!("{name} ({d})") };
+            out.push(AlsaCapture { id, name, usb: usb.clone() });
+        }
+    }
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
+}
+
+/// The USB device a sysfs device link belongs to (".../1-2/1-2:1.0" -> ".../1-2"): a capture card's
+/// picture and sound are two interfaces of one USB device.
+fn usb_device(link: &std::path::Path) -> Option<std::path::PathBuf> {
+    let real = std::fs::canonicalize(link).ok()?;
+    let iface = real.file_name()?.to_string_lossy().into_owned();
+    if iface.contains(':') { real.parent().map(std::path::Path::to_path_buf) } else { Some(real) }
+}
+
+/// The sound device that is part of the same USB device as this capture card (Linux).
+pub fn alsa_pair(root: &std::path::Path, video_dev: &str) -> Option<String> {
+    let base = video_dev.trim_start_matches("/dev/");
+    let usb = usb_device(&root.join(format!("sys/class/video4linux/{base}/device")))?;
+    alsa_captures(root).into_iter().find(|a| a.usb.as_deref() == Some(usb.as_path())).map(|a| a.id)
+}
+
+#[cfg(test)]
+mod alsa_tests {
+    #[cfg(unix)]
+    #[test]
+    fn linux_sound_devices_are_listed_and_paired_with_their_card() {
+        let root = std::env::temp_dir().join(format!("ns2bench-alsa-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mk = |p: &str| std::fs::create_dir_all(root.join(p)).unwrap();
+        let put = |p: &str, t: &str| std::fs::write(root.join(p), t).unwrap();
+        // two USB capture cards (picture: interface :1.0, sound: :1.2) and the laptop's own sound
+        for (bus, card, video) in [("1-2", 1, 0), ("1-3", 2, 2)] {
+            mk(&format!("devices/usb1/{bus}/{bus}:1.0")); mk(&format!("devices/usb1/{bus}/{bus}:1.2"));
+            mk(&format!("proc/asound/card{card}/pcm0c")); put(&format!("proc/asound/card{card}/id"), &format!("Capture{card}\n"));
+            mk("sys/class/sound"); mk("sys/class/video4linux");
+            mk(&format!("sys/class/sound/card{card}")); mk(&format!("sys/class/video4linux/video{video}"));
+            std::os::unix::fs::symlink(root.join(format!("devices/usb1/{bus}/{bus}:1.2")), root.join(format!("sys/class/sound/card{card}/device"))).unwrap();
+            std::os::unix::fs::symlink(root.join(format!("devices/usb1/{bus}/{bus}:1.0")), root.join(format!("sys/class/video4linux/video{video}/device"))).unwrap();
+        }
+        mk("proc/asound/card0/pcm0c"); mk("proc/asound/card0/pcm0p"); put("proc/asound/card0/id", "PCH\n");
+        put("proc/asound/cards", " 0 [PCH            ]: HDA-Intel - HDA Intel PCH\n                      HDA Intel PCH at 0x1\n 1 [Capture1       ]: USB-Audio - UGREEN 25854\n 2 [Capture2       ]: USB-Audio - UGREEN 25854\n");
+        let all = super::alsa_captures(&root);
+        assert_eq!(all.iter().map(|a| (a.id.as_str(), a.name.as_str())).collect::<Vec<_>>(),
+            [("hw:CARD=Capture1,DEV=0", "UGREEN 25854"), ("hw:CARD=Capture2,DEV=0", "UGREEN 25854"), ("hw:CARD=PCH,DEV=0", "HDA Intel PCH")]);
+        // two identical cards: each picture with its own sound
+        assert_eq!(super::alsa_pair(&root, "/dev/video0").as_deref(), Some("hw:CARD=Capture1,DEV=0"));
+        assert_eq!(super::alsa_pair(&root, "/dev/video2").as_deref(), Some("hw:CARD=Capture2,DEV=0"));
+        assert_eq!(super::alsa_pair(&root, "/dev/video9"), None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
 
 #[cfg(test)]
@@ -816,6 +966,24 @@ mod tests {
         // nothing known -> as asked
         assert_eq!(super::pick_format(&[], 1920, 1080, 60), (1920, 1080, "60".to_string()));
         // a device with both pins, and picking the capture card over a webcam and a virtual camera
+        // two identical cards: each by its own device path, numbered for people; each with its sound
+        let twins = "[dshow @ 1] \"UGREEN 25854\" (video)\n[dshow @ 1]   Alternative name \"@device_pnp_\\\\?\\usb#vid_345f&mi_00#7&aa\"\n\
+            [dshow @ 1] \"UGREEN 25854\" (video)\n[dshow @ 1]   Alternative name \"@device_pnp_\\\\?\\usb#vid_345f&mi_00#7&bb\"\n\
+            [dshow @ 1] \"Digital Audio Interface (UGREEN 25854)\" (audio)\n[dshow @ 1]   Alternative name \"@device_cm_{33D9}\\wave_{A1}\"\n\
+            [dshow @ 1] \"Digital Audio Interface (2- UGREEN 25854)\" (audio)\n[dshow @ 1]   Alternative name \"@device_cm_{33D9}\\wave_{B2}\"\n\
+            [dshow @ 1] \"Microphone (Realtek)\" (audio)\n";
+        let (v, a) = super::dshow_entries(twins);
+        assert_eq!(v.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), ["UGREEN 25854 (1)", "UGREEN 25854 (2)"]);
+        assert!(v[0].id.ends_with("7&aa") && v[1].id.ends_with("7&bb"), "{v:?}");
+        // a single card keeps its name as id (saved settings stay valid)
+        assert_eq!(a[2].id, "Microphone (Realtek)");
+        assert_eq!(super::dshow_pair(&v[0].id, &v, &a).as_deref(), Some("Digital Audio Interface (UGREEN 25854)"));
+        assert_eq!(super::dshow_pair(&v[1].id, &v, &a).as_deref(), Some("Digital Audio Interface (2- UGREEN 25854)"));
+        let (one, _) = super::dshow_entries("[dshow @ 1] \"Cam Link 4K\" (video)\n[dshow @ 1]   Alternative name \"@device_pnp_x\"\n");
+        assert_eq!(one, [super::DshowDevice { id: "Cam Link 4K".into(), name: "Cam Link 4K".into() }]);
+        // the card's own MJPEG is preferred at the same rate
+        let mj = super::parse_dshow_options("[dshow @ 2]   pixel_format=yuyv422  min s=1920x1080 fps=60 max s=1920x1080 fps=60\n[dshow @ 2]   vcodec=mjpeg  min s=1920x1080 fps=60 max s=1920x1080 fps=60\n");
+        assert_eq!(mj[0]["pixel"], "mjpeg");
         let (v, a) = super::parse_dshow_devices("[dshow @ 1] \"Game Capture 4K Pro\" (video, audio)\n");
         assert_eq!((v.len(), a.len()), (1, 1));
         let devs = serde_json::json!([{"id": "OBS Virtual Camera", "name": "OBS Virtual Camera", "kind": "video"},

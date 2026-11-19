@@ -113,8 +113,11 @@ impl AudioHub {
         } else {
             // Windows: the card's sound device usually carries its name ("Game Capture 4K Pro").
             let found = if cfg!(windows) && vc["audio_device"].as_str().is_none() {
-                let (_, audio) = crate::video::dshow_devices_names().await;
-                pair_by_name(vc["device"].as_str().unwrap_or(""), &audio)
+                let (video, audio) = crate::video::dshow_devices_entries().await;
+                crate::video::dshow_pair(vc["device"].as_str().unwrap_or(""), &video, &audio)
+            } else if vc["audio_device"].as_str().is_none() {
+                // Linux: the sound device on the same USB device as the capture card
+                crate::video::alsa_pair(std::path::Path::new("/"), vc["device"].as_str().unwrap_or(""))
             } else {
                 None
             };

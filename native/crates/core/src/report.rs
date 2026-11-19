@@ -297,7 +297,9 @@ fn name_of(p: &Path) -> String {
 pub fn readme(live: bool) -> Vec<u8> {
     format!("NS2Bench report · {} · NS2Bench {}\n\n\
         Attach this zip to a GitHub issue (https://github.com/phantomptr/ns2bench/issues/new/choose) or send it on Discord.\n\
-        Tokens, passwords and the power-button command are replaced by ***. Look through it before sharing.\n\n\
+        Tokens, passwords and the power-button command are replaced by ***; your home folder, this computer's name,\n\
+        the second half of network hardware addresses and the consoles' network names are taken out too.\n\
+        Look through it before sharing: a screenshot shows whatever was on the console's screen.\n\n\
         system.txt     the computer, NS2Bench's parts and their versions\n\
         devices.json   the capture cards (and their sizes) and sound devices NS2Bench sees\n\
         settings/      NS2Bench's settings (secrets removed)\n\
@@ -308,10 +310,60 @@ pub fn readme(live: bool) -> Vec<u8> {
         .into_bytes()
 }
 
+/// Personal details taken out of a report's text before it is shared: the home folder (it holds
+/// the account name), this computer's name, the second half of network hardware addresses (the
+/// first half, the maker, stays: it tells a console from a laptop), and the names consoles gave
+/// themselves on the network.
+pub fn scrub(text: &str) -> String {
+    scrub_with(text, &crate::config::home().to_string_lossy(), &computer_name())
+}
+
+fn computer_name() -> String {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        std::env::var("COMPUTERNAME").ok().filter(|n| !n.is_empty())
+            .or_else(|| std::process::Command::new("hostname").stdin(std::process::Stdio::null()).output().ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()))
+            .unwrap_or_default()
+    }).clone()
+}
+
+fn scrub_with(text: &str, home: &str, computer: &str) -> String {
+    use regex::{NoExpand, Regex, RegexBuilder};
+    static MAC: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    static HOST: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let mut out = text.to_string();
+    // the home folder, as written with either slash and (Windows) in any case, also inside JSON
+    // where each backslash is doubled
+    if home.len() > 3 {
+        let slashes = home.replace('\\', "/");
+        for form in [home.to_string(), slashes.clone(), slashes.replace('/', "\\"), slashes.replace('/', "\\\\")] {
+            if let Ok(re) = RegexBuilder::new(&regex::escape(&form)).case_insensitive(cfg!(windows)).build() {
+                out = re.replace_all(&out, NoExpand("~")).into_owned();
+            }
+        }
+    }
+    // this computer's name ("Anna's MacBook Pro", with or without .local)
+    let short = computer.split('.').next().unwrap_or("");
+    if short.len() > 3 {
+        if let Ok(re) = RegexBuilder::new(&regex::escape(short)).case_insensitive(true).build() {
+            out = re.replace_all(&out, NoExpand("this-computer")).into_owned();
+        }
+    }
+    let mac = MAC.get_or_init(|| Regex::new(r"\b([0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2})(?:[:-][0-9A-Fa-f]{2}){3}\b").unwrap());
+    out = mac.replace_all(&out, "$1:xx:xx:xx").into_owned();
+    let host = HOST.get_or_init(|| Regex::new(r#"("hostname"\s*:\s*)"[^"]*""#).unwrap());
+    host.replace_all(&out, r#"$1"***""#).into_owned()
+}
+
 pub fn zip(files: Vec<(String, Vec<u8>)>) -> anyhow::Result<Vec<u8>> {
     let mut z = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let opt = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     for (n, d) in files {
+        // (every text file: logs, settings, traces, status. Pictures are left as they are.)
+        let d = if n.ends_with(".jpg") || n.ends_with(".png") { d } else {
+            match String::from_utf8(d) { Ok(t) => scrub(&t).into_bytes(), Err(e) => scrub(&String::from_utf8_lossy(e.as_bytes())).into_bytes() }
+        };
         let o = if n.ends_with(".jpg") { opt.compression_method(zip::CompressionMethod::Stored) } else { opt };
         z.start_file(n, o)?;
         z.write_all(&d)?;
@@ -381,6 +433,13 @@ mod tests {
 
     #[test]
     fn zip_holds_the_files() {
+        // personal details are taken out of text
+        let t = super::scrub_with(r#"exe: /Users/anna/.ns2bench/bin/x "path":"C:\\Users\\Anna\\x" host Annas-MacBook-Pro.local mac 98:b6:e9:12:34:56 {"hostname": "Annas-Switch","ip":"192.168.5.2"}"#,
+            "/Users/anna", "Annas-MacBook-Pro.local");
+        assert!(t.starts_with("exe: ~/.ns2bench/bin/x"), "{t}");
+        assert!(!t.contains("anna") && !t.contains("Annas-MacBook") && !t.contains("12:34:56") && !t.contains("Annas-Switch"), "{t}");
+        assert!(t.contains("98:b6:e9:xx:xx:xx") && t.contains(r#""hostname": "***""#) && t.contains("192.168.5.2"), "{t}");
+        assert_eq!(super::scrub_with(r"C:\Users\Anna\AppData and c:/users/anna/x", r"C:\Users\Anna", ""), if cfg!(windows) { r"~\AppData and ~/x" } else { r"~\AppData and c:/users/anna/x" });
         let z = super::zip(vec![("a.txt".into(), b"hello".to_vec()), ("b/c.jpg".into(), vec![1, 2, 3])]).unwrap();
         let mut r = zip::ZipArchive::new(std::io::Cursor::new(z)).unwrap();
         assert_eq!(r.len(), 2);

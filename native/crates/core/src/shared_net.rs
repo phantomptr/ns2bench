@@ -139,6 +139,7 @@ pub async fn set_shared(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) 
     if !b.cfg.raw["network"]["helper"].is_null() {
         return Err(bad("this NS2Bench uses a network helper on another computer: set up the shared network there"));
     }
+    if v["stop"] == true { return stop_shared(&b).await; }
     let name = v["interface"].as_str().unwrap_or("");
     let list = tokio::task::spawn_blocking(interfaces).await.unwrap_or_default();
     let iface = list.iter().find(|i| i["name"] == name)
@@ -205,6 +206,37 @@ pub async fn set_shared(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) 
         consoles.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(", ")));
     Ok(Json(json!({"ok": true, "config": path.display().to_string(), "interface": name, "address": address.to_string(),
         "settings": console_settings(&consoles, address, prefix), "restart_helper": true})))
+}
+
+/// Stop using the shared home network: the console list goes (no console is answered any more)
+/// and every local service is switched off. Safe by construction: the settings keep no address
+/// pool, so the helper can never hand out addresses on the home network this adapter is on; a
+/// direct console network is set up again from the setup guide (its own adapter and pool).
+async fn stop_shared(b: &S) -> R<Json<Value>> {
+    let _lock = b.settings_lock.lock().await;
+    let path = config_path(b);
+    let mut doc: Value = match std::fs::read(&path) {
+        Ok(d) => serde_json::from_slice(&d).ok().filter(Value::is_object)
+            .ok_or_else(|| bad(format!("{} isn't valid settings JSON: fix or remove it first (nothing was changed)", path.display())))?,
+        Err(_) => return Err(bad("no shared home network is set up")),
+    };
+    let Some(net) = doc["network"].as_object_mut() else { return Err(bad("no shared home network is set up")) };
+    if net.remove("consoles").is_none() { return Err(bad("no shared home network is set up")); }
+    net.remove("service");
+    for k in ["pool_start", "pool_end", "reservations"] { net.remove(k); }
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
+    let backup = (0..100).map(|n| path.with_extension(if n == 0 { format!("json.bak-{stamp}") } else { format!("json.bak-{stamp}-{n}") }))
+        .find(|p| !p.exists()).ok_or_else(|| bad("too many backups this second"))?;
+    std::fs::copy(&path, &backup).map_err(|e| bad(format!("could not back up {}: {e}", path.display())))?;
+    // Controls first (everything off), then the settings, as when setting it up.
+    let controls = json!({"topology": "none", "dhcp": false, "dns": false, "connectivity": false});
+    ns2bench_netd::validate_controls(&controls).map_err(bad)?;
+    let state = match doc["state_dir"].as_str() { Some(d) => crate::config::expand(d), None => crate::config::state_dir() };
+    crate::config::write_json(&state.join("network-controls.json"), &controls).map_err(anyhow::Error::from)?;
+    crate::config::write_json(&path, &doc).map_err(|e| bad(format!("could not save {}: {e}", path.display())))?;
+    *WATCH.lock().unwrap() = None;
+    b.logs.add("bench", "console network: the shared home network is no longer used; the network helper answers no console now");
+    Ok(Json(json!({"ok": true, "stopped": true, "backup": backup.display().to_string(), "restart_helper": true})))
 }
 
 /// Is `ip` on the network right now? A ping refreshes the neighbour table (consoles may not

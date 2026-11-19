@@ -711,5 +711,11 @@
   "The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.": "El mando está conectado a %1. Cambia a ella, o mueve el cable e indícalo sobre la imagen.",
   "The engine gave an answer NS2Bench could not read.": "El motor dio una respuesta que NS2Bench no pudo leer.",
   "Use %1": "Usar %1",
-  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "Viendo %1. El mando está conectado a %2, así que los botones van allí, no aquí."
+  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "Viendo %1. El mando está conectado a %2, así que los botones van allí, no aquí.",
+  "Restart the network helper to apply it.": "Reinicia el asistente de red para aplicarlo.",
+  "Stop using it": "Dejar de usarla",
+  "Stop using the shared home network?": "¿Dejar de usar la red doméstica compartida?",
+  "Stop using the shared network": "Dejar de usar la red compartida",
+  "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "Las consolas dejarán de recibir respuestas de este ordenador, así que su prueba de conexión fallará, hasta que vuelvas a configurar una red para consolas. No se reparte nada en tu red doméstica. Antes se hace una copia de tus ajustes.",
+  "The shared home network is no longer used. Backup of your settings:": "La red doméstica compartida ya no se usa. Copia de tus ajustes:"
 }

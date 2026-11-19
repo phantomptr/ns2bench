@@ -484,6 +484,17 @@ pub struct InputHub {
     pub mode_switched: Mutex<Option<std::time::Instant>>,
     /// When the person last said which console the controller is on.
     pub placed: Mutex<Option<std::time::Instant>>,
+    /// The last time the controller's cable could have moved: the board came (back) on, or its
+    /// USB cable was out and in again. No such moment since it was placed, with the board there
+    /// all along, means it is still in the console it was placed on.
+    pub cable_event: Mutex<Option<std::time::Instant>>,
+    /// Whether the last placement was more than a guess: the person said where the cable is, it
+    /// was found, or the cable was seen to move after a console was picked. Following the screen
+    /// with nothing seen is a guess: it must not later count as proof of where the cable is.
+    pub placed_sure: std::sync::atomic::AtomicBool,
+    /// The console the person picked on screen while the cable was provably still in another
+    /// one (and when): the controller goes there once the cable is seen to move.
+    pub pending_follow: Mutex<Option<(String, std::time::Instant)>>,
     /// The person picked the board's mode by hand: automatic mode changes leave it alone until
     /// the controller is next placed on a console.
     pub manual_mode: std::sync::atomic::AtomicBool,
@@ -521,7 +532,7 @@ impl InputHub {
             paused: Mutex::new(None),
             generation: 0.into(),
             mode_switched: Mutex::new(None),
-            placed: Mutex::new(None),
+            placed: Mutex::new(None), cable_event: Mutex::new(None), placed_sure: false.into(), pending_follow: Mutex::new(None),
             manual_mode: false.into(),
             mode_tries: 0.into(), mode_check: false.into(),
         })

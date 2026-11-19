@@ -711,5 +711,11 @@
   "The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.": "컨트롤러가 %1에 연결되어 있습니다. 그 콘솔로 전환하거나, 케이블을 옮기고 화면 위에서 알려 주세요.",
   "The engine gave an answer NS2Bench could not read.": "엔진이 NS2Bench가 읽을 수 없는 응답을 보냈습니다.",
   "Use %1": "%1 사용",
-  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "%1을(를) 보는 중입니다. 컨트롤러는 %2에 연결되어 있어 버튼은 여기가 아니라 그쪽으로 갑니다."
+  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "%1을(를) 보는 중입니다. 컨트롤러는 %2에 연결되어 있어 버튼은 여기가 아니라 그쪽으로 갑니다.",
+  "Restart the network helper to apply it.": "적용하려면 네트워크 도우미를 다시 시작하세요.",
+  "Stop using it": "사용 중지",
+  "Stop using the shared home network?": "공유 홈 네트워크 사용을 중지할까요?",
+  "Stop using the shared network": "공유 네트워크 사용 중지",
+  "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "콘솔 네트워크를 다시 설정할 때까지 콘솔은 이 컴퓨터에서 응답을 받지 못하므로 연결 테스트가 실패합니다. 홈 네트워크에는 아무것도 배포되지 않습니다. 설정은 먼저 백업됩니다.",
+  "The shared home network is no longer used. Backup of your settings:": "공유 홈 네트워크를 더 이상 사용하지 않습니다. 설정 백업:"
 }

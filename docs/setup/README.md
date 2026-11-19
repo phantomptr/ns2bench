@@ -365,6 +365,8 @@ The last row is the one thing a shared network can't rule out: there, the consol
 7. **Recommended second lock:** in your router's app, pause or block internet for the consoles (Google Home: Wi-Fi → Family Wi-Fi → pause). Check that the connection test still passes with the pause on.
 8. Delete every other saved Wi-Fi network on each console, and avoid local wireless play with a console on newer firmware (consoles can pass system updates to each other that way).
 
+**Stopping:** Settings → Network → **Stop using the shared network**. Your settings are backed up first; the helper then answers no console and hands out nothing on your home network. Restart the network helper to apply it. To use a direct cable again, follow section B.
+
 **Reading the leak watch** (Settings → Network, checked every 30 seconds):
 
 - **Protected:** the console asked NS2Bench recently. It shows when, its last connection test, and how many names were refused.

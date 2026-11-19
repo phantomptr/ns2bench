@@ -204,6 +204,7 @@ impl Bench {
         match &target {
             Some(c) => {
                 *self.hub.placed.lock().unwrap() = Some(std::time::Instant::now());
+                self.hub.placed_sure.store(true, std::sync::atomic::Ordering::SeqCst);
                 // placed again: the mode follows this console (a hand-picked mode was for the last one)
                 self.hub.manual_mode.store(false, std::sync::atomic::Ordering::SeqCst);
                 self.hub.mode_tries.store(0, std::sync::atomic::Ordering::SeqCst);
@@ -227,15 +228,55 @@ impl Bench {
             return Ok(false);
         }
         let on = self.controller_console();
-        if on.as_ref().is_some_and(|o| o.id == c.id) { return Ok(false); }
+        if on.as_ref().is_some_and(|o| o.id == c.id) {
+            // back to the console it is in: an earlier pick of another one is off, and the board
+            // starts as what this console needs again
+            if self.hub.pending_follow.lock().unwrap().take().is_some() { self.apply_mode(); }
+            return Ok(false);
+        }
         let st = self.hub.status();
         if st["host"] == "switch2" && *c.model.lock().unwrap() != "switch2" {
             let there = on.map(|o| o.name()).unwrap_or_else(|| "a Switch 2".into());
             bail!(crate::inputs::Conflict(format!("the controller is still plugged into {there} (it's driving it as its Pro Controller): move its cable to {} first, then pick it again", c.name())));
         }
+        // The cable can't have moved: the board has been there, plugged in and running, ever since
+        // the controller was placed on the other console. Putting it "on" this one would switch
+        // its mode under the console it is really in, and send this console's presses there.
+        // Remembered instead: when the cable is seen to move, the controller goes here by itself
+        // (and the board is told to start as what this console needs, so that is quick).
+        if let (Some(o), true) = (&on, self.cable_still_in()) {
+            *self.hub.pending_follow.lock().unwrap() = Some((c.id.clone(), std::time::Instant::now()));
+            let want = crate::console::mode_for(&c.model.lock().unwrap(), &c.controller.lock().unwrap());
+            if !(st["usb_mode"] == "hori" && want == "standard") { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
+            self.logs.add("bench", format!("controller: {} picked on screen, but the cable is still in {}; it switches over when the cable is moved", c.name(), o.name()));
+            bail!(crate::inputs::Conflict(format!("the controller is still plugged into {}: move its cable to {} and NS2Bench switches to it by itself", o.name(), c.name())));
+        }
+        *self.hub.pending_follow.lock().unwrap() = None;
         self.set_controller_on(Some(&c.id))?;
+        // (taken on the person's word that the screen is where the cable is: not proof of it)
+        self.hub.placed_sure.store(false, Relaxed);
         self.logs.add("bench", format!("controller: follows the console on screen: {}", c.name()));
         Ok(true)
+    }
+
+    /// Whether the controller is certainly still in the console it was placed on: the board is
+    /// connected with its USB side running, and nothing since the placement could have been the
+    /// cable moving (the board restarting, or its USB cable out and in).
+    pub fn cable_still_in(&self) -> bool {
+        let st = self.hub.status();
+        if st["connected"] != true || !st["usb"].as_str().is_some_and(|u| u.starts_with("configured")) { return false; }
+        let placed = *self.hub.placed.lock().unwrap();
+        let event = *self.hub.cable_event.lock().unwrap();
+        // (never placed in this run, e.g. taken from the last one at start: nothing is certain)
+        self.hub.placed_sure.load(std::sync::atomic::Ordering::SeqCst) && placed.is_some_and(|p| event.is_none_or(|e| e <= p))
+    }
+
+    /// The cable was seen to move: the console picked on screen while it was still in another one
+    /// (within the last few minutes), if any. Taken, so it is used once.
+    pub fn take_pending_follow(&self) -> Option<Arc<Console>> {
+        let (id, at) = self.hub.pending_follow.lock().unwrap().take()?;
+        if at.elapsed() > std::time::Duration::from_secs(300) { return None; }
+        self.console(&id).filter(|c| c.uses_controller.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     /// The console the controller follows to (the one picked on screen), when following is on.
@@ -563,6 +604,60 @@ mod tests {
         b.set_controller_on(Some("switch-1")).unwrap();
         let r = crate::inputs::RUN_GENERATION.scope(Some(started), async { b.hub.hold(&["A".into()], "api") }).await;
         assert!(r.unwrap_err().to_string().contains("moved to another console"));
+    }
+
+    /// A board that answers (hello, pings) as a Bridge in pro mode with its USB side running.
+    async fn board() -> u16 {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (s, _) = l.accept().await.unwrap();
+            let (r, mut w) = s.into_split();
+            let mut lines = tokio::io::BufReader::new(r).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let v: Value = serde_json::from_str(&line).unwrap_or_default();
+                let reply = if v.get("hello").is_some() { Some(r#"{"ok":"ready","udc":"configured","devices":["pad"],"mode":"pro"}"#.to_string()) }
+                    else { v["ping"].as_u64().map(|n| format!(r#"{{"pong":{n},"udc":"configured"}}"#)) };
+                if let Some(reply) = reply { if w.write_all(format!("{reply}\n").as_bytes()).await.is_err() { break; } }
+            }
+        });
+        port
+    }
+
+    #[tokio::test]
+    async fn a_console_picked_while_the_cable_is_provably_elsewhere_waits_for_the_cable() {
+        let port = board().await;
+        let b = Bench::new(Config::from_raw(None, json!({"input": {"backend": "hidd", "host": "127.0.0.1", "port": port}, "video": {"backend": "none"}, "audio": {"enabled": false}})));
+        for _ in 0..100 {
+            if b.hub.status()["connected"] == true { break; }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        assert_eq!(b.hub.status()["connected"], true);
+        b.add_console(&json!({"name": "Switch 1", "model": "switch1"})).unwrap();
+        // nothing certain yet (the place was taken over from the last run): following is allowed
+        assert!(!b.cable_still_in());
+        // the person says where the cable is: from now on it is known to be there
+        b.set_controller_on(Some("switch-2")).unwrap();
+        assert!(b.cable_still_in());
+        let refused = b.follow_view("switch-1").unwrap_err().to_string();
+        assert!(refused.contains("still plugged into Switch 2"), "{refused}");
+        assert_eq!(b.controller_console().unwrap().id, "switch-2", "presses keep going where the cable is");
+        // picking the console it is in again takes the other pick back
+        assert!(!b.follow_view("switch-2").unwrap());
+        assert!(b.take_pending_follow().is_none());
+        // picked again, then the cable is seen to move: that is where it went
+        assert!(b.follow_view("switch-1").is_err());
+        *b.hub.cable_event.lock().unwrap() = Some(std::time::Instant::now());
+        assert!(!b.cable_still_in(), "the cable may have moved");
+        assert_eq!(b.take_pending_follow().unwrap().id, "switch-1");
+        assert!(b.take_pending_follow().is_none(), "used once");
+        // a pick followed on the person's word alone is not proof for the next one
+        b.set_controller_on(Some("switch-2")).unwrap();
+        *b.hub.cable_event.lock().unwrap() = Some(std::time::Instant::now());
+        assert!(b.follow_view("switch-1").unwrap());
+        assert!(!b.cable_still_in());
+        assert!(b.follow_view("switch-2").unwrap(), "a guess doesn't hold the controller in place");
     }
 
     #[tokio::test]

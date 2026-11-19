@@ -711,5 +711,11 @@
   "The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.": "控制器插在 %1 上。請切換到它，或移動線材並在畫面上方說明。",
   "The engine gave an answer NS2Bench could not read.": "引擎傳回了 NS2Bench 無法讀取的回應。",
   "Use %1": "使用 %1",
-  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "正在檢視 %1。控制器插在 %2 上，所以按鍵會送到那邊，而不是這裡。"
+  "Watching %1. The controller is plugged into %2, so buttons go there, not here.": "正在檢視 %1。控制器插在 %2 上，所以按鍵會送到那邊，而不是這裡。",
+  "Restart the network helper to apply it.": "重新啟動網路助手以套用。",
+  "Stop using it": "停止使用",
+  "Stop using the shared home network?": "要停止使用共享家用網路嗎？",
+  "Stop using the shared network": "停止使用共享網路",
+  "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "在你重新設定主機網路之前，主機將收不到這台電腦的回應，因此它們的連線測試會失敗。家用網路中不會分配任何位址。你的設定會先備份。",
+  "The shared home network is no longer used. Backup of your settings:": "共享家用網路已不再使用。設定備份："
 }
