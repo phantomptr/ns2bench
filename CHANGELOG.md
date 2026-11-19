@@ -27,6 +27,13 @@ A deep review of the whole app, in several rounds. Fixed so far:
 - **Settings:** saving the power settings no longer erases the power-button command; switching the input device to "none" and back keeps the Bridge's address; "Run the check" works with several consoles; a reopened Settings window shows the open tab afresh.
 - **Updates:** a downloaded update is no longer downloaded again on every start, and one whose file was deleted can be downloaded again. On Linux the updater makes sure the AppImage it replaces is NS2Bench's own.
 - **Command line tool:** `--console` picks the console a command is about, `usb-mode` knows all four modes, and piping into `head` no longer counts as a crash.
+- **No more "Bridge connected" notification every minute while the console sleeps.** Only a real return notifies; the short visits are log lines.
+- **A controller choice made while the board was still changing mode is no longer lost.** The board is checked again when the change finishes.
+- **A console without a capture card no longer shows another console's picture** (Mac), and "no card" stays saved as such. NS2Bench never picks this computer's own camera as a capture card.
+- **Two consoles:** adding a second console, or removing one, no longer makes NS2Bench forget where the controller is. A Switch 2 that has started the controller settles where it is, also after an hour asleep. Clicking the console again after moving the cable works, as the message says.
+- **A wrong Bridge token says so** (it looked like a network problem) and is retried every 10 seconds, not twice a second.
+- **A capture card that is gone** is reported once, not every 15 seconds.
+- **Windows:** a power-button command with several quoted parts runs as typed.
 - **Releases:** the installer for the right version is always the one published, the release key is checked against the app before publishing, and the tag push is retried.
 
 ## 0.0.31

@@ -84,7 +84,14 @@ impl Bench {
             active_operations: 0.into(), screen_log: screen_log.into(), calibration: Mutex::new(calibration), started: Instant::now(),
         });
         let h = bench.hub.clone();
-        tokio::spawn(async move { while conn_rx.recv().await.is_some() { h.resend(); } });
+        // After every connect and every finished mode switch: what is held is sent again, and
+        // the watcher is told to check the board's mode (see `mode_check`).
+        tokio::spawn(async move {
+            while conn_rx.recv().await.is_some() {
+                h.resend();
+                h.mode_check.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
         bench.apply_pause();
         bench
     }
@@ -271,7 +278,8 @@ impl Bench {
         if st["host"] == "switch2" && want != "pro" && st["usb_mode"] == "pro" && *c.model.lock().unwrap() != "switch2" { return; }
         // next time the board powers up (the console woke), it starts as what this console needs,
         // instead of starting as the other and switching over (seconds, and a reconnect)
-        if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
+        // (not over a hand-picked "controller + keyboard without mouse": it serves the same choice)
+        if st["connected"] == true && !(st["usb_mode"] == "hori" && want == "standard") { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
         let fits = |m: &str| m == want || (m == "hori" && want == "standard");
         if st["connected"] == true && st["usb_mode"].as_str().is_some_and(fits) {
             self.hub.mode_tries.store(0, SeqCst);       // there: later corrections start counting afresh
@@ -317,6 +325,14 @@ impl Bench {
         let ip = v["network_ip"].as_str().map(str::trim).filter(|s| !s.is_empty());
         let entry = json!({"id": id, "name": name, "model": model, "color": color, "network_ip": ip, "video": video});
         let c = Console::new(&entry, &self.cfg.video, &self.cfg.raw);
+        // (the console there was before had the controller, said or not: adding a second one
+        // must not make its place unknown and pause input)
+        {
+            let list = self.list();
+            let mut on = self.controller_on.lock().unwrap();
+            if list.len() == 1 && on.is_none() { *on = Some(list[0].id.clone()); }
+            if crate::console::active().is_none() { crate::console::set_active(on.clone()); }
+        }
         self.consoles.write().unwrap().push(c.clone());
         self.apply_pause();
         self.save_consoles()?;
@@ -393,6 +409,9 @@ impl Bench {
                 *on = None;
                 self.hub.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
+            // (one console left: the controller is its)
+            let left = self.list();
+            if left.len() == 1 { *on = Some(left[0].id.clone()); crate::console::set_active(on.clone()); }
         }
         self.apply_pause();
         self.save_consoles()?;

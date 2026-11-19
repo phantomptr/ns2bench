@@ -6,7 +6,7 @@ import { t } from './i18n.js';
 
 const $ = (s) => document.querySelector(s);
 // shownId: the console whose picture and sound this page is connected to now
-let consoles = [], controllerOn = null, onSwitch = () => {}, shownId = null, detecting = false;
+let consoles = [], controllerOn = null, onSwitch = () => {}, shownId = null, detecting = false, viewOnly = false;
 // "pictures" (live thumbnails) or "names" (small chips, no pictures): the strip can be tucked away
 let stripStyle = (() => { try { return localStorage.getItem('ns2bench.strip') === 'names' ? 'names' : 'pictures'; } catch { return 'pictures'; } })();
 
@@ -112,7 +112,9 @@ export function editConsole(id) {
 }
 
 function pick(c) {
-  const moving = c.id !== viewed()?.id;
+  // (also a second click on the console already on screen, while the controller is elsewhere:
+  // "move the cable, then pick it again" has to work)
+  const moving = c.id !== viewed()?.id || (!!controllerOn && c.id !== controllerOn);
   setConsole(c.id); render(); follow();
   if (moving && consoles.length > 1) post({ action: 'follow', id: c.id }).catch((e) => alertText(e));
 }
@@ -193,7 +195,7 @@ function render() {
   const v = viewed();
   const note = $('#console-note'), act = $('#console-note-actions');
   act.replaceChildren();
-  if (consoles.length > 1 && !controllerOn) {
+  if (consoles.length > 1 && !controllerOn && !viewOnly) {
     note.textContent = detecting
       ? t('Finding which console the controller is plugged into… Input is paused until then. Or pick it:')
       : t('Which console is the controller plugged into? Input is paused until you say.');
@@ -238,6 +240,7 @@ export function updateConsoles(status) {
   controllerOn = status.controller_on ?? null;
   const wasDetecting = detecting;
   detecting = !!status.controller_detecting;
+  viewOnly = status.input?.backend === 'none';        // (no controller at all: nothing to ask about)
   if (wasDetecting !== detecting) render();
   // a console that was removed: show the one with the controller
   if (currentConsole() && !consoles.some((c) => c.id === currentConsole())) setConsole('');

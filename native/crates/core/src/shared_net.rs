@@ -31,8 +31,9 @@ fn config_path(b: &S) -> std::path::PathBuf {
 /// has no file (then its in-memory settings are the only ones: never some other file's).
 fn config_doc(b: &crate::Bench) -> Option<Value> {
     // (an engine started without a file: the one the shared setup wrote since then, if any)
+    // (never in tests: a developer's real network settings are not a test's)
     let made = crate::config::state_dir().join("config.json");
-    let path = match &b.cfg.path { Some(p) => Some(p), None => Some(&made) }.filter(|p| p.is_file())?;
+    let path = match &b.cfg.path { Some(p) => Some(p), None if cfg!(test) => None, None => Some(&made) }.filter(|p| p.is_file())?;
     std::fs::read(path).ok().and_then(|d| serde_json::from_slice::<Value>(&d).ok())
 }
 

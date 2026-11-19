@@ -549,7 +549,9 @@ pub fn appimage() -> Option<PathBuf> {
     let image = PathBuf::from(std::env::var_os("APPIMAGE")?);
     let mounted = PathBuf::from(std::env::var_os("APPDIR")?);
     let exe = std::env::current_exe().ok()?;
-    (exe.starts_with(&mounted) && image.is_file()).then_some(image)
+    // (both as the system resolves them: a temp folder behind a link would otherwise not match)
+    let real = |p: PathBuf| std::fs::canonicalize(&p).unwrap_or(p);
+    (real(exe).starts_with(real(mounted)) && image.is_file()).then_some(image)
 }
 
 /// Installers of versions already installed (or older), and component files fetched for other

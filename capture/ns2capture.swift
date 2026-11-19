@@ -120,6 +120,13 @@ func configure(_ d: AVCaptureDevice, width: Int32, height: Int32, fps: Double, c
     let isMjpeg = { (x: AVCaptureDevice.Format) in pixel(x) == "dmb1" }
     let pick = compressed ? candidates.first(where: isMjpeg)
         : candidates.first(where: { pixel($0) == "420v" }) ?? candidates.first(where: { !isMjpeg($0) })
+    // Never under another app's feet (OBS may own the card): when the card is in use and already
+    // gives the asked size, its format stays exactly as that app set it.
+    let now = CMVideoFormatDescriptionGetDimensions(d.activeFormat.formatDescription)
+    if d.isInUseByAnotherApplication && now.width == width && now.height == height {
+        FileHandle.standardError.write("ns2capture: the card is in use by another app at \(width)x\(height); sharing its format\n".data(using: .utf8)!)
+        return
+    }
     guard let f = pick ?? candidates.first else {
         FileHandle.standardError.write("ns2capture: \(width)x\(height)@\(fps) not offered; using current format\n".data(using: .utf8)!)
         return
@@ -167,7 +174,8 @@ final class Streamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let ctx = CIContext()
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
     var next = 0.0
-    var throttle = true           // false: the card sends at the asked rate, every frame is kept
+    var throttle = false          // true: the card sends faster than asked, frames are kept on a schedule
+    var dropped = 0               // frames this computer was too busy to take (not the card's doing)
     var got = 0, kept = 0, statAt = 0.0, saidAt = 0.0
     var vt: VTCompressionSession?
     var vtSize = (0, 0)
@@ -190,12 +198,24 @@ final class Streamer: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         let dt = now - statAt
         if dt < 0 { got = 0; kept = 0; return }
         if dt < 5 { return }
-        let delivered = Double(got) / dt, sent = Double(kept) / dt, asked = 1.0 / interval
-        got = 0; kept = 0; statAt = now
-        if delivered < asked * 0.9 && now - saidAt > 60 {
-            saidAt = now
-            FileHandle.standardError.write(String(format: "ns2capture: the capture card delivers only %.0f frames a second (asked %.0f), %.0f passed on\n", delivered, asked, sent).data(using: .utf8)!)
+        let delivered = Double(got) / dt, sent = Double(kept) / dt, lost = Double(dropped) / dt, asked = 1.0 / interval
+        got = 0; kept = 0; dropped = 0; statAt = now
+        // (the card's real rate decides, also when another app changes it later: clearly faster
+        // than asked is thinned out, at or under the asked rate every frame is kept)
+        throttle = delivered + lost > asked * 1.1
+        if now - saidAt > 60 {
+            if lost >= 1 && delivered + lost >= asked * 0.9 {
+                saidAt = now
+                FileHandle.standardError.write(String(format: "ns2capture: this computer could not keep up: %.0f of %.0f frames a second were skipped\n", lost, delivered + lost).data(using: .utf8)!)
+            } else if delivered + lost < asked * 0.9 {
+                saidAt = now
+                FileHandle.standardError.write(String(format: "ns2capture: the capture card delivers only %.0f frames a second (asked %.0f), %.0f passed on\n", delivered + lost, asked, sent).data(using: .utf8)!)
+            }
         }
+    }
+
+    func captureOutput(_ o: AVCaptureOutput, didDrop sb: CMSampleBuffer, from c: AVCaptureConnection) {
+        dropped += 1
     }
 
     func emit(_ data: Data, kind: UInt8 = 1) {
@@ -420,9 +440,9 @@ case "stream" where (5...8).contains(args.count) && args.count != 6, "stream2" w
     if args.count >= 7, let w = Int32(args[5]), let h = Int32(args[6]) {
         configure(dev, width: w, height: h, fps: fps, compressed: args.count == 8 && args[7] == "compressed")
     }
-    // the card's real rate, now that its format is set: at (or under) the asked rate nothing is dropped
+    // (set before any frame is looked at, from the card's own rate; `report` keeps it right after)
     let dur = dev.activeVideoMinFrameDuration
-    if dur.isValid && dur.seconds > 0 && 1.0 / dur.seconds <= fps + 1 { s.throttle = false }
+    if dur.isValid && dur.seconds > 0 && 1.0 / dur.seconds > fps + 1 { s.throttle = true }
 case "audio" where args.count == 3:
     signal(SIGPIPE, SIG_IGN)
     addInput(session, device(args[2], "audio"))

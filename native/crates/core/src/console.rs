@@ -102,7 +102,10 @@ impl Console {
     /// What consoles.json keeps for this console.
     pub fn entry(&self) -> Value {
         let v = self.video_cfg.lock().unwrap().clone();
-        let video: serde_json::Map<String, Value> = VIDEO_KEYS.iter().filter_map(|k| v.get(*k).filter(|x| !x.is_null()).map(|x| (k.to_string(), x.clone()))).collect();
+        let mut video: serde_json::Map<String, Value> = VIDEO_KEYS.iter().filter_map(|k| v.get(*k).filter(|x| !x.is_null()).map(|x| (k.to_string(), x.clone()))).collect();
+        // ("no card" is written down: left out, the console would take the bench's first card
+        // at the next start, and the two would fight over it)
+        if v["device"].is_null() { video.insert("device".into(), Value::Null); }
         json!({"id": self.id, "name": self.name(), "model": *self.model.lock().unwrap(), "color": *self.color.lock().unwrap(),
             "network_ip": *self.network_ip.lock().unwrap(), "video": video,
             "uses_controller": self.uses_controller.load(std::sync::atomic::Ordering::Relaxed),

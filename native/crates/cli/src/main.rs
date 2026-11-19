@@ -783,17 +783,18 @@ fn stamp() -> String {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    ns2bench_core::crashlog::install("cli", |p| eprintln!("ns2bench stopped unexpectedly. Details: {}", p.display()));
+    let cli = Cli::parse();
     // `ns2bench logs | head`: the reader closing the pipe ends the command quietly, as with any
     // other tool (Rust ignores SIGPIPE, so the next print would panic and be recorded as a crash).
-    // Not for `serve` (the engine itself): it writes to its own helper processes' pipes, and one
-    // of those ending early must stay an error to handle, not end the engine.
+    // Not for `serve` and `mcp` (the engine itself): it writes to its own helper processes'
+    // pipes, and one of those ending early must stay an error to handle, not end the engine.
     #[cfg(unix)]
-    if !std::env::args().any(|a| a == "serve" || a == "mcp") {
-        // SAFETY: restoring the default action for a signal, before any thread or handler exists.
+    if !matches!(cli.cmd, Cmd::Serve { .. } | Cmd::Mcp) {
+        // SAFETY: restoring the default action for a signal; no handler of ours is replaced.
         unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
     }
-    ns2bench_core::crashlog::install("cli", |p| eprintln!("ns2bench stopped unexpectedly. Details: {}", p.display()));
-    match run(Cli::parse()).await {
+    match run(cli).await {
         Ok(c) => c,
         Err(e) => {
             eprintln!("NS2Bench: {e}");

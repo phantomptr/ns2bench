@@ -64,6 +64,7 @@ impl Detector {
             return Step::GiveUp;
         }
         if !s.connected {
+            self.there_in_pro = None;       // (what was seen before the board went away says nothing now)
             return Step::Wait;
         }
         if s.switch2 {

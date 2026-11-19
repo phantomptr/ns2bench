@@ -443,6 +443,10 @@ struct Session<'a> {
     /// When the USB side these devices belong to was built (the active-mode file's time). A
     /// rebuild this session didn't start (gadget.sh run by hand, or by boot) leaves them dead.
     built: Option<std::time::SystemTime>,
+    /// 0: no switch being stopped; 1: asked to stop; 2: forced.
+    stopping: u8,
+    /// The last "could not reopen" reason said (said once, not twice a second).
+    reopen_error: String,
     checked: Instant,
 }
 
@@ -482,12 +486,18 @@ impl<'a> Session<'a> {
         match self.open_devices() {
             Ok(()) => {
                 let devices: Vec<&str> = self.devices.keys().copied().collect();
+                self.reopen_error.clear();
                 log(format!("the USB side was rebuilt ({} mode): devices reopened", self.mode));
                 let mode = self.mode.clone();
                 self.send(json!({"switched": mode, "devices": devices, "udc": udc_state(), "host": host()}));
             }
             // (not remembered: tried again at the next look)
-            Err(e) => { self.built = None; for (_, d) in std::mem::take(&mut self.devices) { d.close(); } log(format!("after a USB rebuild, opening devices: {e}")); }
+            Err(e) => {
+                self.built = None;
+                for (_, d) in std::mem::take(&mut self.devices) { d.close(); }
+                let why = e.to_string();
+                if why != self.reopen_error { log(format!("after a USB rebuild, opening devices: {why}")); self.reopen_error = why; }
+            }
         }
     }
 
@@ -523,21 +533,24 @@ impl<'a> Session<'a> {
         let mut done = child.try_wait();
         // A rebuild that hangs (the kernel can wait forever unbinding) must not leave this
         // session answering pings with no devices and every later switch refused.
-        if matches!(done, Ok(None)) && since.elapsed() > SWITCH_LIMIT {
-            log("the mode switch did not finish in time: stopping it");
-            // asked first (the script then unlocks and leaves), forced after; never waited on
-            // without end: a script stuck inside the kernel doesn't die when told to
-            // SAFETY: a signal to our own child's pid.
-            unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM); }
-            let until = Instant::now() + Duration::from_secs(2);
-            while matches!(child.try_wait(), Ok(None)) && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
-            if matches!(child.try_wait(), Ok(None)) {
-                let _ = child.kill();
-                let until = Instant::now() + Duration::from_millis(500);
-                while matches!(child.try_wait(), Ok(None)) && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
+        // Past its time: asked to stop, then forced, a step on each pass of the main loop (never
+        // waited on here: pings must keep being answered, and a script stuck inside the kernel
+        // doesn't die when told to).
+        if matches!(done, Ok(None)) {
+            let late = since.elapsed().saturating_sub(SWITCH_LIMIT);
+            if late.is_zero() { return; }
+            if self.stopping == 0 {
+                log("the mode switch did not finish in time: stopping it");
+                // SAFETY: a signal to our own child's pid (not reaped yet, so the pid is still its).
+                unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM); }
+                self.stopping = 1;
+                return;
             }
-            done = Err(std::io::Error::other("stopped"));
+            if self.stopping == 1 && late > Duration::from_secs(2) { let _ = child.kill(); self.stopping = 2; return; }
+            if late < Duration::from_secs(3) { return; }
+            done = Err(std::io::Error::other("stopped"));       // gone or not: go on without it
         }
+        self.stopping = 0;
         match done {
             Ok(None) => {}
             done => {
@@ -657,7 +670,8 @@ impl<'a> Session<'a> {
             // the devices the rebuild removes, rebuild, then reopen (see `poll_switch`). Only the
             // console sees the controller change (a different USB device can't appear otherwise).
             for (_, d) in std::mem::take(&mut self.devices) { d.close(); }
-            let script = format!("NS2BENCH_GADGET_LOGGED=1 {keep}{here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1");
+            // (`exec`: the script takes this shell's place, so a signal sent to the child reaches it)
+            let script = format!("NS2BENCH_GADGET_LOGGED=1 {keep}exec {here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1");
             let mut cmd = std::process::Command::new("/bin/sh");
             cmd.arg("-c").arg(script).stdin(std::process::Stdio::null());
             // This daemon runs with real-time priority; the rebuild (and the Pro Controller
@@ -824,7 +838,7 @@ pub fn main(argv: &[String]) -> Result<(), String> {
                     session = Some(Session {
                         conn, peer: peer.ip().to_string(), args: &args, buf: vec![], authed: false,
                         devices: BTreeMap::new(), mode: String::new(), last_rx: now, accepted: now, out: vec![],
-                        switching: None, built: None, checked: now,
+                        switching: None, built: None, checked: now, stopping: 0, reopen_error: String::new(),
                     });
                 }
             }

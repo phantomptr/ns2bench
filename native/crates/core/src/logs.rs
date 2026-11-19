@@ -63,6 +63,8 @@ pub fn hint_for(source: &str, text: &str) -> Option<&'static str> {
         "No picture from the capture card. Check the HDMI cable goes into the card's input and the console is docked and awake. Close OBS or other apps if they hold the card, and pick the card in the Video panel."
     } else if has("delivers only") && has("frames a second") {
         "The capture card itself sends fewer pictures than asked, before NS2Bench gets them. Usual causes: two capture cards on one USB hub or port group (give each its own port on the computer), a USB 2 cable or port, or the console sending a lower rate."
+    } else if has("could not keep up") && has("frames a second") {
+        "This computer was too busy to take every picture from the capture card. Close other heavy apps, lower the frame rate or size under Picture & sound, or (on Windows and Linux) check that a hardware encoder is used."
     } else if has("heartbeat timed out") || (has("bridge") && (has("closed the connection") || has("connection reset"))) {
         "The Bridge stopped answering. It powers from the console's USB port, so this is normal while the console sleeps; it reconnects by itself when the console wakes. Otherwise check its cable."
     } else if has("bridge") && (has("refused") || has("timed out") || has("unreachable") || has("no route") || has("host is down")) {

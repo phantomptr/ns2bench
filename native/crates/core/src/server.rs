@@ -98,7 +98,7 @@ pub fn guard_request(headers: &HeaderMap, path: &str) -> std::result::Result<(),
     // make this engine take screenshots, list devices or build report bundles.
     // (following a link to the page itself is fine: that is a navigation, to the page or its files)
     let fetch = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).unwrap_or("");
-    let opening_the_page = fetch("sec-fetch-mode") == "navigate" && (path == "/" || path.starts_with("/static/") || path.starts_with("/setup") || path.starts_with("/donate"));
+    let opening_the_page = fetch("sec-fetch-mode") == "navigate" && (path == "/" || path.starts_with("/static/"));
     if matches!(fetch("sec-fetch-site"), "cross-site" | "same-site") && !opening_the_page {
         return Err("cross-site request refused");
     }
@@ -380,7 +380,8 @@ async fn control(State(b): State<S>, h: HeaderMap, Json(body): Json<Value>) -> R
         }
         // Not in the middle of an agent's input: the controller disconnects during the switch.
         let _quiet = b.hub.configuration_guard().map_err(|e| ApiError(StatusCode::CONFLICT, e.to_string()))?;
-        b.hub.switch_usb_mode(m)?;
+        // (kept as the board's start-up mode only when the person picked it on the page)
+        b.hub.switch_usb_mode_as(m, from_browser(&h))?;
         // Picked on the page for the console the controller is on: that's its choice from now on
         // (saved in its profile). Anything else stays a hand-picked mode until the next placement.
         let saved = b.controller_console().filter(|_| from_browser(&h))

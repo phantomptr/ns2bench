@@ -160,7 +160,11 @@ pub fn forwarding_off() -> bool {
         // enough to route for the console even while the global switches read 0.
         let per_interface_off = |family: &str| {
             fs::read_dir(format!("/proc/sys/net/{family}/conf")).is_ok_and(|dir| {
-                dir.flatten().all(|e| fs::read_to_string(e.path().join("forwarding")).map_or(true, |v| v.trim() == "0"))
+                dir.flatten().all(|e| {
+                    let f = e.path().join("forwarding");
+                    // (an entry with no such file isn't an interface; one that can't be read is not "off")
+                    !f.exists() || fs::read_to_string(f).is_ok_and(|v| v.trim() == "0")
+                })
             })
         };
         let no_ipv6 = !std::path::Path::new("/proc/sys/net/ipv6").exists();

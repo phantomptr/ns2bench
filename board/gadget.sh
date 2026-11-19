@@ -53,8 +53,17 @@ lock() {
         i=$((i + 1))
         # its owner is gone (stopped, or the power went mid-build on a board whose /run is kept): take over now
         if { [ -n "$owner" ] && [ ! -d "/proc/$owner" ]; } || [ "$i" -gt 150 ]; then
-            echo "taking over a build lock left behind" >&2
-            rm -rf "$LOCK"; i=0; continue
+            # Moved aside in one step, so only one waiter takes it over; and only if it is still
+            # the lock that was looked at (another waiter may have taken it over and made its own).
+            if mv "$LOCK" "$LOCK.old.$$" 2>/dev/null; then
+                if [ "$(cat "$LOCK.old.$$/pid" 2>/dev/null || true)" = "$owner" ]; then
+                    echo "taking over a build lock left behind" >&2
+                    rm -rf "$LOCK.old.$$"
+                else
+                    mv "$LOCK.old.$$" "$LOCK" 2>/dev/null || rm -rf "$LOCK.old.$$"
+                fi
+            fi
+            i=0; continue
         fi
         sleep 0.2
     done

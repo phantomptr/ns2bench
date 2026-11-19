@@ -476,6 +476,8 @@ pub type Taken = Arc<dyn Fn() -> Vec<String> + Send + Sync>;
 pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub, save: Option<Arc<dyn Fn() + Send + Sync>>, taken: Option<Taken>) {
     let mut delay = Duration::from_secs(1);
     let mut h264_failures = 0u32;
+    // the last problem said: a card that is gone for good is an error once, then a detail
+    let mut said = String::new();
     loop {
         let c = cfg.lock().unwrap().clone();
         let name = backend_name(&c);
@@ -486,8 +488,10 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
         }
         // No card chosen yet (a first start, or settings from another computer): pick the most
         // likely capture card, and keep it (the sound pairs with it, the Video panel shows it).
-        if name == "ffmpeg" && !cfg!(target_os = "macos") && c["ffmpeg_input"].is_null() && c["device"].as_str().unwrap_or("").is_empty() {
-            if !ffmpeg().is_file() && !crate::ocr::which("ffmpeg") {
+        // (macOS too: left to the helper, a console without a card showed whichever card came
+        // first, another console's included)
+        if (name == "avf" || (name == "ffmpeg" && !cfg!(target_os = "macos"))) && c["ffmpeg_input"].is_null() && c["device"].as_str().unwrap_or("").is_empty() {
+            if name == "ffmpeg" && !ffmpeg().is_file() && !crate::ocr::which("ffmpeg") {
                 *hub.error.lock().unwrap() = Some(format!("video capture needs ffmpeg: {}", ffmpeg_hint()));
                 logs.error("bench", format!("video: ffmpeg is missing: {}", ffmpeg_hint()));
                 tokio::time::sleep(Duration::from_secs(15)).await;
@@ -511,7 +515,8 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
                 }
                 None => {
                     *hub.error.lock().unwrap() = Some("no capture card found".into());
-                    logs.error("bench", "video: no capture card found. Connect one (and close OBS or other apps using it), then pick it in the Video panel");
+                    let text = "video: no capture card found. Connect one (and close OBS or other apps using it), then pick it in the Video panel";
+                    if said != text { logs.error("bench", text); said = text.into(); } else { logs.debug("bench", text); }
                     drop(_one);        // (others may look while this one waits)
                     tokio::time::sleep(Duration::from_secs(15)).await;
                     continue;
@@ -549,11 +554,16 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
                 }
             }
             *hub.error.lock().unwrap() = Some(e.to_string());
-            logs.error("bench", format!("video ({name}): {e}; retrying in {}s", delay.as_secs()));
+            let text = format!("video ({name}): {e}");
+            if said != text { logs.error("bench", format!("{text}; retrying in {}s", delay.as_secs())); said = text; }
+            else { logs.debug("bench", format!("{text}; retrying in {}s", delay.as_secs())); }
             if !c["h264_encoder"].is_null() && started.elapsed() < Duration::from_secs(10) { h264_failures += 1; }
         } else {
             h264_failures = 0;
+            said.clear();
         }
+        // (a capture that ran for a while: whatever failed before is history, both ways may be tried again)
+        if started.elapsed() > Duration::from_secs(30) { if let Some(o) = cfg.lock().unwrap().as_object_mut() { o.remove("_raw_tried"); } }
         if started.elapsed() > Duration::from_secs(30) { delay = Duration::from_secs(1); }
         tokio::time::sleep(delay).await;
         delay = (delay * 2).min(Duration::from_secs(15));
@@ -634,7 +644,11 @@ pub fn pick_capture_card(devices: &Value) -> Option<String> {
         .filter_map(|d| Some((d["id"].as_str()?.to_string(), d["name"].as_str().unwrap_or("").to_lowercase())))
         .filter(|(_, n)| !virt.iter().any(|w| n.contains(w)))
         .collect();
-    list.iter().find(|(_, n)| capture.iter().any(|w| n.contains(w))).or(list.first()).map(|(id, _)| id.clone())
+    // (a card with an unusual name is still taken, but never this computer's own camera)
+    let webcam = ["facetime", "webcam", "web cam", "integrated", "built-in", "iphone", "ipad", "continuity", "isight", "ir camera", "front camera", "rear camera"];
+    list.iter().find(|(_, n)| capture.iter().any(|w| n.contains(w)))
+        .or(list.iter().find(|(_, n)| !webcam.iter().any(|w| n.contains(w)) && !n.ends_with("camera")))
+        .map(|(id, _)| id.clone())
 }
 
 pub fn pick_format(formats: &[Value], width: u64, height: u64, fps: u64) -> (u64, u64, String) {
@@ -654,10 +668,8 @@ pub fn pick_format(formats: &[Value], width: u64, height: u64, fps: u64) -> (u64
 }
 
 async fn ffmpeg_text(args: &[&str], limit: Duration) -> String {
-    let mut c = Command::new(ffmpeg());
+    let mut c = quiet(ffmpeg());
     c.args(args).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).kill_on_drop(true);
-    #[cfg(windows)]
-    c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     match tokio::time::timeout(limit, c.output()).await {
         Ok(Ok(o)) => format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)),
         _ => String::new(),

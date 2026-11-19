@@ -17,7 +17,7 @@ const ICONS = { see: '👀', drive: '🎮', agents: '🤖', tests: '🧪', offli
 export const xLength = (t) => [...t.replace(/https?:\/\/\S+/g, 'x'.repeat(23))].length;
 
 export function bullets(notes) {
-  return [...notes.matchAll(/^- \*\*(.+?):\*\*\s*([\s\S]*?)(?=^- |\n\n|$(?![\s\S]))/gm)]
+  return [...notes.matchAll(/^- \*\*(.+?)[:.]?\*\*\s*([\s\S]*?)(?=^- |\n\n|$(?![\s\S]))/gm)]
     .map((m) => ({ lead: m[1].trim(), text: m[2].replace(/\s+/g, ' ').trim() }));
 }
 const icon = (lead) => ICONS[Object.keys(ICONS).find((k) => lead.toLowerCase().includes(k))] || '✨';

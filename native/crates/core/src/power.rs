@@ -208,7 +208,9 @@ async fn button(s: &Value) -> (bool, String) {
         // cmd.exe reads its command line as typed: passed as a normal argument, Rust would
         // escape the quotes in it (\"…\"), which cmd doesn't understand.
         let mut c = Command::new("cmd");
-        c.arg("/C").raw_arg(cmd);
+        // (/S and one pair of quotes around all of it: cmd then takes the text inside as typed,
+        // however many quotes the command has itself; without, it strips the first and the last)
+        c.arg("/S").arg("/C").raw_arg(format!("\"{cmd}\""));
         c
     };
     #[cfg(not(windows))]
@@ -337,7 +339,9 @@ pub async fn get_power(State(_b): State<S>, h: HeaderMap) -> Json<Value> {
     // (a page's own GET carries no Origin header; browsers mark it same-origin instead. Without
     // this the page never got the command back, and its next save wrote an empty one.)
     let same_origin = h.get("sec-fetch-site").and_then(|v| v.to_str().ok()) == Some("same-origin");
-    let page = crate::server::from_browser(&h) || (same_origin && crate::server::ui_key_ok(h.get("x-ns2bench-ui").and_then(|v| v.to_str().ok())));
+    // (older web views send no such mark: there the app window's key alone says it is the page)
+    let key = h.get("x-ns2bench-ui").and_then(|v| v.to_str().ok());
+    let page = crate::server::from_browser(&h) || ((same_origin || crate::server::has_ui_key()) && key.is_some() && crate::server::ui_key_ok(key));
     if !page {
         s["button_command"] = Value::Null;
     }
@@ -354,6 +358,7 @@ pub async fn set_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
     }
     // (no command sent: the saved one stays. Only a page that was shown it can clear it.)
     let mut v = v;
+    if !v.is_object() { return Err(bad("power settings must be an object".to_string())); }
     if v.get("button_command").is_none_or(Value::is_null) { v["button_command"] = settings()["button_command"].clone(); }
     let v = validate(&v).map_err(|e| bad(e.to_string()))?;
     write_json(&path(), &v).map_err(anyhow::Error::from)?;

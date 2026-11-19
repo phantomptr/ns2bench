@@ -397,8 +397,9 @@ function showStatus(s) {
   bridgeStatus = inp; bridgeSeen = performance.now();
   // The video form isn't this console's yet (the page loaded before the first status, or its
   // load failed while the engine was away): load it again, at most every 3 s.
-  if (!videoFor && viewed() && performance.now() - videoRetry > 3000 && $('#v-note').textContent !== t('Loading devices…')) {
-    videoRetry = performance.now();
+  // (3 s, 6 s, … at most every 30 s: an engine that keeps refusing isn't asked without end)
+  if (!videoFor && viewed() && performance.now() - videoRetry > Math.min(30000, 3000 * (videoTries + 1)) && $('#v-note').textContent !== t('Loading devices…')) {
+    videoRetry = performance.now(); videoTries++;
     loadVideo().catch((e) => { $('#v-note').textContent = String(e); });
   }
   if (wasReady && (!inp.connected || inp.usb !== 'configured')) releaseAll();
@@ -700,7 +701,7 @@ function fillFps(want) {
 let videoLoad = 0;
 // The console whose settings the form shows now (null while another console's are loading: the
 // form still holds the previous console's values then, and a change must not save them to this one).
-let videoFor = null, videoRetry = 0;
+let videoFor = null, videoRetry = 0, videoTries = 0;
 const videoFields = () => [vsel.device, vsel.size, vsel.fps, vsel.q, $('#v-audio')];
 async function loadVideo() {
   clearTimeout(saveTimer);                              // a change waiting to save was for the console before
@@ -733,7 +734,7 @@ async function loadVideo() {
   vsel.q.value = s.quality; $('#v-qval').textContent = s.quality;
   fillSizes(s);
   $('#v-note').textContent = '';
-  videoFor = forId;
+  videoFor = forId; videoTries = 0;
   for (const f of videoFields()) f.disabled = false;
 }
 // Every change is saved for the console on screen, by itself (no Apply): it's that console's.

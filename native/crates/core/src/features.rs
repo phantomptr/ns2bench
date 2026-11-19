@@ -71,18 +71,22 @@ async fn watch_controller(b: Arc<crate::Bench>) {
         } else {
             let since = *away_since.get_or_insert_with(std::time::Instant::now);
             if !told_away && since.elapsed() >= Duration::from_secs(20) {
-                // asked once an outage: a console really on (a picture, not "No Signal": the card
-                // keeps sending frames while the console sleeps) with the board gone is a problem
-                told_away = true;
+                // said once an outage: a console really on (a picture, not "No Signal": the card
+                // keeps sending frames while the console sleeps) with the board gone is a problem.
+                // Looked at again every 20 s: the console may wake while the board stays away.
+                away_since = Some(std::time::Instant::now());
                 let mut console_on = false;
                 for c in b.list() {
                     if crate::power::showing_picture(&b, &c.id).await { console_on = true; break; }
                 }
                 if !console_on { continue; }
+                told_away = true;
                 b.logs.notify("bench", "warn", "Bridge not answering",
                     "NS2Bench Bridge: no answer for 20 s while a console is on. Check the board's network cable and its USB cable to the console (it powers the board)");
             }
         }
+        // (a switch just finished, or the board just connected: is it what its console needs?)
+        if connected && b.hub.mode_check.swap(false, std::sync::atomic::Ordering::SeqCst) && !b.hub.switching_mode() { b.apply_mode(); }
         let mut moved = false;
         if was_connected == Some(true) && !connected { down_since = Some(std::time::Instant::now()); }
         if was_connected == Some(false) && connected {
@@ -149,7 +153,20 @@ fn detect_step(b: &Arc<crate::Bench>, detector: &mut Option<crate::detect::Detec
     let (twos, others): (Vec<_>, Vec<_>) = list.iter().partition(|c| *c.model.lock().unwrap() == "switch2");
     // (an older bridge doesn't say whether a Switch 2 started it: without that, nothing can be told)
     let reports = b.hub.status()["reports_host"] == true;
-    let can = list.len() > 1 && b.controller_console().is_none() && twos.len() == 1 && others.len() == 1 && reports;
+    let unknown = list.len() > 1 && b.controller_console().is_none() && reports;
+    // The one Switch 2 saying "I started this controller" settles it, however many other consoles
+    // there are, and also after detection gave up (a console asleep for an hour, then woken).
+    if unknown && twos.len() == 1 && b.hub.status()["host"] == "switch2" && b.hub.status()["connected"] == true {
+        let c = twos[0].clone();
+        if detector.take().is_some() { b.detecting.store(false, Relaxed); }
+        *gave_up = false;
+        if b.set_controller_on(Some(&c.id)).is_ok() {
+            b.logs.notify("bench", "info", &format!("Controller found on {}", c.name()),
+                format!("controller: found on {} (the Switch 2 started it as its Pro Controller). Wrong? Pick the right console under the picture", c.name()));
+        }
+        return;
+    }
+    let can = unknown && twos.len() == 1 && others.len() == 1;
     if !can {
         if detector.take().is_some() { b.detecting.store(false, Relaxed); }
         // placed (by the person or by us): the next unknown place may be detected again

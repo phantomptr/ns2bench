@@ -258,6 +258,7 @@ async fn run_board(
             let line = tokio::time::timeout(Duration::from_secs(5), reader.next_line()).await??.unwrap_or_default();
             let h: Value = serde_json::from_str(&line).unwrap_or(json!({}));
             if h["ok"] != "ready" {
+                if h["error"] == "auth" { bail!("NS2Bench Bridge: wrong token (this computer's token isn't the one on the board)"); }
                 bail!("NS2Bench Bridge refused: {}", h.get("error").cloned().unwrap_or(h.clone()));
             }
             {
@@ -271,8 +272,11 @@ async fn run_board(
                 s.switching_until = None;        // (an older Bridge restarts for a mode switch: it's back)
                 s.devices = h["devices"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
                     .unwrap_or_else(|| vec!["pad".into(), "kbd".into()]);
-                logs.notify("bench", "info", "Bridge connected", format!("NS2Bench Bridge connected: {} usb={} mode={} devices={}",
-                    link.describe(), s.usb.clone().unwrap_or_default(), s.usb_mode.clone().unwrap_or_default(), s.devices.join(",")));
+                let text = format!("NS2Bench Bridge connected: {} usb={} mode={} devices={}",
+                    link.describe(), s.usb.clone().unwrap_or_default(), s.usb_mode.clone().unwrap_or_default(), s.devices.join(","));
+                // (a notification only for a real return: while a sleeping console powers the
+                // board in short bursts, each of its minute-long visits is just a log line)
+                if short_drops == 0 { logs.notify("bench", "info", "Bridge connected", text); } else { logs.add("bench", text); }
             }
             log_seq = h["log_seq"].as_u64().unwrap_or(0).saturating_sub(50);
             delay = Duration::from_millis(300);
@@ -392,7 +396,10 @@ async fn run_board(
         } else if status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
             if quiet { logs.debug("bench", format!("NS2Bench Bridge: {detail}")); } else { logs.warn("bench", format!("NS2Bench Bridge: {detail}")); }
         }
+        // (a wrong token doesn't fix itself in half a second: asked again every 10 s)
+        let wrong_token = detail.contains("wrong token");
         status.lock().unwrap().detail = Some(detail);
+        if wrong_token { tokio::time::sleep(Duration::from_secs(10)).await; }
         tokio::time::sleep(delay).await;
         delay = (delay * 2).min(Duration::from_millis(500));
     }
@@ -477,6 +484,10 @@ pub struct InputHub {
     /// Automatic switches to the console's mode since it was placed (at most 2: a board that
     /// can't reach a mode must not be switched over and over).
     pub mode_tries: std::sync::atomic::AtomicU8,
+    /// Set after every connect and finished mode switch: the watcher then makes sure the board
+    /// is in the mode its console needs (a placement or choice made while a switch was still
+    /// running was lost: the board said "already switching" and nothing asked again).
+    pub mode_check: std::sync::atomic::AtomicBool,
 }
 
 tokio::task_local! {
@@ -506,7 +517,7 @@ impl InputHub {
             mode_switched: Mutex::new(None),
             placed: Mutex::new(None),
             manual_mode: false.into(),
-            mode_tries: 0.into(),
+            mode_tries: 0.into(), mode_check: false.into(),
         })
     }
 
@@ -886,7 +897,7 @@ impl InputHub {
         let mut s = self.backend.status.lock().unwrap();
         // the Bridge may restart for it: its disconnect is expected, not a problem to report
         s.restarting_until = Some(now + Duration::from_secs(45));
-        s.switching_until = Some(now + Duration::from_secs(15));
+        s.switching_until = Some(now + Duration::from_secs(27));    // (the board gives a switch 25 s; "switched" ends this early)
         Ok(())
     }
 

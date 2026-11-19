@@ -44,7 +44,8 @@ function consoleCard(s, v) {
   card.hidden = !v;
   if (!v) return;
   const consoles = s.consoles || [];
-  const mode = (s.models || []).find((m) => m.id === v.model)?.mode;
+  // (this console's own choice: a console set to controller + keyboard doesn't say "Pro Controller")
+  const mode = v.controller === 'keyboard' ? 'standard' : (s.models || []).find((m) => m.id === v.model)?.mode;
   card.style.setProperty('--tab-color', COLOR.test(v.color) ? v.color : '#888888');
   $('#pc-name').textContent = v.name;
   $('#pc-sum').textContent = [v.model_name, mode ? t(MODE_NAME[mode]) : ''].filter(Boolean).join(' · ');

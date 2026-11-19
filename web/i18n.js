@@ -60,7 +60,7 @@ function swapText(node) {
   // Text the app replaced since we last saw it is new English source.
   if (orig === undefined || (text !== orig.text && text !== orig.shown)) orig = { text: english(text), shown: text };
   // (text set already translated, in the language before this one: its English is looked up now)
-  else orig.text = english(orig.text);
+  else if (orig.text === orig.shown) orig.text = english(orig.text);
   // Same normalisation as scripts/i18n.mjs: collapsed whitespace, trimmed.
   const key = orig.text.replace(/\s+/g, ' ').trim();
   const lead = orig.text.match(/^\s*/)[0], trail = orig.text.match(/\s*$/)[0];
@@ -78,7 +78,7 @@ function swapAttrs(el) {
     origs ??= {};
     const o = origs[a];
     if (!o || (v !== o.text && v !== o.shown)) origs[a] = { text: english(v), shown: v };
-    else o.text = english(o.text);
+    else if (o.text === o.shown) o.text = english(o.text);
     const want = t(origs[a].text.replace(/\s+/g, ' ').trim());
     origs[a].shown = want;
     if (v !== want) el.setAttribute(a, want);
@@ -110,7 +110,9 @@ export async function setLanguage(code, { save = true } = {}) {
       if (r.ok) next = await r.json();
     } catch { /* stay readable in English */ }
   }
-  reverse = new Map(Object.entries(dict).map(([en, shown]) => [shown, en]));
+  // (a translation that is also English text as it stands, like Italian "Console" for both
+  // "Console" and "Consoles", is left alone: never turned into another English key)
+  reverse = new Map(Object.entries(dict).filter(([, shown]) => !(shown in dict)).map(([en, shown]) => [shown, en]));
   dict = next;
   current = code;
   document.documentElement.lang = code;
