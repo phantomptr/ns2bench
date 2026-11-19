@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.33
+
 - **Stop using the shared home network from Settings.** Settings → Network → *Stop using the shared network*. Your settings are backed up first, and nothing is ever handed out on your home network.
 - **Your bug reports no longer carry personal details.** Your user name, this computer's name, the full network hardware addresses and the consoles' network names are taken out before the report is saved.
 - **Linux: pick the sound device, or let NS2Bench find it.** Picture & sound now lists the recording devices, and each capture card's own sound is found by itself (even with two identical cards).
