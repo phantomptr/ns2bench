@@ -701,7 +701,7 @@ function fillFps(want) {
 let videoLoad = 0;
 // The console whose settings the form shows now (null while another console's are loading: the
 // form still holds the previous console's values then, and a change must not save them to this one).
-let videoFor = null, videoRetry = 0, videoTries = 0;
+let videoFor = null, videoRetry = -3000, videoTries = 0;   // (-3000: the first status loads the form at once)
 const videoFields = () => [vsel.device, vsel.size, vsel.fps, vsel.q, $('#v-audio')];
 async function loadVideo() {
   clearTimeout(saveTimer);                              // a change waiting to save was for the console before

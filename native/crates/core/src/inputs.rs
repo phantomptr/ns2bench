@@ -305,6 +305,12 @@ async fn run_board(
                         board_write(&mut w, out.as_bytes()).await?;
                     }
                     _ = beat.tick() => {
+                        // After a run of short visits (a sleeping console), a connection that has
+                        // held for two minutes is the real return: said once, now.
+                        if short_drops > 0 && up_since.is_some_and(|t| t.elapsed() >= Duration::from_secs(120)) {
+                            short_drops = 0;
+                            logs.notify("bench", "info", "Bridge connected", format!("NS2Bench Bridge is back and staying connected: {}", link.describe()));
+                        }
                         if last_pong.elapsed() >= Duration::from_secs(3) {
                             bail!("NS2Bench Bridge heartbeat timed out; reconnecting");
                         }

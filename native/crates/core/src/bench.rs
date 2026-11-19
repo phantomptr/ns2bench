@@ -266,6 +266,8 @@ impl Bench {
         use std::sync::atomic::Ordering::SeqCst;
         let Some(c) = self.controller_console() else { return };
         if self.hub.manual_mode.load(SeqCst) { return; }
+        // (one switch at a time: asked again when this one has finished, see `mode_check`)
+        if self.hub.backend.status.lock().unwrap().switching_until.is_some_and(|t| std::time::Instant::now() < t) { return; }
         // the console's own choice for its type (Pro Controller or controller + keyboard)
         let want = crate::console::mode_for(&c.model.lock().unwrap(), &c.controller.lock().unwrap());
         let st = self.hub.status();
