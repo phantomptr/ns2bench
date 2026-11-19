@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.32
+
 A deep review of the whole app, in several rounds. Fixed so far:
 
 - **Mouse capture in the Mac app works.** Capturing the mouse for aiming was always refused by the app itself.
