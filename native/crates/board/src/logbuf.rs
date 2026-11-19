@@ -43,7 +43,8 @@ pub fn remember(source: &str, text: String) {
 /// A daemon message: stdout (UTC clock, like the board's own log files) and the ring.
 pub fn log(text: impl Into<String>) {
     let text = text.into();
-    println!("{} {text}", clock());
+    // (never println!: it panics when stdout can't be written, e.g. the log area is full)
+    let _ = std::io::Write::write_all(&mut std::io::stdout(), format!("{} {text}\n", clock()).as_bytes());
     remember("hidd", text);
 }
 

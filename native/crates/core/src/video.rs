@@ -92,6 +92,9 @@ pub fn quiet(program: impl AsRef<std::ffi::OsStr>) -> Command {
     let mut c = Command::new(program);
     // never the parent's stdin (a GUI app on Windows has none); callers that feed one set it again
     c.stdin(std::process::Stdio::null());
+    // (an AppImage's bundled libraries are for this app, not for system programs it starts)
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_some() { c.env_remove("LD_LIBRARY_PATH"); }
     #[cfg(windows)]
     c.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     c
@@ -278,7 +281,11 @@ pub fn ffmpeg_input_args(cfg: &Value) -> Vec<String> {
         a.extend(["-i".into(), format!("video={}", dev.unwrap_or_default())]);
         a
     } else {
-        vec!["-f".into(), "v4l2".into(), "-input_format".into(), "mjpeg".into(), "-video_size".into(), size, "-framerate".into(), fps, "-i".into(), dev.unwrap_or("/dev/video0".into())]
+        let mut a: Vec<String> = vec!["-f".into(), "v4l2".into()];
+        // (a card with no MJPEG output, raw only: its frames are encoded here instead)
+        if cfg["_raw"] != true { a.extend(["-input_format".into(), "mjpeg".into()]); }
+        a.extend(["-video_size".into(), size, "-framerate".into(), fps, "-i".into(), dev.unwrap_or("/dev/video0".into())]);
+        a
     }
 }
 
@@ -386,7 +393,7 @@ async fn run_ffmpeg(cfg: &Value, hub: &Arc<FrameHub>) -> Result<()> {
     }
     let cfg = &cfg;
     let q = (31.0 - cfg["quality"].as_f64().unwrap_or(80.0) * 0.29).round().clamp(2.0, 31.0) as u32;
-    let passthrough = cfg!(target_os = "linux") && cfg["ffmpeg_input"].is_null();
+    let passthrough = cfg!(target_os = "linux") && cfg["ffmpeg_input"].is_null() && cfg["_raw"] != true;
     let mut args: Vec<String> = vec!["-hide_banner".into(), "-loglevel".into(), "error".into(), "-nostdin".into()];
     args.extend(ffmpeg_input_args(cfg));
     args.push("-an".into());
@@ -486,7 +493,10 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
                 tokio::time::sleep(Duration::from_secs(15)).await;
                 continue;
             }
-            // never a card another console already shows
+            // never a card another console already shows (one console picks at a time: two
+            // starting together would not see each other's pick and take the same card)
+            static PICKING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+            let _one = PICKING.lock().await;
             let mut found = list_devices().await;
             if let (Some(taken), Some(list)) = (&taken, found.as_array_mut()) {
                 let used = taken();
@@ -520,6 +530,15 @@ pub async fn supervise(cfg: Arc<Mutex<Value>>, hub: Arc<FrameHub>, logs: LogHub,
         let r = if name == "avf" { run_avf(&c, &hub, &logs).await } else { run_ffmpeg(&c, &hub).await };
         if let Err(e) = r {
             if refused(&e.to_string()) { cfg.lock().unwrap()["_device_default"] = true.into(); }
+            // Linux asks the card for MJPEG and passes it on untouched. A card that only gives
+            // raw frames fails that at once, every time: try the other way next (and back, if
+            // that fails too: the card may simply be busy or unplugged).
+            if cfg!(target_os = "linux") && name == "ffmpeg" && c["ffmpeg_input"].is_null() && started.elapsed() < Duration::from_secs(8) {
+                let mut g = cfg.lock().unwrap();
+                let raw = g["_raw"] != true;
+                g["_raw"] = raw.into();
+                if raw { logs.add("bench", "video: no MJPEG picture from this card; trying its raw output next"); }
+            }
             *hub.error.lock().unwrap() = Some(e.to_string());
             logs.error("bench", format!("video ({name}): {e}; retrying in {}s", delay.as_secs()));
             if !c["h264_encoder"].is_null() && started.elapsed() < Duration::from_secs(10) { h264_failures += 1; }

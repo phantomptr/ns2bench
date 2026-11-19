@@ -91,7 +91,7 @@ Set-ItemProperty -Path 'HKCU:\Environment' -Name Path -Value ($parts -join ';') 
 
 #[cfg(windows)]
 fn windows_user_path() -> Vec<PathBuf> {
-    let out = powershell("[Environment]::GetEnvironmentVariable('Path','User')").output();
+    let out = powershell("[Console]::OutputEncoding=[Text.Encoding]::UTF8; [Environment]::GetEnvironmentVariable('Path','User')").output();
     match out {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
             .trim()

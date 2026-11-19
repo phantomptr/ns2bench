@@ -341,7 +341,9 @@ fn disk_writer(dir: PathBuf, rx: std::sync::mpsc::Receiver<Entry>) {
             Err(RecvTimeoutError::Disconnected) => break,
         };
         let local = chrono::DateTime::from_timestamp(e.t as i64, 0).map(|d| d.with_timezone(&chrono::Local)).unwrap_or_else(chrono::Local::now);
-        let today = local.format("%Y-%m-%d").to_string();
+        // (the file is the day the line arrived: a board's replayed older lines keep their own
+        // time in the text, without reopening and pruning files line by line)
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
         if today != day {
             if let Some(o) = out.as_mut() { let _ = o.flush(); }
             day = today;

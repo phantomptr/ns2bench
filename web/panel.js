@@ -23,7 +23,15 @@ const button = (text, onclick, cls = '') => {
   b.onclick = onclick;
   return b;
 };
-const failed = (e) => toast(String(e.message || e), 'bad');
+const failed = (e) => toast(String(e.message || e), 'error');
+// Status arrives every second: rebuild a part only when what it shows changed, or focus on its
+// buttons is lost each second and a click that straddles a rebuild goes nowhere.
+function keyed(parent, key, nodes) {
+  key = JSON.stringify(key);
+  if (parent.dataset.key === key) return;
+  parent.dataset.key = key;
+  parent.replaceChildren(...nodes());
+}
 async function post(path, body) {
   const r = await apiFetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(await r.text());
@@ -41,25 +49,25 @@ function consoleCard(s, v) {
   $('#pc-name').textContent = v.name;
   $('#pc-sum').textContent = [v.model_name, mode ? t(MODE_NAME[mode]) : ''].filter(Boolean).join(' · ');
   const chips = [];
-  const chip = (text, cls = '') => chips.push(el('span', { className: `chip ${cls}`, textContent: text }));
+  const chip = (text, cls = '') => chips.push([text, cls]);
   const on = consoles.find((c) => c.id === s.controller_on);
   if (v.controller_here) chip(`🎮 ${t('Controller here')}`, 'ok');
-  else if (consoles.length > 1) chip(on ? `${t('Controller on')} ${on.name}` : t('Controller: which console?'), 'warn');
+  else if (consoles.length > 1) chip(on ? t('Controller on %1').replace('%1', on.name) : t('Controller: which console?'), 'warn');
   const live = v.video_status?.age_s != null && v.video_status.age_s < 3;
   chip(live ? `● ${t('live')}` : t('no picture'), live ? 'ok' : '');
   if (v.network_ip) chip(v.network_ip);
-  if (consoles.length > 1 && !v.controller_here) {
-    const here = button(t('The controller is plugged in here'), () => controllerIsOn(v.id).catch(failed), 'chip-btn');
-    chips.push(here);
-  }
-  $('#pc-chips').replaceChildren(...chips);
+  const here = consoles.length > 1 && !v.controller_here;
+  keyed($('#pc-chips'), [v.id, chips, here, document.documentElement.lang], () => [
+    ...chips.map(([text, cls]) => el('span', { className: `chip ${cls}`, textContent: text })),
+    ...(here ? [button(t('The controller is plugged in here'), () => controllerIsOn(v.id).catch(failed), 'chip-btn')] : []),
+  ]);
   // wake and sleep reach the console through the controller (or its power command): only the
   // console the controller is plugged into
   const blocked = inputBlock();
   // Sleep is sent over HDMI-CEC only: without it set up, the button can't work
   const cec = s.power?.cec === true;
-  $('#pc-wake').disabled = !!blocked;
-  $('#pc-sleep').disabled = !!blocked || !cec;
+  $('#pc-wake').disabled = !!blocked || powerBusy;
+  $('#pc-sleep').disabled = !!blocked || !cec || powerBusy;
   $('#pc-sleep').title = cec ? t('Put the console to sleep (over HDMI-CEC)') : t('Sleep needs HDMI-CEC: set it up in Settings → Devices → Power and wake');
   const why = blocked ? t('Wake and sleep go to the console the controller is plugged into.')
     : !cec ? t('Sleep needs HDMI-CEC (Settings → Devices → Power and wake). Wake works through the controller.') : '';
@@ -67,13 +75,19 @@ function consoleCard(s, v) {
   $('#pc-note').textContent = why;
 }
 $('#pc-edit').onclick = () => { const v = viewed(); if (v) editConsole(v.id); };
+let powerBusy = false;                    // (a status arriving mid-request must not re-enable the buttons)
 async function power(action, btn) {
+  if (powerBusy) return;
+  powerBusy = true;
   btn.disabled = true;
   try {
     const r = await post('/api/power', { action });
     if (r.ok === false) throw new Error(r.detail || t('It didn’t work.'));
     toast(action === 'wake' ? t('Wake sent.') : t('Sleep sent.'), 'ok');
-  } catch (e) { failed(e); } finally { btn.disabled = !!inputBlock() || (action === 'sleep' && lastStatus?.power?.cec !== true); }
+  } catch (e) { failed(e); } finally {
+    powerBusy = false;
+    if (last) consoleCard(last.s, last.v); else btn.disabled = false;
+  }
 }
 $('#pc-wake').onclick = (e) => power('wake', e.currentTarget);
 $('#pc-sleep').onclick = (e) => power('sleep', e.currentTarget);
@@ -84,14 +98,15 @@ function chain(s) {
   const consoles = s.consoles || [];
   const target = consoles.find((c) => c.id === s.controller_on) || (consoles.length === 1 ? consoles[0] : null);
   const name = target?.name || t('the console');
-  const steps = [];
-  const step = (text, state) => (steps.length && steps.push(el('li', { className: 'arrow', textContent: '→', ariaHidden: 'true' })), steps.push(el('li', { className: state, textContent: `${text} ${state === 'ok' ? '✓' : state === 'bad' ? '✗' : state === 'warn' ? '…' : ''}`.trim() })));
-  let why = '', fixes = [];
+  const steps = [];                 // [class, text]
+  const step = (text, state) => (steps.length && steps.push(['arrow', '→']), steps.push([state, `${text} ${state === 'ok' ? '✓' : state === 'bad' ? '✗' : state === 'warn' ? '…' : ''}`.trim()]));
+  let why = '', fixes = () => [], fixKey = '';
   step(t('Computer'), 'ok');
   if (inp.backend === 'none' || !inp.backend) {
     step(t('No input device'), '');
     why = t('View only: no input device is set up. Pick one to press buttons.');
-    fixes = [button(t('Choose input device'), () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'devices' })))];
+    fixKey = 'devices';
+    fixes = () => [button(t('Choose input device'), () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'devices' })))];
   } else if (!inp.connected) {
     step(t('Board'), 'bad');
     step(name, '');
@@ -116,17 +131,18 @@ function chain(s) {
   // Several consoles and nobody knows which one the cable is in: keys are paused. Say it here,
   // where the person looks when keys do nothing, with the answer one click away.
   if (inp.connected && consoles.length > 1 && !s.controller_on) {
-    steps.splice(-1, 1, el('li', { className: 'warn', textContent: `${t('Which console?')} …` }));
+    steps.splice(-1, 1, ['warn', `${t('Which console?')} …`]);
     why = s.controller_detecting
       ? t('Keys are paused while NS2Bench finds which console the controller is plugged into (up to a minute). Or pick it:')
       : t('Keys are paused: which console is the controller plugged into?');
-    fixes = consoles.map((c) => button(c.name, () => controllerIsOn(c.id).catch((e) => { $('#chain-why').textContent = String(e.message || e); })));
+    fixKey = consoles.map((c) => [c.id, c.name]);
+    fixes = () => consoles.map((c) => button(c.name, () => controllerIsOn(c.id).catch((e) => { $('#chain-why').textContent = String(e.message || e); })));
   }
-  $('#chain').replaceChildren(...steps);
+  keyed($('#chain'), steps, () => steps.map(([cls, text]) => el('li', cls === 'arrow' ? { className: cls, textContent: text, ariaHidden: 'true' } : { className: cls, textContent: text })));
   $('#chain-sum').textContent = inp.backend && inp.backend !== 'none' ? (inp.backend === 'hidd' ? 'NS2Bench Bridge' : inp.backend) : '';
   $('#chain-callout').hidden = !why;
   $('#chain-why').textContent = why;
-  $('#chain-actions').replaceChildren(...fixes);
+  keyed($('#chain-actions'), [fixKey, document.documentElement.lang], fixes);
   modePick(s, target);
 }
 // The mode the controller's console needs (its model), and a one-click fix when the board is in
@@ -141,14 +157,12 @@ function modePick(s, target) {
   const fits = now === want;
   p.hidden = false;
   p.classList.toggle('warn', !fits);
-  if (fits) {
-    p.textContent = t('Picked for %1: %2 needs this one.').replace('%1', target.name).replace('%2', target.model_name || target.model);
-  } else {
-    // (pro vs pro1: both are "Pro Controller", so name whose)
-    const wantName = now.startsWith('pro') && want.startsWith('pro') ? `${t(MODE_NAME[want])} (${target.model_name || target.model})` : t(MODE_NAME[want]);
-    p.textContent = `${t('%1 needs “%2”.').replace('%1', target.name).replace('%2', wantName)} `;
-    p.append(button(`${t('Use')} ${wantName}`, () => $(`#seg-usb [data-v="${want}"]`)?.click(), 'link'));
-  }
+  // (pro vs pro1: both are "Pro Controller", so name whose)
+  const wantName = now.startsWith('pro') && want.startsWith('pro') ? `${t(MODE_NAME[want])} (${target.model_name || target.model})` : t(MODE_NAME[want]);
+  keyed(p, [fits, want, now, target.name, target.model_name || target.model, document.documentElement.lang], () => (fits
+    ? [t('Picked for %1: %2 needs this one.').replace('%1', target.name).replace('%2', target.model_name || target.model)]
+    : [`${t('%1 needs “%2”.').replace('%1', target.name).replace('%2', wantName)} `,
+      button(t('Use %1').replace('%1', wantName), () => $(`#seg-usb [data-v="${want}"]`)?.click(), 'link')]));
 }
 $('#btn-letgo').onclick = () => post('/api/release', {}).then(() => toast(t('Let go of everything.'), 'ok')).catch(failed);
 $('#btn-check').onclick = () => {
@@ -218,7 +232,7 @@ function network(v) {
     // only what the helper reports: without it running, NS2Bench can't tell
     if (running) row(t('Internet'), d.forwarding_off === true ? t('Blocked: no route out') : t('Check: this computer may pass traffic'), d.forwarding_off === true ? 'ok' : 'bad');
     if (w) {
-      row(t('Nintendo names'), `${w.refused || 0} ${t('refused')} · ${w.lookups || 0} ${t('lookups')}`);
+      row(t('Nintendo names'), t('%1 refused · %2 lookups').replace('%1', w.refused || 0).replace('%2', w.lookups || 0));
       row(t('Connection test'), w.last_ctest ? `${t('answered')} · ${ago(w.last_ctest)}` : t('never'), w.last_ctest ? 'ok' : '');
     } else if (running) {
       note.hidden = false;
@@ -245,3 +259,5 @@ export function updatePanel(s) {
   if (Date.now() - netAt > 30000) loadNetwork();
   else network(v);
 }
+// another language: the parts built from translated text are built again
+document.addEventListener('ns2bench:language', () => { if (lastStatus) updatePanel(lastStatus); mirrorSound(); });

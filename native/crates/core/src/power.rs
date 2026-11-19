@@ -27,6 +27,17 @@ fn path() -> std::path::PathBuf {
     state_dir().join("power.json")
 }
 
+/// Whether HDMI-CEC is switched on, without reading the settings file each time (every status
+/// sent to every open page asks). 0 unknown, 1 off, 2 on; forgotten when the settings are saved.
+static CEC: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+pub fn cec_on() -> bool {
+    use std::sync::atomic::Ordering::Relaxed;
+    match CEC.load(Relaxed) {
+        0 => { let on = settings()["cec"] == true; CEC.store(if on { 2 } else { 1 }, Relaxed); on }
+        n => n == 2,
+    }
+}
+
 /// The saved settings, with defaults filled in.
 pub fn settings() -> Value {
     let v: Value = std::fs::read(path()).ok().and_then(|d| serde_json::from_slice(&d).ok()).unwrap_or(json!({}));
@@ -339,6 +350,7 @@ pub async fn set_power(State(b): State<S>, h: HeaderMap, Json(v): Json<Value>) -
     }
     let v = validate(&v).map_err(|e| bad(e.to_string()))?;
     write_json(&path(), &v).map_err(anyhow::Error::from)?;
+    CEC.store(0, std::sync::atomic::Ordering::Relaxed);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

@@ -5,6 +5,6 @@ fn main() {
         println!("cargo:rustc-link-arg-bins=/STACK:8388608");
     }
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
-        tauri_build::AppManifest::new().commands(&["update_action", "cli_action", "component_action", "agent_action", "open_logs", "tray_configure"])
+        tauri_build::AppManifest::new().commands(&["update_action", "cli_action", "component_action", "agent_action", "open_logs", "cursor_grab", "tray_configure"])
     )).expect("Tauri build");
 }

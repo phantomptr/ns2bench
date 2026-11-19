@@ -422,10 +422,34 @@ test('several consoles: add one, switch the view, input only goes where the cont
   await p.evaluate(async (on) => (await import('/static/client.js')).apiFetch('/api/consoles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'settings', controller_follows_view: on }) }), false);
   // watching the second: the drawn controller can't press there
+  // (its video settings take a moment to load: until then the form still holds the first
+  // console's values and must not be changeable, or they would be saved to this console)
+  await p.route('**/api/video', async (route) => {
+    if (route.request().method() === 'GET') await new Promise((r) => setTimeout(r, 1200));
+    await route.continue();
+  });
   await p.click('.console-thumb[data-console] >> nth=1');
   await p.waitForSelector('.console.input-elsewhere');
+  await p.waitForFunction(() => document.querySelector('#v-fps').disabled && document.querySelector('#v-device').disabled);
   // the panel's video settings are this console's own (its card), not the first console's
-  await p.waitForFunction(() => document.querySelector('#v-device').value === 'test-card-2');
+  await p.waitForFunction(() => document.querySelector('#v-device').value === 'test-card-2' && !document.querySelector('#v-fps').disabled);
+  await p.unroute('**/api/video');
+  // a gamepad button held here is refused, and stays refused: nothing goes out a second later
+  const leaked = await p.evaluate(async () => {
+    let sent = 0;
+    const send = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (data) {
+      try { const m = JSON.parse(data); if (m.t === 'state' && (m.buttons || m.dpad)) sent++; } catch { /* not ours */ }
+      return send.call(this, data);
+    };
+    const real = navigator.getGamepads;
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, writable: true, value: real });
+    navigator.getGamepads = () => [{ buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === 0 })), axes: [0, 0, 0, 0] }];
+    await new Promise((r) => setTimeout(r, 2600));
+    navigator.getGamepads = real; WebSocket.prototype.send = send;
+    return sent;
+  });
+  assert.equal(leaked, 0, 'a refused gamepad press was sent by the keep-alive');
   assert.match(await p.textContent('#console-note'), /Switch 1/);
   // an agent pressing on the console without the controller is refused, with why
   const r = await fetch(`${BASE}/api/press`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': second.id },

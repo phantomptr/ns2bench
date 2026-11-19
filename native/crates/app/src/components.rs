@@ -58,7 +58,7 @@ async fn fetch(name: &str) -> Result<PathBuf> {
     let bytes = r.bytes().await?;
     ensure!(bytes.len() <= MAX_ASSET, "{name} is too large");
     ensure!(crate::updates::hex(&Sha256::digest(&bytes)) == expected, "{name} failed its SHA-256 check; nothing was installed");
-    let tmp = path.with_extension("partial");
+    let tmp = dir.join(format!("{name}.{}.partial", std::process::id()));
     tokio::fs::write(&tmp, &bytes).await?;
     tokio::fs::rename(&tmp, &path).await?;
     Ok(path)
@@ -139,6 +139,9 @@ fn valid_host(h: &str) -> bool {
 fn ssh(host: &str, cmd: &str, stdin: Option<&[u8]>) -> Result<String> {
     use std::io::Write;
     let mut ssh = Command::new("ssh");
+    // (an AppImage's bundled libraries are for this app, not for system programs it starts)
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_some() { ssh.env_remove("LD_LIBRARY_PATH"); }
     #[cfg(windows)]
     std::os::windows::process::CommandExt::creation_flags(&mut ssh, 0x0800_0000); // CREATE_NO_WINDOW
     let mut child = ssh
@@ -271,6 +274,9 @@ fn netd_version(bin: &Path) -> Option<String> {
 }
 
 fn output(cmd: &mut Command) -> (bool, String) {
+    // (an AppImage's bundled libraries are for this app, not for system programs it starts)
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_some() { cmd.env_remove("LD_LIBRARY_PATH"); }
     match cmd.stdin(Stdio::null()).output() {
         Ok(o) => (o.status.success(), format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).trim().to_string()),
         Err(e) => (false, e.to_string()),
@@ -329,6 +335,9 @@ async fn netd_install() -> Result<Value> {
         std::fs::set_permissions(&dl, std::os::unix::fs::PermissionsExt::from_mode(0o755))?;
         // Check the configuration without opening any ports.
         let (ok, check) = output(Command::new(&dl).arg("--check").arg(&config));
+        if !ok && check.to_lowercase().contains("forwarding") {
+            bail!("This computer forwards network traffic (internet sharing, Docker or a virtual machine has it switched on), and the helper won't run while it does: NS2Bench keeps the console offline on purpose. Turn forwarding off, then install again. ({check})");
+        }
         if !ok && !check.contains("not ready") {
             bail!("The network settings aren't valid yet: {check}");
         }
@@ -437,7 +446,9 @@ fn netd_uninstall() -> Result<Value> {
 #[tauri::command]
 pub async fn component_action(component: String, action: String, host: Option<String>) -> Result<Value, String> {
     let r = match (component.as_str(), action.as_str()) {
-        ("pico", "status") => Ok(json!({ "drive": pico_drive().map(|d| d.display().to_string()), "version": VERSION })),
+        // (off the async workers: looking at every drive can wait on a dead network drive)
+        ("pico", "status") => tokio::task::spawn_blocking(|| json!({ "drive": pico_drive().map(|d| d.display().to_string()), "version": VERSION }))
+            .await.map_err(anyhow::Error::from),
         ("pico", "flash") => pico_flash().await,
         ("board", "probe") => tokio::task::spawn_blocking(move || board_probe(host.as_deref().unwrap_or("").trim()))
             .await.map_err(anyhow::Error::from).and_then(|r| r),

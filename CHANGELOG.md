@@ -6,6 +6,23 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+A deep review of the whole app, in several rounds. Fixed so far:
+
+- **Mouse capture in the Mac app works.** Capturing the mouse for aiming was always refused by the app itself.
+- **A held gamepad button could reach the wrong console.** With the controller on one console and the page showing another, the press was refused, then sent anyway a second later.
+- **Picture settings changed right after switching console went to the wrong console.**
+- **Pico and CH9329 users: no more 15 seconds of refused presses after each connect.** NS2Bench asked those boards to change a mode they don't have.
+- **One console left after removing another** now gets its controller mode and settings applied again.
+- **Two button changes sent at the same moment could arrive in the wrong order,** leaving a button held on the console.
+- **Bridge board:** no more full-speed spinning in Switch 1 mode when the console stops reading; a short press is no longer lost while the Pro Controller part restarts; a mode switch that hangs is stopped after 25 seconds; the board waits for its network address at start instead of giving up; a rebuild of the USB side by hand is followed by the Bridge.
+- **Board start-up script:** one build at a time (boot, the bench and a run by hand can't take the USB side apart under each other), less waiting at boot, and the start-up history is no longer rewritten on every boot.
+- **Linux:** capture cards without MJPEG output (raw only) now work; system tools started from the AppImage use the system's libraries; the tray is only offered when the desktop can show one.
+- **Windows:** the command line tool is found when the user folder has non-English letters; the settings folder is the same however the app is started.
+- **If the engine can't start,** the window says why instead of staying blank. An unreadable settings file is kept aside and reported.
+- **Old downloaded installers are removed** (about 100 MB per update stayed on disk).
+- **The page:** the right panel no longer rebuilds its buttons every second (focus and clicks were lost), switching console no longer drops the control connection, the "no capture card" note shows for a console that never had a picture, clicking the word "Colour" no longer picks red, double clicks can't save twice, refused changes are put back and say why, changing language updates every text, and many sentences now translate as a whole.
+- **Releases:** the installer for the right version is always the one published, the release key is checked against the app before publishing, and the tag push is retried.
+
 ## 0.0.31
 
 - **The Bridge board starts more reliably.** Backup copies of two start-up scripts were kept in the board's start-up folder, where the board ran them too, as a second start racing the real one. About one start in ten failed its first try and had to recover. Installing the Bridge (Settings → Install → Bridge board) now moves those copies out.

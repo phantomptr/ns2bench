@@ -126,6 +126,11 @@ pub fn clean_exit() {
 }
 
 /// The previous run's trace, if that run ended unexpectedly.
+/// Whether the last run ended without closing down (without copying its trace).
+pub fn unclean_previous_exists() -> bool {
+    UNCLEAN.lock().unwrap().is_some()
+}
+
 pub fn unclean_previous() -> Option<String> {
     UNCLEAN.lock().unwrap().clone()
 }

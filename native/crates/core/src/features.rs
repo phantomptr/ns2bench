@@ -108,7 +108,7 @@ async fn watch_controller(b: Arc<crate::Bench>) {
         // The board's own word wins: a Switch 2 started it as its Pro Controller, so it is in that
         // Switch 2, whatever we were told. If we have it on a console that isn't a Switch 2, we're
         // wrong: say so, and find out (detection settles it at once from the handshake).
-        if connected && st["host"] == "switch2" {
+        if connected && st["host"] == "switch2" && b.list().len() > 1 {
             if let Some(c) = b.controller_console() {
                 if *c.model.lock().unwrap() != "switch2" {
                     let _ = b.set_controller_on(None);
@@ -362,16 +362,18 @@ pub fn health(b: &crate::Bench) -> Value {
 /// Saved test reports, newest first.
 async fn get_reports() -> Json<Value> {
     let dir = crate::testrun::reports_dir();
-    let mut v: Vec<Value> = std::fs::read_dir(&dir).into_iter().flatten().flatten()
-        .filter(|e| e.path().is_dir())
-        .map(|e| {
-            let p = e.path();
+    let d = dir.clone();
+    // (off the async workers, and only the newest 200 are opened: months of runs add up)
+    let v = tokio::task::spawn_blocking(move || {
+        let mut names: Vec<std::path::PathBuf> = std::fs::read_dir(&d).into_iter().flatten().flatten()
+            .map(|e| e.path()).filter(|p| p.is_dir()).collect();
+        names.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+        names.truncate(200);
+        names.into_iter().map(|p| {
             let report: Value = std::fs::read_to_string(p.join("report.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(Value::Null);
-            json!({"name": e.file_name().to_string_lossy(), "path": p, "passed": report["passed"], "test": report["name"]})
-        })
-        .collect();
-    v.sort_by(|a, b| b["name"].as_str().cmp(&a["name"].as_str()));
-    v.truncate(200);
+            json!({"name": p.file_name().map(|n| n.to_string_lossy().into_owned()), "path": p, "passed": report["passed"], "test": report["name"]})
+        }).collect::<Vec<Value>>()
+    }).await.unwrap_or_default();
     Json(json!({"dir": dir, "reports": v}))
 }
 

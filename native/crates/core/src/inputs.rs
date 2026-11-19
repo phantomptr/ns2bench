@@ -354,6 +354,8 @@ async fn run_board(
                             logs.add("bench", format!("NS2Bench Bridge: now in {mode} mode (switched without reconnecting)"));
                             let _ = on_connect.send(());     // re-send what's held, as after a reconnect
                         } else if let Some(err) = m.get("error") {
+                            // (a refused mode switch isn't under way: presses go through again)
+                            status.lock().unwrap().switching_until = None;
                             logs.error("board", format!("error: {err}"));
                             status.lock().unwrap().detail = Some(err.to_string());
                         }
@@ -526,6 +528,11 @@ impl InputHub {
     }
 
     fn flush(&self) -> Result<()> {
+        // One flush at a time, from reading the state to sending it: two running side by side
+        // (an agent's release and the page's own state) could send the older state last, leaving
+        // a button held on the console that everything here shows as released.
+        static ORDER: Mutex<()> = Mutex::new(());
+        let _one = ORDER.lock().unwrap_or_else(|e| e.into_inner());
         let (pad, kbd, changed, agent) = {
             let mut st = self.st.lock().unwrap();
             let (pad, kbd) = Self::merged(&st);
@@ -671,7 +678,8 @@ impl InputHub {
             let _ = self.flush();
         });
         let r = self.flush();
-        tokio::time::sleep(Duration::from_millis(hold)).await;
+        // (a press that couldn't be sent isn't held: the caller hears why right away)
+        if r.is_ok() { tokio::time::sleep(Duration::from_millis(hold)).await; }
         drop(release);
         r
     }
@@ -745,7 +753,7 @@ impl InputHub {
             let _ = self.flush();
         });
         let r = self.flush();
-        tokio::time::sleep(Duration::from_millis(hold_ms.clamp(16, 2000))).await;
+        if r.is_ok() { tokio::time::sleep(Duration::from_millis(hold_ms.clamp(16, 2000))).await; }
         drop(release);
         r
     }

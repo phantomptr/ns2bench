@@ -64,8 +64,12 @@ jobs:
         if: ${{ !inputs.force }}
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          # (a release commit left by an earlier try that could not push its tag has no ci run
+          # of its own: the commit under it is the one ci checked)
+          if [ "$(git log -1 --format=%s)" = "Release $VERSION" ]; then GITHUB_SHA="$(git rev-parse HEAD^)"; fi
           for _ in $(seq 1 60); do
             c="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --json status,conclusion --jq '.[0] | "\(.status) \(.conclusion)"' || true)"
             case "$c" in
@@ -91,10 +95,15 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add -A VERSION CHANGELOG.md native/Cargo.toml native/Cargo.lock firmware/pico/Cargo.toml firmware/pico/Cargo.lock native/crates/app/tauri.conf.json
             git commit -q -m "Release $VERSION"
-            git push origin "HEAD:main"
           fi
           git tag -a "v$VERSION" -m "v$VERSION"
-          git push origin "refs/tags/v$VERSION"
+          # One push for the commit and the tag (both or neither), retried: GitHub sometimes
+          # rejects a tag pushed right after its commit.
+          for i in 1 2 3 4 5; do
+            if git push --atomic origin "HEAD:main" "refs/tags/v$VERSION"; then break; fi
+            [ "$i" = 5 ] && { echo "::error::could not push v$VERSION"; exit 1; }
+            sleep $((i * 10))
+          done
           echo "### v$VERSION tagged at $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Dispatch publish
@@ -102,4 +111,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
           PRERELEASE: ${{ inputs.prerelease }}
-        run: gh workflow run publish.yml --ref "v$VERSION" -f tag="v$VERSION" -f prerelease="$PRERELEASE"
+        run: |
+          for i in 1 2 3; do
+            if gh workflow run publish.yml --ref "v$VERSION" -f tag="v$VERSION" -f prerelease="$PRERELEASE"; then exit 0; fi
+            sleep $((i * 10))
+          done
+          echo "::error::v$VERSION is tagged but publish.yml could not be started: run it by hand for the tag"; exit 1

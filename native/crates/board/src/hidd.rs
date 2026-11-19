@@ -23,7 +23,12 @@ use std::time::{Duration, Instant};
 
 const WATCHDOG: Duration = Duration::from_secs(1);
 const KEEPALIVE: Duration = Duration::from_millis(500);
+/// A state the Pro Controller process didn't take (restarting, its queue full) is offered again
+/// after this long, not only at the next keepalive: a short press would be over by then.
+const PRO_RETRY: Duration = Duration::from_millis(10);
 const MAX_LINE: usize = 4096;
+/// Longest a USB mode switch (gadget.sh) may take before it is stopped.
+const SWITCH_LIMIT: Duration = Duration::from_secs(25);
 const MODE_FILE: &str = "/etc/ns2bench-usb-mode";
 const ACTIVE_MODE_FILE: &str = "/run/ns2bench-usb-mode";
 const GADGET: &str = "/sys/kernel/config/usb_gadget/rockchip";
@@ -119,6 +124,11 @@ fn usb_mode() -> String {
     }
 }
 
+/// When the running USB side was built (None: none is, or one is being built right now).
+fn built_at() -> Option<std::time::SystemTime> {
+    std::fs::metadata(ACTIVE_MODE_FILE).and_then(|m| m.modified()).ok()
+}
+
 /// Write a file so a power cut (the console sleeping cuts the board's power) leaves the old
 /// content or the new one, never an empty file: temp file, flushed to storage, renamed into place.
 fn save_atomic(path: &str, text: &str) -> std::io::Result<()> {
@@ -162,7 +172,7 @@ enum Dev {
     /// Relative mouse: buttons are state, motion is queued and sent in <=127 steps.
     Mouse { fd: RawFd, buttons: u8, dx: i64, dy: i64, wheel: i64, pending: bool, writes: u64 },
     /// Pro Controller mode: the pad state goes to `pro2` over a datagram socket.
-    Pro { sock: UnixDatagram, state: Vec<i64>, pending: bool, last: Option<Instant>, writes: u64 },
+    Pro { sock: UnixDatagram, state: Vec<i64>, pending: bool, last: Option<Instant>, writes: u64, retry: bool },
     /// Switch 1 Pro Controller (pro1 mode): answers the console on hidg0, reports every 8 ms.
     Pro1 { fd: RawFd, state: Vec<i64>, proto: crate::pro1::Pro1, last: Option<Instant>, writes: u64, seen: std::collections::BTreeSet<u8> },
 }
@@ -202,7 +212,7 @@ impl Dev {
     fn pro() -> std::io::Result<Dev> {
         let sock = UnixDatagram::unbound()?;
         sock.set_nonblocking(true)?;
-        Ok(Dev::Pro { sock, state: PAD_NEUTRAL.to_vec(), pending: true, last: None, writes: 0 })
+        Ok(Dev::Pro { sock, state: PAD_NEUTRAL.to_vec(), pending: true, last: None, writes: 0, retry: false })
     }
 
     fn fd(&self) -> RawFd {
@@ -239,6 +249,7 @@ impl Dev {
 
     fn due(&self, now: Instant) -> bool {
         match self {
+            Dev::Pro { retry: true, last, .. } => last.is_none_or(|l| now - l >= PRO_RETRY),
             Dev::Hid { pending, last, .. } | Dev::Pro { pending, last, .. } => {
                 *pending || last.is_none_or(|l| now - l >= KEEPALIVE)
             }
@@ -252,10 +263,11 @@ impl Dev {
     /// Milliseconds until this device next has something to send by itself (None: only on change).
     fn next_due_ms(&self, now: Instant) -> Option<i32> {
         match self {
-            Dev::Pro1 { proto, last, .. } if proto.started => Some(match last {
-                Some(l) => crate::pro1::REPORT.saturating_sub(now - *l).as_millis() as i32,
-                None => 0,
-            }),
+            // (already due: None. The device is then watched for "writable", which wakes the loop;
+            // a zero wait here spun at full speed whenever the console wasn't reading)
+            Dev::Pro1 { proto, last, .. } if proto.started => last
+                .map(|l| crate::pro1::REPORT.saturating_sub(now - l).as_millis() as i32).filter(|ms| *ms > 0),
+            Dev::Pro { retry: true, last: Some(l), .. } => Some((PRO_RETRY.saturating_sub(now - *l).as_millis() as i32).max(1)),
             _ => None,
         }
     }
@@ -263,21 +275,27 @@ impl Dev {
     fn flush(&mut self, now: Instant) {
         match self {
             Dev::Hid { fd, kind, state, pending, last, writes } => {
-                if let Ok(true) = write_nb(*fd, &pack(kind, state)) {
-                    *pending = false;
-                    *last = Some(now);
-                    *writes += 1;
+                match write_nb(*fd, &pack(kind, state)) {
+                    Ok(true) => { *pending = false; *last = Some(now); *writes += 1; }
+                    Ok(false) => {}
+                    // (a device that reports "writable" and then fails the write, mid re-plug:
+                    // the state is kept and offered again on the keepalive, not in a tight loop)
+                    Err(_) => { *pending = false; *last = Some(now); }
                 }
             }
             Dev::Mouse { fd, buttons, dx, dy, wheel, pending, writes } => {
                 let step = |v: i64| v.clamp(-127, 127);
                 let (sx, sy, sw) = (step(*dx), step(*dy), step(*wheel));
-                if let Ok(true) = write_nb(*fd, &[*buttons, sx as i8 as u8, sy as i8 as u8, sw as i8 as u8]) {
-                    *dx -= sx;
-                    *dy -= sy;
-                    *wheel -= sw;
-                    *pending = *dx != 0 || *dy != 0 || *wheel != 0;
-                    *writes += 1;
+                match write_nb(*fd, &[*buttons, sx as i8 as u8, sy as i8 as u8, sw as i8 as u8]) {
+                    Ok(true) => {
+                        *dx -= sx;
+                        *dy -= sy;
+                        *wheel -= sw;
+                        *pending = *dx != 0 || *dy != 0 || *wheel != 0;
+                        *writes += 1;
+                    }
+                    Ok(false) => {}
+                    Err(_) => { *dx = 0; *dy = 0; *wheel = 0; *pending = false; }     // (movement is of the moment)
                 }
             }
             Dev::Pro1 { fd, state, proto, last, writes, .. } => {
@@ -286,21 +304,28 @@ impl Dev {
                     Some(r) => (r.clone(), true),
                     None => (proto.input(state), false),
                 };
-                if let Ok(true) = write_nb(*fd, &report) {
-                    if is_reply { proto.replies.pop_front(); } else { *last = Some(now); }
-                    *writes += 1;
+                match write_nb(*fd, &report) {
+                    Ok(true) => {
+                        if is_reply { proto.replies.pop_front(); } else { *last = Some(now); }
+                        *writes += 1;
+                    }
+                    Ok(false) => {}
+                    // The USB side went away under us (reset, moved to another console): what was
+                    // queued was for the old host. The next host starts the controller again.
+                    Err(_) => { proto.replies.clear(); proto.started = false; *last = Some(now); }
                 }
             }
-            Dev::Pro { sock, state, pending, last, writes } => {
+            Dev::Pro { sock, state, pending, last, writes, retry } => {
                 let b = state[0] as u32;
                 let mut m = b.to_le_bytes().to_vec();
                 m.extend(state[1..6].iter().map(|x| *x as u8));
-                if sock.send_to(&m, PRO_SOCK).is_ok() {
-                    *writes += 1;
-                }
-                // Sent or not: when pro2 is down (crashed, still starting) retry on the
-                // keepalive instead of spinning; the state is kept and resent then.
-                *pending = false;
+                let sent = sock.send_to(&m, PRO_SOCK).is_ok();
+                if sent { *writes += 1; }
+                // Not taken (pro2 restarting, its queue full): offered again in a moment while
+                // it is still a change to deliver (`retry`), not in a tight loop and not only at
+                // the next keepalive, where a short press would already be over.
+                *retry = !sent && *pending;
+                if sent { *pending = false; }
                 *last = Some(now);
             }
         }
@@ -411,7 +436,11 @@ struct Session<'a> {
     out: Vec<u8>,
     /// A USB mode switch under way (gadget.sh rebuilding the USB side): this session stays, its
     /// devices are closed until it's done, then reopened for the mode really reached.
-    switching: Option<std::process::Child>,
+    switching: Option<(std::process::Child, Instant)>,
+    /// When the USB side these devices belong to was built (the active-mode file's time). A
+    /// rebuild this session didn't start (gadget.sh run by hand, or by boot) leaves them dead.
+    built: Option<std::time::SystemTime>,
+    checked: Instant,
 }
 
 /// A client that leaves this much unread has stopped reading: it is dropped.
@@ -438,7 +467,28 @@ impl<'a> Session<'a> {
         self.out.len() <= MAX_UNREAD
     }
 
+    /// The USB side was rebuilt by something else (or is being): let go of the devices that are
+    /// gone, and open the new ones once it's there. Looked at twice a second.
+    fn follow_rebuild(&mut self, now: Instant) {
+        if !self.authed || self.switching.is_some() || now - self.checked < Duration::from_millis(500) { return; }
+        self.checked = now;
+        let built = built_at();
+        if built == self.built { return; }
+        for (_, d) in std::mem::take(&mut self.devices) { d.close(); }
+        if built.is_none() { return; }                  // being rebuilt: wait for it
+        match self.open_devices() {
+            Ok(()) => {
+                let devices: Vec<&str> = self.devices.keys().copied().collect();
+                log(format!("the USB side was rebuilt ({} mode): devices reopened", self.mode));
+                let mode = self.mode.clone();
+                self.send(json!({"switched": mode, "devices": devices, "udc": udc_state(), "host": host()}));
+            }
+            Err(e) => log(format!("after a USB rebuild, opening devices: {e}")),
+        }
+    }
+
     fn open_devices(&mut self) -> std::io::Result<()> {
+        self.built = built_at();
         self.mode = usb_mode();
         let a = self.args;
         if self.mode == "pro1" {
@@ -465,8 +515,16 @@ impl<'a> Session<'a> {
 
     /// A mode switch finished: reopen the devices of the mode really running, and say so.
     fn poll_switch(&mut self) {
-        let Some(child) = self.switching.as_mut() else { return };
-        match child.try_wait() {
+        let Some((child, since)) = self.switching.as_mut() else { return };
+        let mut done = child.try_wait();
+        // A rebuild that hangs (the kernel can wait forever unbinding) must not leave this
+        // session answering pings with no devices and every later switch refused.
+        if matches!(done, Ok(None)) && since.elapsed() > SWITCH_LIMIT {
+            log("the mode switch did not finish in time: stopping it");
+            let _ = child.kill();
+            done = child.wait().map(Some);
+        }
+        match done {
             Ok(None) => {}
             done => {
                 self.switching = None;
@@ -488,7 +546,12 @@ impl<'a> Session<'a> {
     }
 
     fn close(mut self) {
-        if let Some(mut c) = self.switching.take() { let _ = c.wait(); }
+        // (a switch still running gets a moment to finish; the daemon must not hang on it)
+        if let Some((mut c, _)) = self.switching.take() {
+            let until = Instant::now() + Duration::from_secs(3);
+            while matches!(c.try_wait(), Ok(None)) && Instant::now() < until { std::thread::sleep(Duration::from_millis(50)); }
+            if matches!(c.try_wait(), Ok(None)) { let _ = c.kill(); let _ = c.wait(); }
+        }
         for (_, d) in std::mem::take(&mut self.devices) {
             d.close();
         }
@@ -576,9 +639,23 @@ impl<'a> Session<'a> {
             // console sees the controller change (a different USB device can't appear otherwise).
             for (_, d) in std::mem::take(&mut self.devices) { d.close(); }
             let script = format!("NS2BENCH_GADGET_LOGGED=1 {keep}{here}/gadget.sh {mode} >> /tmp/ns2bench-gadget.log 2>&1");
-            match std::process::Command::new("/bin/sh").arg("-c").arg(script).stdin(std::process::Stdio::null()).spawn() {
+            let mut cmd = std::process::Command::new("/bin/sh");
+            cmd.arg("-c").arg(script).stdin(std::process::Stdio::null());
+            // This daemon runs with real-time priority; the rebuild (and the Pro Controller
+            // process it starts) must not inherit it.
+            // SAFETY: only an async-signal-safe system call between fork and exec; a zeroed
+            // sched_param is priority 0, the only one SCHED_OTHER takes.
+            #[cfg(target_os = "linux")]
+            unsafe {
+                std::os::unix::process::CommandExt::pre_exec(&mut cmd, || {
+                    let p: libc::sched_param = std::mem::zeroed();
+                    libc::sched_setscheduler(0, libc::SCHED_OTHER, &p);
+                    Ok(())
+                });
+            }
+            match cmd.spawn() {
                 Ok(child) => {
-                    self.switching = Some(child);
+                    self.switching = Some((child, Instant::now()));
                     self.send(json!({"ok": format!("switching to {mode}"), "stays": true}));
                 }
                 Err(e) => {
@@ -670,7 +747,18 @@ pub fn main(argv: &[String]) -> Result<(), String> {
         libc::signal(libc::SIGTERM, on_stop as *const () as libc::sighandler_t);
         libc::signal(libc::SIGINT, on_stop as *const () as libc::sighandler_t);
     }
-    let srv = TcpListener::bind((args.bind.as_str(), args.port)).map_err(|e| format!("bind {}:{}: {e}", args.bind, args.port))?;
+    // Early in boot the address may not be on the interface yet: wait for it (up to 15 s)
+    // instead of giving up, which left the board without a Bridge until its next start.
+    let t0 = Instant::now();
+    let srv = loop {
+        match TcpListener::bind((args.bind.as_str(), args.port)) {
+            Ok(s) => break s,
+            Err(e) if e.kind() == ErrorKind::AddrNotAvailable && t0.elapsed() < Duration::from_secs(15) && !STOP.load(std::sync::atomic::Ordering::SeqCst) => {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => return Err(format!("bind {}:{}: {e}", args.bind, args.port)),
+        }
+    };
     srv.set_nonblocking(true).map_err(|e| e.to_string())?;
     log(format!("listening {}:{} (NS2Bench Bridge {})", args.bind, args.port, env!("CARGO_PKG_VERSION")));
     let kmsg = KernelLog::open(&args.kmsg);
@@ -717,13 +805,14 @@ pub fn main(argv: &[String]) -> Result<(), String> {
                     session = Some(Session {
                         conn, peer: peer.ip().to_string(), args: &args, buf: vec![], authed: false,
                         devices: BTreeMap::new(), mode: String::new(), last_rx: now, accepted: now, out: vec![],
-                        switching: None,
+                        switching: None, built: None, checked: now,
                     });
                 }
             }
         }
         let Some(s) = session.as_mut() else { continue };
         s.poll_switch();
+        s.follow_rebuild(now);
         let mut ok = true;
         if ready(s.conn.as_raw_fd(), libc::POLLIN) {
             let mut buf = [0u8; 4096];
@@ -752,7 +841,7 @@ pub fn main(argv: &[String]) -> Result<(), String> {
         }
         // Unauthenticated clients get a fixed deadline from accept, so sending blank
         // lines cannot hold the only session slot.
-        let silent = if s.authed { now - s.last_rx > WATCHDOG } else { now - s.accepted > Duration::from_secs(5) };
+        let silent = if s.authed { now - s.last_rx > WATCHDOG } else { now - s.accepted > Duration::from_secs(2) };
         if ok && silent {
             log(format!("client {} watchdog: silent, releasing", s.peer));
             ok = false;

@@ -94,6 +94,11 @@ pub fn guard_request(headers: &HeaderMap, path: &str) -> std::result::Result<(),
     if !host.is_empty() && name != "localhost" && name.parse::<std::net::IpAddr>().is_err() {
         return Err("host name not allowed: open NS2Bench by its IP address or localhost");
     }
+    // A cross-site <img> or link sends no Origin, but browsers label it: another site may not
+    // make this engine take screenshots, list devices or build report bundles.
+    if headers.get("sec-fetch-site").and_then(|v| v.to_str().ok()).is_some_and(|v| v == "cross-site" || v == "same-site") {
+        return Err("cross-site request refused");
+    }
     match headers.get(header::ORIGIN).map(|o| o.to_str().unwrap_or("")) {
         Some(o) if o != format!("http://{host}") => Err("cross-origin request refused"),
         None if path == "/ws" => Err("the UI socket is for the NS2Bench page only"),
@@ -674,7 +679,27 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_press_still_releases() {
-        let b = Bench::new(crate::Config::from_raw(None, json!({"input":{"backend":"none"},"video":{"backend":"none"}})));
+        // (a board that answers: a press that can't be sent at all isn't held any more)
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+        let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = l.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (s, _) = l.accept().await.unwrap();
+            let (r, mut w) = s.into_split();
+            let mut lines = tokio::io::BufReader::new(r).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let v: Value = serde_json::from_str(&line).unwrap_or_default();
+                let reply = if v.get("hello").is_some() { Some(r#"{"ok":"ready","udc":"configured","devices":["pad","kbd"],"mode":"pro"}"#.to_string()) }
+                    else { v["ping"].as_u64().map(|n| format!(r#"{{"pong":{n}}}"#)) };
+                if let Some(reply) = reply { if w.write_all(format!("{reply}\n").as_bytes()).await.is_err() { break; } }
+            }
+        });
+        let b = Bench::new(crate::Config::from_raw(None, json!({"input":{"backend":"hidd","host":"127.0.0.1","port":port},"video":{"backend":"none"}})));
+        for _ in 0..100 {
+            if b.hub.status()["connected"] == true { break; }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert_eq!(b.hub.status()["connected"], true, "the test board should be connected");
         let app = router(b.clone());
         let request = Request::builder().method("POST").uri("/api/press").header("host", "127.0.0.1:7630")
             .header("content-type", "application/json")

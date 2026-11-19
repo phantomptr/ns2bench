@@ -32,6 +32,7 @@ function key(name, label, glyph, cls, unavailable = false) {
   const b = make('button', `key ${cls}${unavailable ? ' unavailable' : ''}`,
     `<span class="face">${glyph}<span class="kl"></span></span>`);
   b.type = 'button';
+  b.tabIndex = -1;            // pressed with a pointer only; the keyboard has its own map to these
   b.dataset.b = name;
   b.dataset.label = label;
   b.setAttribute('aria-label', label);
@@ -94,7 +95,7 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
   for (const s of all('.stick')) {
     const k = hints[s.dataset.stick];
     const click = hints[s.dataset.stick === 'left' ? 'LSTICK' : 'RSTICK'];
-    if (k) s.querySelector('.sl').innerHTML = `<b>${k.join('')}</b>${click ? `<span>press ${click.join('')}</span>` : ''}`;
+    if (k) s.querySelector('.sl').innerHTML = `<b>${k.join('')}</b>${click ? `<span><span>${t('press')}</span> ${click.join('')}</span>` : ''}`;
   }
 
   // hover tip (for unavailable keys, and for anyone with keys hidden)
@@ -149,7 +150,7 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
     const which = s.dataset.stick;
     const click = which === 'left' ? 'LSTICK' : 'RSTICK';
     const base = s.querySelector('.base');
-    let downAt = 0, travel = 0;
+    let downAt = 0, travel = 0, active = null;        // one finger steers a stick; others are ignored
     const move = (e) => {
       const r = base.getBoundingClientRect();
       let x = (e.clientX - r.left - r.width / 2) / (r.width * 0.38);
@@ -161,13 +162,16 @@ export function mountPad(leftRoot, rightRoot, { hints = {} } = {}) {
     };
     base.addEventListener('pointerdown', (e) => {
       e.preventDefault(); e.stopPropagation(); tip.classList.remove('show');
+      if (active !== null) return;
+      active = e.pointerId;
       base.setPointerCapture(e.pointerId); s.classList.add('grab');
       downAt = performance.now(); travel = 0; move(e);
       if (travel < TAP_TRAVEL) vstick[which] = [0, 0];
     });
-    base.addEventListener('pointermove', (e) => { if (base.hasPointerCapture(e.pointerId)) move(e); });
+    base.addEventListener('pointermove', (e) => { if (e.pointerId === active && base.hasPointerCapture(e.pointerId)) move(e); });
     const end = (e) => {
-      if (!s.classList.contains('grab')) return;
+      if (e.pointerId !== active) return;
+      active = null;
       s.classList.remove('grab');
       vstick[which] = [0, 0];
       if (e.type === 'pointerup' && performance.now() - downAt < TAP_MS && travel < TAP_TRAVEL) {

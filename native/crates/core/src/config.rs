@@ -15,8 +15,11 @@ pub struct Config {
 }
 
 pub fn home() -> PathBuf {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
+    // Windows: the profile folder first. HOME is only set by Unix-like shells there, and would
+    // give the engine started from one a different state folder than the app's.
+    let (first, second) = if cfg!(windows) { ("USERPROFILE", "HOME") } else { ("HOME", "USERPROFILE") };
+    std::env::var_os(first)
+        .or_else(|| std::env::var_os(second))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
 }
@@ -24,7 +27,9 @@ pub fn home() -> PathBuf {
 /// `~/.ns2bench` (created on demand).
 pub fn state_dir() -> PathBuf {
     let d = home().join(".ns2bench");
-    let _ = std::fs::create_dir_all(&d);
+    // (created once, not on every call: status and logs ask many times a second)
+    static MADE: std::sync::Once = std::sync::Once::new();
+    MADE.call_once(|| { let _ = std::fs::create_dir_all(&d); });
     d
 }
 

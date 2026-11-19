@@ -87,7 +87,8 @@ async fn configure_serial(path: &str, baud: u32) {
     #[cfg(target_os = "linux")]
     let args = vec!["-F", path, &b, "raw", "-echo", "clocal"];
     #[cfg(unix)]
-    {
+    // (not for a port that isn't there: an unplugged adapter is retried twice a second for days)
+    if std::path::Path::new(path).exists() {
         let _ = tokio::process::Command::new("stty").args(&args).status().await;
     }
     // Windows: set on the open handle (win_serial::line), any rate the driver takes (mode.com

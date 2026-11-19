@@ -387,6 +387,8 @@ pub fn handle_dhcp(
             let wanted = req.requested.unwrap_or(req.ciaddr);
             match choose(cfg, leases, &req.mac, now) {
                 Some(ip) if ip == wanted => {
+                    // (entries a week past their end are dropped: the table would otherwise only grow)
+                    leases.retain(|_, v| v["expires"].as_f64().is_some_and(|t| t > now - 7.0 * 86400.0));
                     leases.insert(req.mac.clone(), json!({"ip": ip.to_string(), "hostname": req.hostname, "expires": now + cfg.lease_s as f64, "acked": stamp}));
                     Some((5, Some(ip)))
                 }

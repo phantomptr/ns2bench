@@ -84,7 +84,7 @@ impl AudioHub {
         loop {
             let started = std::time::Instant::now();
             let r = self.clone().once(&video_cfg, &logs).await;
-            if started.elapsed() > Duration::from_secs(30) { delay = 2; }
+            if started.elapsed() > Duration::from_secs(30) || r.is_ok() { delay = 2; }
             if let Err(e) = r {
                 let msg = e.to_string();
                 // say it once per distinct problem, not on every retry

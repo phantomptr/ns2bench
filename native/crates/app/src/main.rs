@@ -19,8 +19,25 @@ fn load_config() -> ns2bench_core::Config {
     let explicit = std::env::var("NS2BENCH_CONFIG").ok();
     ns2bench_core::Config::load(explicit.as_deref()).unwrap_or_else(|e| {
         eprintln!("NS2Bench: config: {e}; using defaults");
-        ns2bench_core::Config::from_raw(None, serde_json::json!({}))
+        // A settings file that can't be read: keep a copy aside (the next save writes a fresh
+        // one in its place) and leave a note where bug reports look, instead of silently
+        // starting as if nothing had ever been set up.
+        let path = ns2bench_core::config::find(explicit.as_deref());
+        if let Some(p) = &path {
+            let aside = p.with_extension(format!("json.unreadable-{}", ns2bench_core::logs::stamp()));
+            let kept = std::fs::copy(p, &aside).is_ok();
+            ns2bench_core::crashlog::write("config", &format!("the settings file {} could not be read ({e}); NS2Bench started with default settings{}",
+                p.display(), if kept { format!("; a copy of the unreadable file is at {}", aside.display()) } else { String::new() }));
+        }
+        ns2bench_core::Config::from_raw(path, serde_json::json!({}))
     })
+}
+
+/// The desktop's opener, started with the system's libraries (not an AppImage's bundled ones).
+fn xdg_open() -> std::process::Command {
+    let mut c = std::process::Command::new("xdg-open");
+    if std::env::var_os("APPIMAGE").is_some() { c.env_remove("LD_LIBRARY_PATH"); }
+    c
 }
 
 /// Open a web link in the system browser. Only https: links; everything else stays
@@ -35,7 +52,7 @@ fn open_external(url: &tauri::Url) {
     #[cfg(target_os = "windows")]
     let r = std::process::Command::new("rundll32").args(["url.dll,FileProtocolHandler", u]).spawn();
     #[cfg(all(unix, not(target_os = "macos")))]
-    let r = std::process::Command::new("xdg-open").arg(u).spawn();
+    let r = xdg_open().arg(u).spawn();
     match r {
         // Reap the launcher so it doesn't linger as a zombie.
         Ok(mut child) => { std::thread::spawn(move || { let _ = child.wait(); }); }
@@ -107,6 +124,24 @@ fn cursor_grab(window: tauri::WebviewWindow, on: bool) -> Result<(), String> {
     }
 }
 
+/// What the window shows when the engine could not start (instead of a blank page): the reason
+/// we know, and what to do. A data: page, so it needs nothing that isn't running.
+fn no_engine_page(target: &tauri::Url) -> tauri::Url {
+    let port = target.port_or_known_default().unwrap_or(0);
+    let logs = ns2bench_core::config::state_dir().join("logs");
+    let html = format!("<!doctype html><meta charset=utf-8><title>NS2Bench</title>\
+<body style=\"font:16px system-ui,sans-serif;background:#16171b;color:#e8e8ea;max-width:38em;margin:12vh auto;padding:0 24px;line-height:1.5\">\
+<h2>NS2Bench could not start</h2>\
+<p>Its engine could not open port {port} on this computer. Usually another program is using that port, or another copy of NS2Bench is still closing.</p>\
+<p>Quit NS2Bench completely (also from the tray or menu bar), wait a few seconds and open it again. If it keeps happening, restart the computer, or set another port in the settings file.</p>\
+<p style=\"color:#a0a2a8\">Details are in the logs folder: {}</p></body>", logs.display().to_string().replace('&', "&amp;").replace('<', "&lt;"));
+    let mut enc = String::from("data:text/html;charset=utf-8,");
+    for b in html.bytes() {
+        if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { enc.push(b as char) } else { enc.push_str(&format!("%{b:02X}")) }
+    }
+    enc.parse().unwrap_or_else(|_| target.clone())
+}
+
 /// Help → Open logs folder.
 #[tauri::command]
 fn open_logs() {
@@ -117,7 +152,7 @@ fn open_logs() {
     } else if cfg!(windows) {
         std::process::Command::new("explorer").arg(&dir).spawn()
     } else {
-        std::process::Command::new("xdg-open").arg(&dir).spawn()
+        xdg_open().arg(&dir).spawn()
     };
 }
 
@@ -176,6 +211,7 @@ fn main() {
     }
     ns2bench_core::report::trace(if ns2bench_core::config::safe_mode() { "safe mode: no capture, input or sound" } else { "normal start" });
     let cfg = load_config();
+    std::thread::spawn(updates::remove_old_downloads);
     ns2bench_core::report::trace(format!("config loaded ({})", cfg.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "defaults".into())));
     let url = format!("{}/", cfg.url());
     let _ = agents::ENGINE_URL.set(cfg.url());
@@ -225,21 +261,22 @@ fn main() {
             let mut cap = tauri::ipc::CapabilityBuilder::new("engine-ui").local(false).window("main")
                 .remote(format!("{}/*", target.origin().ascii_serialization())).permission("notification:default");
             if ours {
-                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("allow-agent-action").permission("allow-open-logs").permission("allow-tray-configure");
+                cap = cap.permission("allow-update-action").permission("allow-cli-action").permission("allow-component-action").permission("allow-agent-action").permission("allow-open-logs").permission("allow-cursor-grab").permission("allow-tray-configure");
             }
             app.add_capability(cap)?;
             let mut window = app.config().app.windows.iter().find(|w| w.label == "main")
                 .expect("main window configuration").clone();
-            window.url = WebviewUrl::External(target.clone());
+            window.url = WebviewUrl::External(if attach || ours { target.clone() } else { no_engine_page(&target) });
             window.visible = false;
             let origin = target.origin();
             let nav_origin = origin.clone();
+            let no_engine = !attach && !ours;      // (then the window shows our own data: page)
             let key_script = if !ours { String::new() } else { format!("window.__NS2BENCH_UI__ = {ui_key:?};") };
             let main = WebviewWindowBuilder::from_config(app, &window)?
                 .initialization_script(&key_script)
                 // The engine's pages stay in the app; web links open in the browser.
                 .on_navigation(move |url| {
-                    if url.origin() == nav_origin || url.scheme() == "blob" || url.scheme() == "about" {
+                    if url.origin() == nav_origin || url.scheme() == "blob" || url.scheme() == "about" || (no_engine && url.scheme() == "data") {
                         return true;
                     }
                     open_external(url);

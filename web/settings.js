@@ -113,7 +113,7 @@ async function network(loadForm = true) {
   const running = !n.error && n.online;
   $('#network-status').className = `status ${n.error ? 'bad' : running ? 'ok' : 'info'}`;
   // Controls stay editable: saved settings apply as soon as the service starts.
-  $('#network-leases').textContent = Object.entries(n.leases).map(([mac, lease]) => `${mac}  ${lease.ip}  ${lease.hostname || ''}`).join('\n') || 'No DHCP leases recorded';
+  $('#network-leases').textContent = Object.entries(n.leases).map(([mac, lease]) => `${mac}  ${lease.ip}  ${lease.hostname || ''}`).join('\n') || t('No DHCP leases recorded');
   renderShared(n, loadForm && revision === networkRevision);
   if (loadForm) loadInterfaces(n.shared?.interface).catch((e) => message(e.message));
 }
@@ -183,7 +183,7 @@ function renderShared(n, loadForm) {
   const rows = s.watch?.consoles;
   const items = rows ? rows.map((c) => {
     const li = document.createElement('li');
-    const seen = `${t('last asked NS2Bench')} ${ago(c.last_dns)} · ${t('connection test')} ${ago(c.last_ctest)} · ${c.refused || 0} ${t('names refused')}`;
+    const seen = t('last asked NS2Bench %1 · connection test %2 · %3 names refused').replace('%1', ago(c.last_dns)).replace('%2', ago(c.last_ctest)).replace('%3', c.refused || 0);
     const text = {
       protected: [`${c.console}: ${t('protected')} · ${seen}`, 'ok'],
       warning: [`${c.console}: ${t('on your network but not using NS2Bench. It may be back on automatic settings and online: check its gateway and DNS.')}`, 'bad'],
@@ -222,7 +222,7 @@ $('#network-settings').onsubmit = run(async () => {
 });
 async function integrations() {
   const i = await api('/api/integrations');
-  $('#api-info').textContent = `Engine: ${i.api_url} · ${i.token_required ? 'Bearer token required' : 'No API token configured; keep the listener on loopback.'}`;
+  $('#api-info').textContent = `${t('Engine:')} ${i.api_url} · ${i.token_required ? t('Bearer token required') : t('No API token configured; keep the listener on loopback.')}`;
   $('#api-example').textContent = `curl ${i.token_required ? '-H "Authorization: Bearer <token>" ' : ''}${JSON.stringify(i.api_url + '/api/status')}\n\ncurl ${i.token_required ? '-H "Authorization: Bearer <token>" ' : ''}-X POST -H 'Content-Type: application/json' -d '{"buttons":["A"],"hold_ms":80}' ${JSON.stringify(i.api_url + '/api/press')}`;
   $('#mcp-config').textContent = JSON.stringify(i.mcp, null, 2);
   $('#mcp-count').textContent = `${i.tools.length} ${t('tools an agent can use. The same list is in the API and the command line.')}`;
@@ -731,7 +731,7 @@ function cardSelect(cards, used, mine) {
   if (mine && !cards.some((d) => d.id === mine)) sel.append(new Option(`${mine} (${t('not connected')})`, mine));
   for (const d of cards) {
     const by = used.get(d.id);
-    const o = new Option(by && d.id !== mine ? `${d.name || d.id} (${t('used by')} ${by})` : (d.name || d.id), d.id);
+    const o = new Option(by && d.id !== mine ? t('%1 (used by %2)').replace('%1', d.name || d.id).replace('%2', by) : (d.name || d.id), d.id);
     o.disabled = !!by && d.id !== mine;
     sel.append(o);
   }
@@ -757,6 +757,16 @@ async function consolesPaneRetrying() {
   }
 }
 
+// Draw the pane again and put keyboard focus back on the same control of the same console (its
+// other arrow when that one is now at the end of the list).
+async function redraw(id, fieldName) {
+  await consolesPane();
+  const box = document.querySelector(`#consoles-list [data-console="${CSS.escape(id)}"]`);
+  const want = box?.querySelector(`[data-field="${fieldName}"]`);
+  const other = { up: 'down', down: 'up' }[fieldName];
+  (want && !want.disabled ? want : box?.querySelector(`[data-field="${other}"]`))?.focus();
+}
+
 async function consolesPane() {
   const r = await api('/api/consoles');
   const cards = await captureCards();
@@ -770,15 +780,20 @@ async function consolesPane() {
     s.value = value; return s;
   };
   const modelName = (id) => models.find((m) => m.id === id)?.name || id;
+  // (what is being filled in under "Add a console" survives a redraw of the list above it)
+  const addModel = $('#console-add-model').value || 'switch1', addCard = $('#console-add-card').value;
   $('#console-add-model').replaceChildren(...modelSelect('switch1').children);
-  $('#console-add-model').value = 'switch1';
+  $('#console-add-model').value = models.some((m) => m.id === addModel) ? addModel : 'switch1';
   $('#console-add-card').replaceChildren(...cardSelect(cards, used, '').children);
-  $('#console-add-card').value = '';
+  $('#console-add-card').value = addCard && cards.some((d) => d.id === addCard) && !used.has(addCard) ? addCard : '';
   swatches($('#console-add-color'));
   // the shared controller: one board, moved between the consoles that use it
   const follow = Object.assign(document.createElement('input'), { type: 'checkbox', checked: r.controller_follows_view !== false });
   follow.setAttribute('switch', '');
-  follow.onchange = run(async () => { await consoleApi({ action: 'settings', controller_follows_view: follow.checked }); });
+  follow.onchange = run(async () => {
+    try { await consoleApi({ action: 'settings', controller_follows_view: follow.checked }); }
+    catch (e) { follow.checked = !follow.checked; throw e; }      // refused: the switch shows what is saved
+  });
   const followRow = Object.assign(document.createElement('label'), { className: 'row' });
   followRow.append(follow, document.createTextNode(` ${t('When I switch consoles, the shared controller switches too (move its cable to that console)')}`));
   const shared = Object.assign(document.createElement('div'), { className: 'group console-shared' });
@@ -796,6 +811,7 @@ async function consolesPane() {
     const color = Object.assign(document.createElement('input'), { type: 'color', value: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '#888888' });
     const ip = Object.assign(document.createElement('input'), { value: c.network_ip || '', placeholder: '192.168.86.251', spellcheck: false });
     const card = cardSelect(cards, used, c.video?.device || '');
+    card.dataset.field = 'card';
     // the controller on this console: its type's own Pro Controller, or controller + keyboard
     const ctl = document.createElement('select');
     const proName = c.model === 'switch1' ? t('Pro Controller (Switch 1): HOME, Capture and every Switch 1 button') : t('Pro Controller (Switch 2): every button, C, GL and GR included');
@@ -811,7 +827,7 @@ async function consolesPane() {
       status.textContent = t('Saving…');
       try {
         await consoleApi({ action: 'update', id: c.id, ...body });
-        status.textContent = `${what}: ${t('saved')}`;
+        status.textContent = t('%1: saved').replace('%1', what);
         after?.();
         updateTitle();
       } catch (e) { await refused(e); }
@@ -831,7 +847,9 @@ async function consolesPane() {
         await apiFetch('/api/video', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-NS2Bench-Console': c.id }, body: JSON.stringify({ device: card.value || null }) })
           .then(async (x) => { if (!x.ok) throw new Error(await x.text()); });
         cardChanged(c.id);
-        status.textContent = `${t('Capture card')}: ${t('saved')}`;
+        // every console's picker shows who has which card now; focus stays on this one
+        await redraw(c.id, 'card');
+        message(t('%1: saved').replace('%1', `${c.name} · ${t('Capture card')}`), 'ok');
       } catch (e) { await refused(e); }
     };
     // its network traffic says what it is: point out a type that doesn't match
@@ -854,7 +872,7 @@ async function consolesPane() {
     if (r.consoles.length > 1) {
       const rm = Object.assign(document.createElement('button'), { type: 'button', className: 'danger', textContent: t('Remove') });
       rm.onclick = run(async () => {
-        if (!(await ask({ title: `${t('Remove')} ${c.name}?`, body: t('Its capture stops and its settings are removed. Clips and test reports stay.'), confirm: t('Remove'), destructive: true }))) return;
+        if (!(await ask({ title: t('Remove %1?').replace('%1', c.name), body: t('Its capture stops and its settings are removed. Clips and test reports stay.'), confirm: t('Remove'), destructive: true }))) return;
         await consoleApi({ action: 'remove', id: c.id }); await consolesPane();
       });
       row.append(rm);
@@ -862,15 +880,19 @@ async function consolesPane() {
       const ids = r.consoles.map((x) => x.id), i = ids.indexOf(c.id);
       const move = (to) => run(async () => {
         const next = ids.slice(); next.splice(i, 1); next.splice(to, 0, c.id);
-        await consoleApi({ action: 'order', ids: next }); await consolesPane();
+        await consoleApi({ action: 'order', ids: next });
+        await redraw(c.id, to < i ? 'up' : 'down');
       });
       const up = Object.assign(document.createElement('button'), { type: 'button', textContent: '↑', title: t('Move up'), disabled: i === 0 });
       const down = Object.assign(document.createElement('button'), { type: 'button', textContent: '↓', title: t('Move down'), disabled: i === ids.length - 1 });
       up.setAttribute('aria-label', t('Move up')); down.setAttribute('aria-label', t('Move down'));
+      up.dataset.field = 'up'; down.dataset.field = 'down';
       up.onclick = move(i - 1); down.onclick = move(i + 1);
       row.append(up, down);
     }
-    const colorField = field(t('Colour'), color);
+    // (not a <label>: clicking a label's text or the gaps between the dots would click the first dot)
+    const colorField = Object.assign(document.createElement('div'), { className: 'field' });
+    colorField.append(Object.assign(document.createElement('span'), { textContent: t('Colour') }), color);
     swatches(color);
     box.append(title, field(t('Name'), name), field(t('Console type'), model), typeNote, field(t('Controller'), ctl), field(t('Capture card'), card),
       field(t('Network address (optional)'), ip), colorField, usesRow, status, row);
@@ -901,13 +923,19 @@ function swatches(input) {
   mark();
 }
 
+let adding = false;
 $('#console-add').onclick = run(async () => {
+  if (adding) return;                 // a second click while the first is on its way
   const name = $('#console-add-name').value.trim();
   if (!name) throw new Error(t('Give the console a name.'));
+  adding = true;
+  try { await addConsole(name); } finally { adding = false; }
+});
+async function addConsole(name) {
   const body = { action: 'add', name, model: $('#console-add-model').value, color: $('#console-add-color').value,
     network_ip: $('#console-add-ip').value.trim() || null, video: $('#console-add-card').value ? { device: $('#console-add-card').value } : {} };
   await consoleApi(body);
   $('#console-add-name').value = ''; $('#console-add-ip').value = '';
   message(`${name}: ${body.video.device ? t('added. Its picture starts in a moment.') : t('added. Pick its capture card here once it is connected.')}`);
   await consolesPane();
-});
+}

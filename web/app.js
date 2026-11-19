@@ -48,9 +48,11 @@ const TRAIL_NAME = { UP: '↑', DOWN: '↓', LEFT: '←', RIGHT: '→', MINUS: '
 pad.onMacro(async (name) => {
   if (name !== 'C') return;
   addEvent({ source: 'ui', action: 'shortcut C → open GameChat', t: Date.now() / 1000 });
-  const r = await fetch('/api/navigate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ route: 'gamechat', source: 'ui' }) });
-  if (!r.ok) addEvent({ source: 'error', action: await r.text(), t: Date.now() / 1000 });
+  try {
+    const r = await fetch('/api/navigate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ route: 'gamechat', source: 'ui' }) });
+    if (!r.ok) addEvent({ source: 'error', action: await r.text(), t: Date.now() / 1000 });
+  } catch (err) { addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 }); }
 });
 pad.onPress((name, who) => {
   const trail = $('#trail');
@@ -65,7 +67,7 @@ pad.onPress((name, who) => {
 });
 const held = new Set();                         // keyboard codes down
 let kbMode = store.get('kbmode', 'pad');
-let ws, lastSent = '', lastPads = 0, serverPad = [0, 8, 128, 128, 128, 128], serverAgent = [0, 0];
+let ws, lastSent = '', lastOk = '', lastPads = 0, serverPad = [0, 8, 128, 128, 128, 128], serverAgent = [0, 0];
 const aim = [0, 0];
 const mouse = { dx: 0, dy: 0, wheel: 0, buttons: 0, dirty: false, last: 0 };
 
@@ -83,7 +85,8 @@ function fit() {
   // Reserve the measured toolbar/trail and a useful log area, rather than
   // sizing video to the viewport and appending the logs below its bottom.
   const logsReserve = Math.max(stage.clientHeight * 0.32, $('.logs-head').offsetHeight + 110);
-  const extras = outerHeight($('#trail')) + outerHeight($('#capture-hint')) + logsReserve + 12;
+  const bar = $('#console-bar');
+  const extras = outerHeight($('#trail')) + outerHeight($('#capture-hint')) + (bar.hidden ? 0 : outerHeight(bar)) + logsReserve + 12;
   // Text size zooms the page: the screen's own pixels are the window's divided by that zoom.
   const zoom = parseFloat(document.documentElement.style.zoom) || 1;
   const availH = full ? window.innerHeight / zoom : desktop ? stage.clientHeight - extras
@@ -95,6 +98,7 @@ function fit() {
 const fitObserver = new ResizeObserver(fit);
 fitObserver.observe(stage);
 fitObserver.observe($('.logs-head'));
+fitObserver.observe($('#console-bar'));
 window.addEventListener('resize', fit);
 
 const showKeys = $('#show-keys');
@@ -158,7 +162,9 @@ let wsFails = 0;
 const idleState = JSON.stringify({ t: 'state', buttons: 0, dpad: 0, sticks: [128, 128, 128, 128], mods: 0, keynames: [] });
 setInterval(() => {
   if (ws?.readyState !== WebSocket.OPEN) return;
-  if (lastSent && lastSent !== idleState) ws.send(lastSent);
+  // (only what was really sent: a press that was refused must not go out a second later)
+  if (inputUnavailable()) return;
+  if (lastOk && lastOk !== idleState) ws.send(lastOk);
   if (mouse.buttons) ws.send(JSON.stringify({ t: 'mouse', dx: 0, dy: 0, wheel: 0, buttons: mouse.buttons }));
 }, 1000);
 function connect() {
@@ -173,7 +179,7 @@ function connect() {
   };
   // slower each time (at most every 15 s) while the engine is away or refuses the page
   ws.onclose = () => { bridgeStatus = null; releaseAll(); engineLost(); setTimeout(connect, Math.min(15000, 1000 * ++wsFails)); };
-  ws.onopen = () => { wsFails = 0; lastSent = ''; if (logsLoaded) loadLogs(); };
+  ws.onopen = () => { wsFails = 0; lastSent = ''; lastOk = ''; if (logsLoaded) loadLogs(); };
 }
 const send = (obj) => {
   const reason = inputUnavailable();
@@ -215,7 +221,7 @@ function compose() {
   }
   if (pads !== lastPads) {
     lastPads = pads;
-    $('#pill-pad').textContent = pads ? `${pads} ${pads > 1 ? t('gamepads') : t('gamepad')}` : t('no gamepad');
+    $('#pill-pad').textContent = pads ? (pads > 1 ? t('%1 gamepads').replace('%1', pads) : t('1 gamepad')) : t('no gamepad');
     $('#pill-pad').className = pads ? 'pill ok' : 'pill';
   }
   return { t: 'state', buttons, dpad, sticks: sticks.flat().map(axis), mods, keynames: keynames.slice(0, 6) };
@@ -225,8 +231,10 @@ function tick(now) {
   const state = compose();
   const key = JSON.stringify(state);
   if (key !== lastSent) {
-    if (!send(state) && activeInput(state)) { held.clear(); pad.release(); aim[0] = aim[1] = 0; }
+    const ok = send(state);
+    if (!ok && activeInput(state)) { held.clear(); pad.release(); aim[0] = aim[1] = 0; }
     lastSent = key;
+    lastOk = ok ? key : '';
   }
   if (mouse.dirty && now - mouse.last >= MOUSE_BATCH_MS) {
     if (!send({ t: 'mouse', dx: Math.round(mouse.dx), dy: Math.round(mouse.dy), wheel: mouse.wheel, buttons: mouse.buttons })) {
@@ -305,6 +313,7 @@ window.addEventListener('blur', releaseMouse);
 window.addEventListener('pagehide', releaseMouse);
 document.addEventListener('visibilitychange', () => { if (document.hidden) releaseMouse(); });
 
+let wheelAcc = 0;
 const HID_BUTTON = { 0: 1, 2: 2, 1: 4, 3: 8, 4: 16 };   // MouseEvent.button -> HID bit
 screenEl.addEventListener('mousedown', (e) => {
   if (!captured()) {
@@ -329,7 +338,13 @@ document.addEventListener('mousemove', (e) => {
 screenEl.addEventListener('wheel', (e) => {
   if (!captured() || kbMode !== 'usb') return;
   e.preventDefault();
-  mouse.wheel += e.deltaY > 0 ? -1 : e.deltaY < 0 ? 1 : 0; mouse.dirty = true;
+  // One tick per notch (about 100 px), not per event: a trackpad swipe sends dozens of small
+  // events, and its inertia many more.
+  wheelAcc += e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 100 : 1);
+  const ticks = Math.trunc(wheelAcc / 100);
+  if (!ticks) return;
+  wheelAcc -= ticks * 100;
+  mouse.wheel -= ticks; mouse.dirty = true;
 }, { passive: false });
 screenEl.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('pointerlockchange', () => setCaptured(captured()));
@@ -420,7 +435,8 @@ function syncDriving() {
     b.setAttribute('aria-checked', String(b.dataset.v === mode || (b.dataset.v.startsWith('pro') && isPro)));
     const needsBoard = b.dataset.v === 'pro' || b.dataset.v === 'pro1';
     b.disabled = !!$('#usb-mode').dataset.busy || (needsBoard && !proPossible && mode !== b.dataset.v);
-    b.title = needsBoard && !proPossible ? t('Needs a Linux board as the input device') : '';
+    // (the full label as a tooltip: a long translation is cut short in the narrow button)
+    b.title = needsBoard && !proPossible ? t('Needs a Linux board as the input device') : b.textContent.trim();
   }
   $('#usb-help').textContent = mode === 'pro'
     ? t('A Switch 2 Pro Controller: every button, including C (GameChat) and the GL/GR back buttons. No keyboard or mouse.')
@@ -429,9 +445,13 @@ function syncDriving() {
       : t('A wired controller, a keyboard and a mouse. Every button except C and the Pro Controller’s GL/GR back buttons.');
   // A device without a controller (CH9329) can only take keyboard and mouse.
   if (inp.connected && !hasPad && hasKbd && kbMode === 'pad') document.querySelector('input[name=kbmode][value=usb]').click();
+  // A Pro Controller has no keyboard, whichever way the board got there (picking another
+  // console switches it too): keys go back to pressing controller buttons.
+  if (inp.connected && isPro && kbMode === 'usb') document.querySelector('input[name=kbmode][value=pad]').click();
   for (const b of $('#seg-kb').children) {
     b.setAttribute('aria-checked', String(b.dataset.v === kbMode));
     b.disabled = b.dataset.v === 'usb' ? (isPro || !hasKbd) : !hasPad;
+    b.title = b.textContent.trim();
   }
   $('#kb-help').textContent = kbMode === 'pad'
     ? t('Keys press controller buttons (see the keyboard map). Shift+click aims with the mouse.')
@@ -441,6 +461,8 @@ $('#seg-usb').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-v]');
   const sel = $('#usb-mode');
   if (!b || b.disabled || sel.value === b.dataset.v) return;
+  sel.dataset.kbBefore = kbMode;
+  sel.dataset.modeBefore = sel.value;
   sel.value = b.dataset.v;
   sel.dispatchEvent(new Event('change'));
   // Pro mode has no keyboard: fall back to sending controller buttons.
@@ -485,7 +507,14 @@ $('#usb-mode').addEventListener('change', async (e) => {
     if (!r.ok) refused = await r.text();
   } catch (err) { refused = String(err.message || err); }
   // Not switched: say why and give the control back at once.
-  if (refused) { $('#usb-note').textContent = refused; idle(); return; }
+  if (refused) {
+    // put back what the click changed, and don't leave the reason up for good
+    if (sel.dataset.modeBefore) sel.value = sel.dataset.modeBefore;
+    if (sel.dataset.kbBefore === 'usb' && kbMode !== 'usb') document.querySelector('input[name=kbmode][value=usb]').click();
+    $('#usb-note').textContent = refused; idle();
+    setTimeout(() => { if ($('#usb-note').textContent === refused) $('#usb-note').textContent = ''; }, 10000);
+    return;
+  }
   syncDriving();
   setTimeout(() => { $('#usb-note').textContent = ''; idle(); }, 12000);
 });
@@ -500,7 +529,9 @@ $('#manual-only').addEventListener('change', async (e) => {
 });
 
 $('#btn-shot').addEventListener('click', async () => {
-  const r = await fetch('/api/screenshot?format=png', { headers: shown() });
+  let r;
+  try { r = await fetch('/api/screenshot?format=png', { headers: shown() }); }
+  catch (err) { return addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 }); }
   if (!r.ok) return addEvent({ source: 'error', action: await r.text(), t: Date.now() / 1000 });
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(await r.blob()),
@@ -569,9 +600,14 @@ $('#btn-sound').addEventListener('click', async (e) => {
     addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 });
   }
 });
+let clipTimer = 0;
 $('#btn-clip').addEventListener('click', async (e) => {
   const btn = e.currentTarget, label = btn.querySelector('span');
+  if (btn.dataset.busy) return;                 // one clip per click, not one per impatient click
+  btn.dataset.busy = '1';
+  clearTimeout(clipTimer);
   label.textContent = 'Saving…';
+  const done = () => { delete btn.dataset.busy; clipTimer = setTimeout(() => { label.textContent = 'Save clip'; }, 2500); };
   let r;
   try {
     r = await fetch('/api/clip', { method: 'POST', headers: shown({ 'Content-Type': 'application/json' }),
@@ -579,19 +615,21 @@ $('#btn-clip').addEventListener('click', async (e) => {
   } catch (err) {
     label.textContent = 'Save clip';
     addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 });
+    delete btn.dataset.busy;
     return;
   }
-  if (r.ok) {
-    const d = await r.json();
+  let d = null;
+  if (r.ok) { try { d = await r.json(); } catch { /* not the engine's answer */ } }
+  if (d) {
     label.textContent = `${t('Saved')} ${d.seconds} s`;
     toast(`${t('Clip saved:')} ${d.seconds} s. ${t('It is in your Downloads folder.')}`, 'ok');
     // Download through the engine (the desktop app saves it to Downloads).
     Object.assign(document.createElement('a'), { href: authURL(d.url), download: d.url.split('/').pop() }).click();
   } else {
     label.textContent = 'Save clip';
-    addEvent({ source: 'error', action: await r.text(), t: Date.now() / 1000 });
+    addEvent({ source: 'error', action: r.ok ? t('The engine gave an answer NS2Bench could not read.') : await r.text(), t: Date.now() / 1000 });
   }
-  setTimeout(() => { label.textContent = 'Save clip'; }, 2500);
+  done();
 });
 // Keys keep driving in and out of fullscreen: focus goes back to the picture.
 $('#btn-full').addEventListener('click', async () => {
@@ -605,13 +643,18 @@ $('#video').addEventListener('load', () => { mjpegFails = 0; });
 $('#video').addEventListener('error', () => setTimeout(() => {
   if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); }, Math.min(15000, 1000 * ++mjpegFails)));
 $('#video').src = authURL('/stream.mjpg');
+// A hidden tab stops downloading the picture (the H.264 path stops by itself, see live.js).
+document.addEventListener('visibilitychange', () => {
+  if (live.mode !== 'mjpeg') return;
+  if (document.hidden) $('#video').removeAttribute('src'); else $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`);
+});
 const live = startLive($('#video'), (m) => { $('#screen').dataset.live = m; });
 // Another console picked in the console bar: let go of what this page held, then reconnect the
 // picture, sound and status for that console.
 // Headers naming the console on screen (also when the page follows the controller's console).
 const shown = (h = {}) => (viewed()?.id ? { ...h, 'X-NS2Bench-Console': viewed().id } : h);
 // another console on screen: its picture and sound, and its own video settings in the panel
-mountConsoles(() => { releaseAll(); $('#btn-refresh').click(); loadVideo().catch((e) => { $('#v-note').textContent = String(e); }); });
+mountConsoles(() => { releaseAll(); reconnectMedia(); loadVideo().catch((e) => { $('#v-note').textContent = String(e); }); });
 
 // ------------------------------------------------------------ video settings
 const vsel = { device: $('#v-device'), size: $('#v-size'), fps: $('#v-fps'), q: $('#v-quality') };
@@ -638,12 +681,23 @@ function fillFps(want) {
   if (![...vsel.fps.options].some((o) => o.selected)) vsel.fps.value = String(Math.min(max, 60));
 }
 let videoLoad = 0;
+// The console whose settings the form shows now (null while another console's are loading: the
+// form still holds the previous console's values then, and a change must not save them to this one).
+let videoFor = null;
+const videoFields = () => [vsel.device, vsel.size, vsel.fps, vsel.q, $('#v-audio')];
 async function loadVideo() {
   clearTimeout(saveTimer);                              // a change waiting to save was for the console before
   const mine = ++videoLoad;
+  const forId = viewed()?.id ?? '';
+  videoFor = null;
+  for (const f of videoFields()) f.disabled = true;
   $('#v-note').textContent = t('Loading devices…');
-  const d = await (await fetch('/api/video', { headers: shown() })).json();
+  const r = await fetch('/api/video', { headers: shown() });
   if (mine !== videoLoad) return;                       // a newer load (another console) is on its way
+  // (errors are plain text: show the engine's words, not a JSON parse error)
+  if (!r.ok) { $('#v-note').textContent = (await r.text()) || `HTTP ${r.status}`; return; }
+  const d = await r.json();
+  if (mine !== videoLoad) return;
   // every capture card, also one that didn't say which sizes it offers (it still works)
   vdevices = d.devices.filter((x) => x.kind === 'video' || (x.kind !== 'audio' && (x.formats?.length || x.raw)));
   const s = d.settings;
@@ -653,7 +707,7 @@ async function loadVideo() {
   $('#v-audio').replaceChildren(opt('', t('Match the capture card (automatic)'), !s.audio_device),
     ...sounds.map((x) => opt(x.id, x.name, x.id === s.audio_device)));
   if (s.audio_device && !sounds.some((x) => x.id === s.audio_device)) $('#v-audio').append(opt(s.audio_device, s.audio_device, true));
-  vsel.device.replaceChildren(...vdevices.map((x) => opt(x.id ?? '', `${x.name}${x.in_use ? ' (in use)' : ''} · ${x.id ?? ''}`, x.id === s.device)));
+  vsel.device.replaceChildren(...vdevices.map((x) => opt(x.id ?? '', `${x.name}${x.in_use ? ` (${t('in use')})` : ''} · ${x.id ?? ''}`, x.id === s.device)));
   // this console's card while it's unplugged (or Apply would hand it whichever card is listed first)
   if (s.device && !vdevices.some((x) => x.id === s.device)) vsel.device.prepend(opt(s.device, `${s.device} (${t('not connected')})`, true));
   // no card yet: say so instead of showing another console's
@@ -661,11 +715,14 @@ async function loadVideo() {
   vsel.q.value = s.quality; $('#v-qval').textContent = s.quality;
   fillSizes(s);
   $('#v-note').textContent = '';
+  videoFor = forId;
+  for (const f of videoFields()) f.disabled = false;
 }
 // Every change is saved for the console on screen, by itself (no Apply): it's that console's.
 let saveTimer = 0;
 async function saveVideo(who) {
   if (!who || who.id !== viewed()?.id) return;        // another console is on screen now: not its settings
+  if (videoFor !== who.id) return;                    // the form doesn't show this console's settings yet
   const [width, height] = vsel.size.value.split('x').map(Number);
   const body = { device: vsel.device.value || null, width, height, fps: Number(vsel.fps.value), quality: Number(vsel.q.value) };
   if (!$('#v-audio-field').hidden) body.audio_device = $('#v-audio').value || null;
@@ -676,8 +733,10 @@ async function saveVideo(who) {
     $('#v-note').textContent = who ? t('Saved for %1').replace('%1', who.name) : t('Saved');
     setTimeout(() => { if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`); live.reconnect(); }, 300);
   } else {
-    $('#v-note').textContent = await r.text();
-    loadVideo().catch(() => {});              // show what is really saved
+    const why = await r.text();
+    $('#v-note').textContent = why;
+    // show what is really saved, and keep the reason on screen after the reload
+    loadVideo().then(() => { if (who.id === viewed()?.id) $('#v-note').textContent = why; }).catch(() => {});
   }
 }
 const saveSoon = () => { const who = viewed(); clearTimeout(saveTimer); saveTimer = setTimeout(() => saveVideo(who).catch((e) => { $('#v-note').textContent = String(e); }), 400); };
@@ -784,21 +843,28 @@ async function copyText(btn, text) {
     document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
   }
   const label = btn.querySelector('span');
-  const old = label?.textContent;
+  // (the label from before the first click: a second click must not save "Copied" as the label)
+  if (label && btn.dataset.label === undefined) btn.dataset.label = label.textContent;
   btn.classList.add('done'); if (label) label.textContent = t('Copied');
-  setTimeout(() => { btn.classList.remove('done'); if (label) label.textContent = old; }, 1400);
+  clearTimeout(btn._copied);
+  btn._copied = setTimeout(() => { btn.classList.remove('done'); if (label) { label.textContent = btn.dataset.label; delete btn.dataset.label; } }, 1400);
 }
 const logText = () => logState.entries.filter(visible)
   .map((e) => `${new Date(e.t * 1000).toISOString()} ${e.level.toUpperCase()} [${e.source}] ${e.text}${e.hint ? `\n    → ${e.hint}` : ''}`).join('\n');
 $('#log-copy').addEventListener('click', (e) => copyText(e.currentTarget, logText()));
+// The picture and sound of the console on screen, again (another console picked, its card changed).
+// The status connection is the same for every console and stays as it is.
+function reconnectMedia() {
+  if (live.mode === 'mjpeg' && !document.hidden) $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`);
+  live.reconnect();
+  if (audioCtx) { soundOff(); soundOn().catch(() => { soundOff(); setSoundButton(false); }); }
+}
 // Reconnect everything the page listens to (after sleep, a cable change or an engine restart).
 $('#btn-refresh').addEventListener('click', (e) => {
   const b = e.currentTarget;
   b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin');
-  if (live.mode === 'mjpeg') $('#video').src = authURL(`/stream.mjpg?r=${Date.now()}`);
-  live.reconnect();
+  reconnectMedia();
   ws?.close();                                   // reopens by itself and reloads status and missed logs
-  if (audioCtx) { soundOff(); soundOn().catch(() => { soundOff(); setSoundButton(false); }); }
 });
 $('#btn-update').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'updates' })));
 $('#btn-help').addEventListener('click', () => document.dispatchEvent(new CustomEvent('ns2bench:settings', { detail: 'help' })));
@@ -812,7 +878,7 @@ logview.addEventListener('click', (e) => {
 $('#log-filter').addEventListener('input', (e) => { logState.filter = e.target.value.toLowerCase(); renderLogs(); });
 $('#log-screen').addEventListener('change', (e) =>
   fetch('/api/control', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ screen_log: e.target.checked }) }));
+    body: JSON.stringify({ screen_log: e.target.checked }) }).catch((err) => addEvent({ source: 'error', action: String(err.message || err), t: Date.now() / 1000 })));
 $('#log-pause').addEventListener('change', (e) => { if (!e.target.checked) renderLogs(); });
 $('#log-download').addEventListener('click', () => {
   const text = logText();
@@ -841,12 +907,13 @@ function loadLogs() {
       logState.levelCounts[e.level in logState.levelCounts ? e.level : 'info']++;
     }
     logsLoaded = true;
-    renderChips(); renderLogs();
+    renderChips();
+    if (!$('#log-pause').checked) renderLogs();     // a paused view stays where the reader left it
   }).catch(() => {});
 }
 loadLogs();
 
-fetch('/api/events').then((r) => r.json()).then((evs) => evs.forEach(addEvent));
+fetch('/api/events').then((r) => r.json()).then((evs) => evs.forEach(addEvent)).catch(() => {});
 connect();
 requestAnimationFrame(tick);
 
@@ -982,7 +1049,7 @@ const fsBar = $('#fs-bar');
 let fsTimer = 0;
 const fsShow = () => {
   // Mouse aiming (pointer lock) must not keep the toolbar over the game.
-  if (document.fullscreenElement !== consoleEl || document.pointerLockElement) return;
+  if (document.fullscreenElement !== consoleEl || captured()) return;
   consoleEl.classList.add('fs-show');
   clearTimeout(fsTimer);
   fsTimer = setTimeout(() => consoleEl.classList.remove('fs-show'), 2500);

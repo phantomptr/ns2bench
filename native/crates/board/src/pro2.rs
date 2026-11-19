@@ -28,7 +28,10 @@ pub const REPORT_DESC: [u8; 97] = [
 fn log(msg: impl AsRef<str>) {
     // stdout goes to /tmp/ns2bench-pro2.log; gadget.sh waits there for "console initialised USB"
     let s = crate::logbuf::now() as i64;
-    println!("{:02}:{:02}:{:02} {}", (s / 3600) % 24, (s / 60) % 60, s % 60, msg.as_ref());
+    let line = format!("{:02}:{:02}:{:02} {}\n", (s / 3600) % 24, (s / 60) % 60, s % 60, msg.as_ref());
+    let mut out = std::io::stdout();
+    let _ = std::io::Write::write_all(&mut out, line.as_bytes());
+    let _ = std::io::Write::flush(&mut out);
 }
 
 // ------------------------------------------------------------------ descriptors
@@ -119,10 +122,21 @@ fn load_identity() -> Identity {
     let n = u32::from_le_bytes(random()) % 1_000_000_000;
     let id = Identity { bt_rev: bt, serial: format!("HEJ1{n:09}2"), key: random() };
     let j = serde_json::json!({"bt": hex(&id.bt_rev), "serial": id.serial, "key": hex(&id.key)});
-    if std::fs::write(IDENTITY, j.to_string()).is_ok() {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(IDENTITY, std::fs::Permissions::from_mode(0o600));
-    }
+    // Written so a power cut leaves either no file or a whole one (an empty file would make this
+    // board a different controller, with a new address, each time it happened).
+    let tmp = format!("{IDENTITY}.tmp");
+    let saved = (|| -> std::io::Result<()> {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&tmp)?;
+        f.write_all(j.to_string().as_bytes())?;
+        f.sync_all()?;
+        drop(f);
+        std::fs::rename(&tmp, IDENTITY)?;
+        if let Some(d) = std::path::Path::new(IDENTITY).parent().and_then(|d| std::fs::File::open(d).ok()) { let _ = d.sync_all(); }
+        Ok(())
+    })();
+    if saved.is_err() { let _ = std::fs::remove_file(&tmp); }
     id
 }
 

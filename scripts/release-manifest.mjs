@@ -1,5 +1,5 @@
 // Publish only installers the desktop updater knows how to install.
-import { createHash, createPrivateKey, sign } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -37,7 +37,17 @@ export function signFile(text, keyPem = process.env.NS2BENCH_UPDATE_KEY) {
   if (!keyPem) throw new Error('NS2BENCH_UPDATE_KEY (the release signing key) is not set');
   return sign(null, Buffer.from(text), createPrivateKey(keyPem)).toString('base64');
 }
+// A release signed with any other key would be refused by every installed app: stop before
+// publishing if the CI secret is not the key compiled into the app (updates.rs UPDATE_KEY).
+export function assertAppKey(keyPem, updatesRs) {
+  const want = /UPDATE_KEY: &str = "([^"]+)"/.exec(updatesRs)?.[1];
+  if (!want) throw new Error('UPDATE_KEY not found in updates.rs');
+  const have = Buffer.from(createPublicKey(createPrivateKey(keyPem)).export({ format: 'jwk' }).x, 'base64url').toString('base64');
+  if (have !== want) throw new Error('NS2BENCH_UPDATE_KEY is not the key the app trusts (updates.rs UPDATE_KEY): installed apps would refuse this release');
+}
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (!process.env.NS2BENCH_UPDATE_KEY) throw new Error('NS2BENCH_UPDATE_KEY (the release signing key) is not set');
+  assertAppKey(process.env.NS2BENCH_UPDATE_KEY, await readFile(new URL('../native/crates/app/src/updates.rs', import.meta.url), 'utf8'));
   if (process.argv[2] === 'sign') {
     // node scripts/release-manifest.mjs sign release/SHA256SUMS  ->  release/SHA256SUMS.sig
     const file = process.argv[3];

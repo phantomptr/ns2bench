@@ -355,8 +355,12 @@ async fn link_task(mut rx: BufferedUartRx, mut tx: BufferedUartTx) {
         let limit = if authed { WATCHDOG } else { Duration::from_secs(5) };
         match select(rx.read(&mut chunk), Timer::at(last + limit)).await {
             Either::First(Ok(n)) => {
+                // (only a whole line counts as the host being there: noise on an unplugged
+                // serial line must not keep held buttons alive)
+                let mut whole = false;
                 for &b in &chunk[..n] {
                     if b == b'\n' {
+                        whole |= !line.is_empty();
                         if !line.is_empty() && !handle(&line, &mut authed, &mut tx).await {
                             authed = false;
                             neutral_all();
@@ -366,7 +370,7 @@ async fn link_task(mut rx: BufferedUartRx, mut tx: BufferedUartTx) {
                         line.clear(); // over-long line: drop it
                     }
                 }
-                last = Instant::now();
+                if whole { last = Instant::now(); }
             }
             Either::First(Err(_)) => {}
             Either::Second(()) => {

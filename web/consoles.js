@@ -22,7 +22,7 @@ export function inputBlock() {
   const v = viewed();
   if (v && v.id !== controllerOn) {
     const on = consoles.find((c) => c.id === controllerOn);
-    return `${t('The controller is plugged into')} ${on ? on.name : controllerOn}. ${t('Switch to it, or move the cable and say so above the picture.')}`;
+    return t('The controller is plugged into %1. Switch to it, or move the cable and say so above the picture.').replace('%1', on ? on.name : controllerOn);
   }
   return '';
 }
@@ -42,6 +42,7 @@ export async function controllerIsOn(id) {
 // stream per tile), its name and colour, and 🎮 on the one the controller is plugged into.
 // last picture per console, so a rebuilt strip doesn't flash empty tiles
 const lastPic = new Map();
+const DRAG_TYPE = 'application/x-ns2bench-console';
 
 function thumb(c) {
   const b = document.createElement('button');
@@ -72,23 +73,24 @@ function thumb(c) {
   b.onclick = () => pick(c);
   // its settings, from right here
   const tile = Object.assign(document.createElement('span'), { className: 'console-tile' });
-  const ed = Object.assign(document.createElement('button'), { type: 'button', className: 'edit', title: `${t('Edit')} ${c.name}`,
+  const ed = Object.assign(document.createElement('button'), { type: 'button', className: 'edit', title: t('Edit %1').replace('%1', c.name),
     innerHTML: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>' });
-  ed.setAttribute('aria-label', `${t('Edit')} ${c.name}`);
+  ed.setAttribute('aria-label', t('Edit %1').replace('%1', c.name));
   ed.onclick = () => editConsole(c.id);
   tile.append(b, ed);
   // drag a console onto another to put it there
   tile.draggable = true;
   tile.dataset.console = c.id;
-  tile.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', c.id); tile.classList.add('dragging'); });
+  tile.addEventListener('dragstart', (e) => { e.dataTransfer.setData(DRAG_TYPE, c.id); e.dataTransfer.setData('text/plain', c.name); tile.classList.add('dragging'); });
   tile.addEventListener('dragend', () => tile.classList.remove('dragging'));
-  tile.addEventListener('dragover', (e) => { e.preventDefault(); tile.classList.add('drop'); });
+  // (only a console tile can be dropped here: not selected text, a file or a link)
+  tile.addEventListener('dragover', (e) => { if (![...e.dataTransfer.types].includes(DRAG_TYPE)) return; e.preventDefault(); tile.classList.add('drop'); });
   tile.addEventListener('dragleave', () => tile.classList.remove('drop'));
   tile.addEventListener('drop', (e) => {
     e.preventDefault(); tile.classList.remove('drop');
-    const from = e.dataTransfer.getData('text/plain');
-    if (!from || from === c.id) return;
+    const from = e.dataTransfer.getData(DRAG_TYPE);
     const all = consoles.map((x) => x.id);
+    if (!from || from === c.id || !all.includes(from)) return;
     const after = all.indexOf(from) < all.indexOf(c.id);     // dragged rightwards: lands after the target
     const ids = all.filter((x) => x !== from);
     ids.splice(ids.indexOf(c.id) + (after ? 1 : 0), 0, from);
@@ -201,18 +203,18 @@ function render() {
       b.onclick = () => controllerIsOn(c.id).catch((e) => alertText(e));
       act.append(b);
     }
-  } else if (v && !v.video?.device && !(v.video_status?.age_s < 3)) {
+  } else if (v && !v.video?.device && !(v.video_status?.age_s != null && v.video_status.age_s < 3)) {
     // added without its card (it can come later): say so, with the way to set it
-    note.textContent = `${v.name}: ${t('no capture card yet. Connect it, then pick it in its settings.')}`;
+    note.textContent = t('%1: no capture card yet. Connect it, then pick it in its settings.').replace('%1', v.name);
     note.className = 'console-note';
     const set = Object.assign(document.createElement('button'), { type: 'button', textContent: t('Set up') });
     set.onclick = () => editConsole(v.id);
     act.append(set);
   } else if (v && v.id !== controllerOn) {
     const on = consoles.find((c) => c.id === controllerOn);
-    note.textContent = `${t('Watching')} ${v.name}. ${t('The controller is plugged into')} ${on ? on.name : controllerOn}, ${t('so buttons go there, not here.')}`;
+    note.textContent = t('Watching %1. The controller is plugged into %2, so buttons go there, not here.').replace('%1', v.name).replace('%2', on ? on.name : controllerOn);
     note.className = 'console-note';
-    const move = Object.assign(document.createElement('button'), { type: 'button', textContent: `${t('I moved the controller to')} ${v.name}` });
+    const move = Object.assign(document.createElement('button'), { type: 'button', textContent: t('I moved the controller to %1').replace('%1', v.name) });
     move.onclick = () => controllerIsOn(v.id).catch((e) => alertText(e));
     act.append(move);
   } else {
@@ -263,3 +265,5 @@ export function mountConsoles(switched) {
   onSwitch = switched;
   render();
 }
+// another language: the strip's own words are written again
+document.addEventListener('ns2bench:language', render);

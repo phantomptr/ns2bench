@@ -36,7 +36,7 @@ jobs:
         run: for f in web/*.js site/*.js; do [ -f "$f" ] && node --check "$f"; done
       - name: Board scripts syntax
         run: |
-          for script in board/gadget.sh board/ns2bench-hidd.sh board/install.sh board/swap.sh board/S98ns2bench-swap board/S45ns2bench-early board/quirks/*.sh scripts/*.sh; do
+          for script in board/gadget.sh board/ns2bench-hidd.sh board/install.sh board/remote-install.sh board/swap.sh board/S98ns2bench-swap board/S45ns2bench-early board/quirks/*.sh scripts/*.sh; do
             sh -n "$script"
           done
           bash -n board/restore-default-gadget.sh

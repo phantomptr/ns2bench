@@ -32,6 +32,17 @@ pub struct Labels {
 pub fn available() -> bool {
     #[cfg(target_os = "linux")]
     {
+        // The library alone doesn't show an icon: the desktop must run a tray host (stock GNOME
+        // has none without an extension). Without one, closing to the tray would hide the window
+        // with nothing to bring it back. Asked over the session bus; when the answer can't be
+        // had (no dbus-send), the library decides as before.
+        let mut ask = std::process::Command::new("dbus-send");
+        if std::env::var_os("APPIMAGE").is_some() { ask.env_remove("LD_LIBRARY_PATH"); }
+        let host = ask.args(["--session", "--dest=org.freedesktop.DBus", "--type=method_call", "--print-reply", "--reply-timeout=1500",
+            "/org/freedesktop/DBus", "org.freedesktop.DBus.NameHasOwner", "string:org.kde.StatusNotifierWatcher"])
+            .stdin(std::process::Stdio::null()).output().ok().filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains("boolean true"));
+        if host == Some(false) { return false; }
         ["libayatana-appindicator3.so.1", "libayatana-appindicator3.so", "libappindicator3.so.1", "libappindicator3.so"].iter().any(|name| {
             let Ok(c) = std::ffi::CString::new(*name) else { return false };
             // SAFETY: dlopen/dlclose with a valid C string; the handle is only closed again.

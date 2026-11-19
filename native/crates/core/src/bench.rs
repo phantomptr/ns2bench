@@ -115,8 +115,13 @@ impl Bench {
 
     /// The console the controller is plugged into, if known.
     pub fn controller_console(&self) -> Option<Arc<Console>> {
-        let on = self.controller_on.lock().unwrap().clone()?;
-        self.console(&on)
+        let on = self.controller_on.lock().unwrap().clone();
+        match on {
+            Some(on) => self.console(&on),
+            // one console: the controller can only be on it (a saved "unknown" from when there
+            // were two must not leave the last console without its mode or its settings)
+            None => { let l = self.list(); if l.len() == 1 { l.into_iter().next() } else { None } }
+        }
     }
 
     /// The console a request is about: the one it names, else the one with the controller, else
@@ -133,6 +138,10 @@ impl Bench {
 
     /// Input may go to the console a request names only if the controller is plugged into it.
     pub fn check_input_target(&self) -> Result<()> {
+        // a console that isn't there (removed since the agent picked it) is never "this one"
+        if let Some(sel) = crate::console::selected() {
+            if self.console(&sel).is_none() { bail!("no console named {sel:?}"); }
+        }
         if self.list().len() < 2 {
             return Ok(());
         }
@@ -157,6 +166,10 @@ impl Bench {
     }
 
     pub fn save_consoles(&self) -> Result<()> {
+        // one save at a time, each of the state as it is when it runs: two savers must not
+        // write their snapshots in the opposite order they took them
+        static SAVING: Mutex<()> = Mutex::new(());
+        let _one = SAVING.lock().unwrap_or_else(|e| e.into_inner());
         let on = self.controller_on.lock().unwrap().clone();
         crate::console::save(&self.list(), on.as_deref())?;
         Ok(())
@@ -249,6 +262,12 @@ impl Bench {
         // the console's own choice for its type (Pro Controller or controller + keyboard)
         let want = crate::console::mode_for(&c.model.lock().unwrap(), &c.controller.lock().unwrap());
         let st = self.hub.status();
+        // Only a Bridge board has modes to switch between (a Pico or CH9329 is what it is: asking
+        // would only refuse presses for the seconds a switch is waited for).
+        if st["backend"] != "hidd" || !st["usb_mode"].as_str().is_some_and(|m| matches!(m, "standard" | "hori" | "pro" | "pro1")) { return; }
+        // The board's own word wins: a Switch 2 is driving it as its Pro Controller. A console
+        // set up as another type doesn't get to take that away.
+        if st["host"] == "switch2" && want != "pro" && st["usb_mode"] == "pro" { return; }
         // next time the board powers up (the console woke), it starts as what this console needs,
         // instead of starting as the other and switching over (seconds, and a reconnect)
         if st["connected"] == true { let _ = self.hub.backend.send(crate::inputs::Msg::BootMode(want.to_string())); }
@@ -257,8 +276,11 @@ impl Bench {
             self.hub.mode_tries.store(0, SeqCst);       // there: later corrections start counting afresh
         }
         if st["connected"] == true && st["usb_mode"].as_str().is_some_and(|m| !fits(m)) {
-            if self.hub.mode_tries.fetch_add(1, SeqCst) >= 2 {
-                if self.hub.mode_tries.load(SeqCst) == 3 {
+            // (counted to 3 and no further: a counter that wrapped would start the tries again)
+            let tries = self.hub.mode_tries.load(SeqCst);
+            self.hub.mode_tries.store(tries.saturating_add(1).min(4), SeqCst);
+            if tries >= 2 {
+                if tries == 2 {
                     self.logs.warn("bench", format!("controller: the board didn't reach {want} mode for {} after two tries; pick it under Controller", c.name()));
                 }
                 return;
@@ -408,7 +430,7 @@ impl Bench {
             let mut v = c.video_cfg.lock().unwrap();
             for (k, x) in obj { v[k] = x.clone(); }
             // new settings: ask the card for them again (it may accept these)
-            if let Some(o) = v.as_object_mut() { o.remove("_device_default"); }
+            if let Some(o) = v.as_object_mut() { o.remove("_device_default"); o.remove("_raw"); }
             if self.list().first().is_some_and(|f| f.id == c.id) { save_video_json(&v); }
         }
         self.save_consoles()?;
@@ -430,8 +452,8 @@ impl Bench {
             "version": env!("CARGO_PKG_VERSION"),
             "safe_mode": crate::config::safe_mode(),
             // what the page can offer: putting a console to sleep needs HDMI-CEC
-            "power": {"cec": crate::power::settings()["cec"] == true},
-            "last_run_unclean": crate::report::unclean_previous().is_some(),
+            "power": {"cec": crate::power::cec_on()},
+            "last_run_unclean": crate::report::unclean_previous_exists(),
             "console": target.as_ref().map(|c| c.id.clone()),
             "consoles": self.list().iter().map(|c| c.info(on.as_deref() == Some(c.id.as_str()))).collect::<Vec<_>>(),
             "controller_on": on,
@@ -503,8 +525,8 @@ mod tests {
         // the controller's console goes away: where it is becomes unknown
         b.set_controller_on(Some("switch-1")).unwrap();
         b.remove_console("switch-1").unwrap();
-        assert!(b.controller_console().is_none());
-        // (one console left: nothing to ask, input isn't paused)
+        // (one console left: the controller can only be on it; nothing to ask, input isn't paused)
+        assert_eq!(b.controller_console().unwrap().id, "switch-2");
         assert!(b.check_input_target().is_ok());
         assert!(b.remove_console("switch-2").is_err(), "the last console stays");
     }

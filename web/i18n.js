@@ -21,6 +21,14 @@ let dict = {};
 let current = 'en';
 // Original English per node/attribute, so switching languages never compounds.
 const source = new WeakMap();
+// The language before this one, translated text -> English: text the app set through t() is
+// already translated when it reaches the page, and would otherwise stay in the old language.
+let reverse = new Map();
+const english = (text) => {
+  const key = text.replace(/\s+/g, ' ').trim();
+  if (key in dict || !reverse.has(key)) return text;
+  return text.match(/^\s*/)[0] + reverse.get(key) + text.match(/\s*$/)[0];
+};
 
 const store = {
   get() { try { return localStorage.getItem(KEY); } catch { return null; } },
@@ -50,7 +58,7 @@ function swapText(node) {
   if (!text || !text.trim()) return;
   let orig = source.get(node);
   // Text the app replaced since we last saw it is new English source.
-  if (orig === undefined || (text !== orig.text && text !== orig.shown)) orig = { text, shown: text };
+  if (orig === undefined || (text !== orig.text && text !== orig.shown)) orig = { text: english(text), shown: text };
   // Same normalisation as scripts/i18n.mjs: collapsed whitespace, trimmed.
   const key = orig.text.replace(/\s+/g, ' ').trim();
   const lead = orig.text.match(/^\s*/)[0], trail = orig.text.match(/\s*$/)[0];
@@ -67,7 +75,7 @@ function swapAttrs(el) {
     if (v === null) continue;
     origs ??= {};
     const o = origs[a];
-    if (!o || (v !== o.text && v !== o.shown)) origs[a] = { text: v, shown: v };
+    if (!o || (v !== o.text && v !== o.shown)) origs[a] = { text: english(v), shown: v };
     const want = t(origs[a].text.replace(/\s+/g, ' ').trim());
     origs[a].shown = want;
     if (v !== want) el.setAttribute(a, want);
@@ -99,6 +107,7 @@ export async function setLanguage(code, { save = true } = {}) {
       if (r.ok) next = await r.json();
     } catch { /* stay readable in English */ }
   }
+  reverse = new Map(Object.entries(dict).map(([en, shown]) => [shown, en]));
   dict = next;
   current = code;
   document.documentElement.lang = code;

@@ -124,6 +124,9 @@ enum Out {
 
 struct Mcp {
     c: Client,
+    /// Running inside the engine (POST /mcp), not as the agent's own process: files are then the
+    /// engine's to read, under its own rule (tests in ~/.ns2bench only).
+    in_engine: bool,
 }
 
 impl Mcp {
@@ -243,7 +246,9 @@ impl Mcp {
             }
             "run_test" => {
                 let mut b = json!({"stop_on_fail": a["stop_on_fail"].as_bool().unwrap_or(true), "source": "mcp"});
-                if let Some(p) = a["path"].as_str() {
+                if let (Some(p), true) = (a["path"].as_str(), self.in_engine) {
+                    b["path"] = p.into();
+                } else if let Some(p) = a["path"].as_str() {
                     // Read here (this process runs where the agent's files are) and send the test itself.
                     let full = crate::config::expand(p);
                     if full.extension().and_then(|e| e.to_str()) != Some("json") { bail!("{p}: a test file is a .json file"); }
@@ -386,7 +391,7 @@ async fn handle(m: &Mcp, msg: &Value) -> Option<Value> {
             let name = msg["params"]["name"].as_str().unwrap_or("");
             let args = msg["params"].get("arguments").cloned().unwrap_or(json!({}));
             // this call's console: every request it makes names it
-            let m = Mcp { c: crate::client::Client { console: args["console"].as_str().map(str::to_string), ..m.c.clone() } };
+            let m = Mcp { c: crate::client::Client { console: args["console"].as_str().map(str::to_string), ..m.c.clone() }, in_engine: m.in_engine };
             Ok(match m.run(name, &args).await {
                 Ok(Out::Text(t)) => json!({"content": [{"type": "text", "text": t}], "isError": false}),
                 Ok(Out::Image(b, mime)) => json!({"content": [{"type": "image", "data": base64::engine::general_purpose::STANDARD.encode(b), "mimeType": mime}], "isError": false}),
@@ -408,7 +413,7 @@ async fn handle(m: &Mcp, msg: &Value) -> Option<Value> {
 /// add the running engine by address, with nothing to install or launch. Same tools as stdio.
 pub async fn http(axum::extract::State(b): axum::extract::State<crate::server::S>, axum::Json(msg): axum::Json<Value>) -> axum::response::Response {
     use axum::response::IntoResponse;
-    let m = Mcp { c: Client::from_config(&b.cfg, "mcp") };
+    let m = Mcp { c: Client::from_config(&b.cfg, "mcp"), in_engine: true };
     let reply = match msg.as_array() {
         Some(batch) => {
             let mut out = vec![];
@@ -434,7 +439,7 @@ pub async fn http(axum::extract::State(b): axum::extract::State<crate::server::S
 
 /// Serve MCP on stdin/stdout until stdin closes.
 pub async fn run(cfg: crate::Config) -> Result<()> {
-    let m = std::sync::Arc::new(Mcp { c: Client::from_config(&cfg, "mcp") });
+    let m = std::sync::Arc::new(Mcp { c: Client::from_config(&cfg, "mcp"), in_engine: false });
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Value>();
     let writer = tokio::spawn(async move {
         let mut out = tokio::io::stdout();

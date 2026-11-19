@@ -9,9 +9,9 @@ cd /opt/ns2bench
 # recently written files when its power is cut (the console sleeping), leaving them empty.
 sync
 # every script must be there, not empty (a power cut empties unsynced files), and parse
-for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new S98ns2bench-swap.new S45ns2bench-early.new quirks/*.new; do
+for f in gadget.sh.new ns2bench-hidd.sh.new swap.sh.new restore-default-gadget.sh.new S98ns2bench-swap.new S45ns2bench-early.new quirks/*.new; do
   [ -s "$f" ] || { echo "upload incomplete: $f is missing or empty; run the install again" >&2; exit 1; }
-  sh -n "$f"
+  case "$f" in restore-default-gadget.sh.new) ;; *) sh -n "$f" ;; esac
 done
 [ -s ns2bench-board.new ] || { echo "upload incomplete: ns2bench-board.new is missing or empty" >&2; exit 1; }
 bash -n restore-default-gadget.sh.new
@@ -20,7 +20,7 @@ chmod 755 ns2bench-board.new
 for f in ns2bench-board gadget.sh ns2bench-hidd.sh; do [ ! -e "$f" ] || cp -p "$f" "$f.bak"; done
 mkdir -p backup
 # boot hook for SD swap: installed once, never replaced; a board without /etc/init.d goes without
-if [ -e /etc/init.d/S98ns2bench-swap ] || [ ! -d /etc/init.d ]; then rm -f S98ns2bench-swap.new
+if [ -s /etc/init.d/S98ns2bench-swap ] || [ ! -d /etc/init.d ]; then rm -f S98ns2bench-swap.new
 else chmod 755 S98ns2bench-swap.new; mv S98ns2bench-swap.new /etc/init.d/S98ns2bench-swap || rm -f S98ns2bench-swap.new; fi
 # early start (Luckfox/ns2-dev boards): replaced on every install, the previous copy kept in backup/
 if [ -d /etc/init.d ] && [ -x /opt/ns2-dev/profile.sh ]; then
@@ -49,7 +49,13 @@ sync; sync
 if ! ./ns2bench-hidd.sh start; then
   # Never leave the board without a working Bridge: put the previous version back.
   echo "the new Bridge did not start: putting the previous version back" >&2
-  for f in ns2bench-board gadget.sh ns2bench-hidd.sh; do [ ! -e "$f.bak" ] || cp -p "$f.bak" "$f"; done
+  # (through a temp file that is on storage before it replaces the live one: copying over the
+  # live file and losing power then would leave it empty)
+  for f in ns2bench-board gadget.sh ns2bench-hidd.sh; do
+    [ -s "$f.bak" ] || continue
+    cp -p "$f.bak" "$f.tmp" && sync && mv -f "$f.tmp" "$f"
+  done
+  sync
   ./ns2bench-hidd.sh start || true
   exit 1
 fi

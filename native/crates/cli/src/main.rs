@@ -778,6 +778,11 @@ fn stamp() -> String {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    // `ns2bench logs | head`: the reader closing the pipe ends the command quietly, as with any
+    // other tool (Rust ignores SIGPIPE, so the next print would panic and be recorded as a crash).
+    #[cfg(unix)]
+    // SAFETY: restoring the default action for a signal, before any thread or handler exists.
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
     ns2bench_core::crashlog::install("cli", |p| eprintln!("ns2bench stopped unexpectedly. Details: {}", p.display()));
     match run(Cli::parse()).await {
         Ok(c) => c,

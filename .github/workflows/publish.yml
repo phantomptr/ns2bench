@@ -120,6 +120,12 @@ jobs:
           b="native/target/${{ matrix.target }}/release/bundle"
           mkdir -p out
           n="NS2Bench-$V-${{ matrix.platform }}-${{ matrix.arch }}"
+          # exactly one installer, of this version (the build cache can hold an older one)
+          one() {
+            c="$(find "$1" -name "$2" | wc -l | tr -d ' ')"
+            [ "$c" = 1 ] || { echo "::error::expected one $2 in $1, found $c" >&2; exit 1; }
+            find "$1" -name "$2"
+          }
           case "${{ matrix.platform }}" in
             mac)
               cp "$(find "$b/dmg" -name '*.dmg' | head -n1)" "out/$n.dmg"
@@ -137,10 +143,10 @@ jobs:
                 fi
               fi ;;
             linux)
-              cp "$(find "$b/appimage" -name '*.AppImage' | head -n1)" "out/$n.AppImage"
-              cp "$(find "$b/deb" -name '*.deb' | head -n1)" "out/$n.deb" ;;
+              f="$(one "$b/appimage" "*_${V}_*.AppImage")"; cp "$f" "out/$n.AppImage"
+              f="$(one "$b/deb" "*_${V}_*.deb")"; cp "$f" "out/$n.deb" ;;
             win)
-              cp "$(find "$b/nsis" -name '*-setup.exe' | head -n1)" "out/$n-setup.exe" ;;
+              f="$(one "$b/nsis" "*_${V}_*-setup.exe")"; cp "$f" "out/$n-setup.exe" ;;
           esac
           ls -la out
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

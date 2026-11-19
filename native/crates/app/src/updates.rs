@@ -524,6 +524,29 @@ pub fn install_on_quit(app: &AppHandle) {
     }
 }
 
+/// Installers of versions already installed (or older), and component files fetched for other
+/// versions: about 100 MB per update otherwise stays in ~/.ns2bench for good.
+pub fn remove_old_downloads() {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    let state = ns2bench_core::config::state_dir();
+    let Ok(current) = semver::Version::parse(VERSION) else { return };
+    for e in std::fs::read_dir(state.join("updates")).into_iter().flatten().flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let Some(rest) = name.strip_prefix("NS2Bench-") else { continue };
+        // "0.0.30.dmg", "0.0.30-setup.exe", "0.0.30.AppImage", "0.0.30.partial"
+        let version: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+        if semver::Version::parse(version.trim_end_matches('.')).is_ok_and(|v| v <= current) && e.path().is_file() {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
+    for e in std::fs::read_dir(state.join("downloads")).into_iter().flatten().flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name != VERSION && semver::Version::parse(&name).is_ok() && e.path().is_dir() {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

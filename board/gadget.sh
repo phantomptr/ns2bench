@@ -33,12 +33,44 @@ save_file() { printf '%s\n' "$2" > "$1.tmp" && sync && mv -f "$1.tmp" "$1" && sy
 # keep the mode on, and the next boot tries again. Kept in a history that survives restarts.
 HISTORY=/opt/ns2bench/boot-history.log
 history() {            # never fails (it runs inside the boot trap; a full or read-only disk must not matter)
+    # One line added per boot. Only when it has grown long is it cut back, through a temp file that
+    # is on storage before it replaces the log (rewriting it on every boot emptied it whenever the
+    # power went right after: the very boots it is there to record).
     { echo "$(date '+%F %T' 2>/dev/null) up=$(cut -d' ' -f1 /proc/uptime)s $*" >> "$HISTORY"; } 2>/dev/null || true
-    { tail -n 200 "$HISTORY" > "$HISTORY.tmp" && mv -f "$HISTORY.tmp" "$HISTORY"; } 2>/dev/null || true
+    if [ "$(wc -l < "$HISTORY" 2>/dev/null || echo 0)" -gt 400 ] 2>/dev/null; then
+        { tail -n 200 "$HISTORY" > "$HISTORY.tmp" && sync && mv -f "$HISTORY.tmp" "$HISTORY"; } 2>/dev/null || true
+    fi
     return 0
 }
+# One build at a time: boot's second run, a switch asked by the bench and a run by hand must not
+# take the USB side apart under each other. A lock left by a run that died is taken over after 30 s.
+LOCK=/run/ns2bench-gadget.lock
+LOCKED=0
+lock() {
+    local i=0
+    while ! mkdir "$LOCK" 2>/dev/null; do
+        i=$((i + 1))
+        if [ "$i" -gt 150 ]; then echo "taking over a stale build lock" >&2; rmdir "$LOCK" 2>/dev/null || true; i=0; fi
+        sleep 0.2
+    done
+    LOCKED=1
+}
+unlock() { if [ "$LOCKED" = 1 ]; then rmdir "$LOCK" 2>/dev/null || true; LOCKED=0; fi; }
 if [ -z "${1:-}" ]; then
-    trap 'rc=$?; if [ "$rc" != 0 ]; then echo "boot: could not build the controller (exit $rc); controller mode stays on, the next boot tries again" >&2; history "gadget.sh boot run FAILED (exit $rc), kept controller mode" || true; exit 0; fi' EXIT
+    trap 'rc=$?; unlock; if [ "$rc" != 0 ]; then echo "boot: could not build the controller (exit $rc); controller mode stays on, the next boot tries again" >&2; history "gadget.sh boot run FAILED (exit $rc), kept controller mode" || true; exit 0; fi' EXIT
+else
+    trap 'unlock' EXIT
+fi
+
+# Every mode change is logged (at boot nothing else keeps the output), with the seconds since boot.
+# Done before anything else is set up, so that work is not done twice.
+if [ "$mode" != status ] && [ "${NS2BENCH_GADGET_LOGGED:-}" != 1 ]; then
+    export NS2BENCH_GADGET_LOGGED=1
+    # run again with the output going to the log as well, and keep its exit status
+    rc_file=/run/ns2bench-gadget.rc.$$
+    { "$0" "$@" 2>&1; echo $? > "$rc_file"; } | tee -a "$LOG"
+    rc=$(cat "$rc_file" 2>/dev/null || echo 1); rm -f "$rc_file"
+    exit "$rc"
 fi
 
 
@@ -84,11 +116,11 @@ hid_function() {       # name protocol subclass report_length no_out_endpoint de
 }
 
 wait_nodes() {
-    for _ in $(seq 1 30); do
+    for _ in $(seq 1 150); do
         local ok=1 n
         for n in "$@"; do [ -c "/dev/$n" ] || ok=0; done
         [ "$ok" = 1 ] && return 0
-        sleep 0.1
+        sleep 0.02
     done
     return 1
 }
@@ -96,13 +128,23 @@ wait_nodes() {
 release() {
     # Stop the Pro Controller daemon and unbind the UDC before anything else touches USB:
     # vendor helpers stopping a FunctionFS gadget otherwise wait forever in functionfs_unbind.
-    if p=$(pro_pid); then kill "$p"; sleep 0.5; fi
+    # (nothing here may stop the script: after this point the USB side is down, and only going
+    # on to build brings a controller back)
+    local did=0 p i
+    if p=$(pro_pid); then
+        kill "$p" 2>/dev/null || true
+        # until it is really gone (it holds the FunctionFS mount), at most 1.5 s
+        i=0; while [ -d "/proc/$p" ] && [ "$i" -lt 30 ]; do sleep 0.05; i=$((i + 1)); done
+        if [ -d "/proc/$p" ]; then kill -9 "$p" 2>/dev/null || true; sleep 0.1; fi
+        did=1
+    fi
     rm -f "$PRO_PID" "$ACTIVE_MODE" /run/ns2bench-host
     # one UDC can be owned by one gadget: unbind whichever gadget holds it
     for u in "$CONFIGFS"/*/UDC; do
-        if [ -f "$u" ] && [ "$(cat "$u" 2>/dev/null)" = "$UDC" ]; then echo "" > "$u"; fi
+        if [ -f "$u" ] && [ "$(cat "$u" 2>/dev/null)" = "$UDC" ]; then echo "" > "$u" 2>/dev/null || true; did=1; fi
     done
-    sleep 0.3
+    # (settle only when something was let go of: at boot nothing is, and this was 0.6 s of waiting)
+    if [ "$did" = 1 ]; then sleep 0.3; fi
 }
 
 teardown() {
@@ -113,9 +155,9 @@ teardown() {
     for link in "$CONFIGFS"/*/configs/*/*; do
         if [ -L "$link" ]; then case "$(readlink "$link")" in */functions/hid.*) rm -f "$link" ;; esac; fi
     done
-    for f in "$CONFIGFS"/*/functions/hid.*; do if [ -d "$f" ]; then rmdir "$f"; fi; done
-    if mountpoint -q "$FFS"; then umount "$FFS"; fi
-    if [ -d "$G/functions/ffs.pro2" ]; then rmdir "$G/functions/ffs.pro2"; fi
+    for f in "$CONFIGFS"/*/functions/hid.*; do if [ -d "$f" ]; then rmdir "$f" || echo "could not remove $f (still in use?)" >&2; fi; done
+    if mountpoint -q "$FFS"; then umount "$FFS" 2>/dev/null || { sleep 0.3; umount "$FFS" || echo "could not unmount $FFS" >&2; }; fi
+    if [ -d "$G/functions/ffs.pro2" ]; then rmdir "$G/functions/ffs.pro2" || echo "could not remove the pro2 function" >&2; fi
     if [ -f "$SPEED_SAVE" ] && [ -f "$G/max_speed" ]; then cat "$SPEED_SAVE" > "$G/max_speed" || true; fi
     if [ -f "$G/os_desc/use" ]; then echo 0 > "$G/os_desc/use"; fi
 }
@@ -214,7 +256,7 @@ build_pro() {
     : > /tmp/ns2bench-pro2.log
     "$DIR/ns2bench-board" pro2 "$FFS" >> /tmp/ns2bench-pro2.log 2>&1 &
     echo $! > "$PRO_PID"
-    for _ in $(seq 1 50); do [ -e "$FFS/ep4" ] && break; sleep 0.1; done
+    for _ in $(seq 1 250); do [ -e "$FFS/ep4" ] && break; sleep 0.02; done
     [ -e "$FFS/ep4" ] || { echo "pro: FunctionFS rejected the descriptors" >&2; tail -5 /tmp/ns2bench-pro2.log >&2; return 1; }
     ln -s "$G/functions/ffs.pro2" "$G/configs/b.1/f1" || return 1
     bind || { echo "pro: could not bind the gadget to $UDC" >&2; return 1; }
@@ -244,21 +286,18 @@ if [ -z "${1:-}" ] && [ "${NS2BENCH_EARLY:-}" != 1 ] && [ -e /run/ns2bench-early
 fi
 
 # Boot runs this twice (early, and again at the end of boot): the second time, with the gadget
-# already built in that mode and bound, leave it alone (a rebuild would make the console reconnect).
-if [ -z "${1:-}" ] && [ -e /run/ns2bench-early-done ] && [ "$(cat "$ACTIVE_MODE" 2>/dev/null)" = "$mode" ] \
-        && [ "$(cat "$G/UDC" 2>/dev/null)" = "$UDC" ]; then
-    echo "NS2Bench: $mode already set up at boot"
-    exit 0
-fi
+# already built and bound, leave it alone (a rebuild would make the console reconnect). Whatever
+# mode is running counts, not only the saved one: the bench may have switched it in between.
+already_up() {
+    [ -z "${1:-}" ] && [ -e /run/ns2bench-early-done ] && [ "$(cat "$G/UDC" 2>/dev/null)" = "$UDC" ] || return 1
+    case "$(cat "$ACTIVE_MODE" 2>/dev/null)" in standard|hori|pro|pro1) return 0 ;; esac
+    return 1
+}
+if already_up "${1:-}"; then echo "NS2Bench: $(cat "$ACTIVE_MODE") already set up at boot"; exit 0; fi
+lock
+# (someone else may have built it while this run waited for its turn)
+if already_up "${1:-}"; then echo "NS2Bench: $(cat "$ACTIVE_MODE") already set up at boot"; exit 0; fi
 
-# Every mode change is logged (at boot nothing else keeps the output), with the seconds since boot.
-if [ "${NS2BENCH_GADGET_LOGGED:-}" != 1 ]; then
-    export NS2BENCH_GADGET_LOGGED=1
-    # run again with the output going to the log as well, and keep its exit status
-    rc_file=/run/ns2bench-gadget.rc
-    { "$0" "$@" 2>&1; echo $? > "$rc_file"; } | tee -a "$LOG"
-    exit "$(cat "$rc_file" 2>/dev/null || echo 1)"
-fi
 echo "== $(cut -d' ' -f1 /proc/uptime)s: gadget.sh ${1:-$mode} (boot default $(cat "$MODE_FILE" 2>/dev/null || echo unset))"
 
 [ -x "$DIR/ns2bench-board" ] || { echo "missing ns2bench-board; install the static Rust NS2Bench Bridge daemon before changing USB mode" >&2; exit 1; }

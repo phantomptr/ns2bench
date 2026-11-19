@@ -535,7 +535,18 @@ pub fn main(args: Vec<String>) -> Result<(), String> {
     fs::set_permissions(&state, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
     let log = Log(state.join("netd.log"));
     let lease_path = state.join("leases.json");
-    let mut leases = load_leases(&lease_path)?;
+    // An unreadable lease file must not keep the helper restarting forever with nothing to tell
+    // the user why: set it aside (nothing is discarded) and start with an empty table.
+    let mut leases = match load_leases(&lease_path) {
+        Ok(l) => l,
+        Err(e) => {
+            let aside = lease_path.with_extension("json.unreadable");
+            let kept = fs::rename(&lease_path, &aside).is_ok();
+            log.event("leases_unreadable", json!({"error": e, "kept_as": if kept { aside.display().to_string() } else { String::new() }}));
+            if !kept { return Err(e); }
+            Leases::new()
+        }
+    };
     let mut wait_log = Instant::now() - Duration::from_secs(10);
     while !interface_ready(&cfg) {
         publish_status(&state, &cfg, [false; 3], false, &SeenMap::default());
