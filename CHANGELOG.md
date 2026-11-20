@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.34
+
 - **NS2Bench knows when a console is asleep.** It tells from the picture: a sleeping console sends none, and the capture card shows its own "No Signal" screen. The console's tile, the right panel and the status pills then say *asleep*.
 - **No more Bridge warnings while the console sleeps.** The Bridge powers from the console, so it goes off when the console sleeps. That is now one plain line a sleep ("off while Switch 2 sleeps; back when it wakes"), not a warning each time.
 - **A real Bridge problem now stands out.** If the Bridge drops while the console is on and showing a picture, you get a warning that says so, with what to check (its USB cable and hub, its network cable).
