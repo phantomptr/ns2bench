@@ -717,5 +717,10 @@
   "Stop using the shared home network?": "공유 홈 네트워크 사용을 중지할까요?",
   "Stop using the shared network": "공유 네트워크 사용 중지",
   "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "콘솔 네트워크를 다시 설정할 때까지 콘솔은 이 컴퓨터에서 응답을 받지 못하므로 연결 테스트가 실패합니다. 홈 네트워크에는 아무것도 배포되지 않습니다. 설정은 먼저 백업됩니다.",
-  "The shared home network is no longer used. Backup of your settings:": "공유 홈 네트워크를 더 이상 사용하지 않습니다. 설정 백업:"
+  "The shared home network is no longer used. Backup of your settings:": "공유 홈 네트워크를 더 이상 사용하지 않습니다. 설정 백업:",
+  "asleep": "절전 중",
+  "asleep with the console": "본체와 함께 절전 중",
+  "console asleep": "본체 절전 중",
+  "The console is asleep: the capture card shows its “No Signal” screen. Wake the console to see it again.": "본체가 절전 모드입니다. 캡처 카드가 “No Signal” 화면을 보여 줍니다. 본체를 깨우면 다시 보입니다.",
+  "The console the Bridge is plugged into is asleep. It powers the Bridge, so the Bridge is off too, and comes back when the console wakes.": "Bridge가 연결된 본체가 절전 모드입니다. 본체가 Bridge에 전원을 주기 때문에 Bridge도 꺼져 있으며 본체가 깨어나면 돌아옵니다."
 }

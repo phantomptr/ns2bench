@@ -64,6 +64,9 @@ pub struct Console {
     pub stopped: std::sync::atomic::AtomicBool,
     pub audio: Arc<AudioHub>,
     pub dvr: Arc<Dvr>,
+    /// On, asleep, or unknown (no picture from its capture card), and since when: see
+    /// crate::features::watch_power.
+    pub power: Mutex<(&'static str, std::time::Instant)>,
 }
 
 impl Console {
@@ -90,6 +93,7 @@ impl Console {
             video_task: Mutex::new(None),
             tasks: Mutex::new(vec![]),
             stopped: false.into(),
+            power: Mutex::new(("unknown", std::time::Instant::now())),
             audio: AudioHub::new(raw.get("audio"), dvr.seconds + 2.0),
             dvr,
         })
@@ -117,6 +121,8 @@ impl Console {
         let mut e = self.entry();
         e["controller_here"] = json!(controller_here);
         e["video_status"] = self.frames.status();
+        let (state, since) = *self.power.lock().unwrap();
+        e["power"] = json!({"state": state, "for_s": since.elapsed().as_secs()});
         // what its network traffic says it is (crate::netseen), to check the type against
         e["network_model"] = json!(self.network_ip.lock().unwrap().as_deref().and_then(crate::netseen::model_at));
         e["model_name"] = json!(MODELS.iter().find(|m| Some(m.0) == e["model"].as_str()).map(|m| m.1).unwrap_or("?"));

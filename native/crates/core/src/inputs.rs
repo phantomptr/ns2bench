@@ -173,6 +173,13 @@ pub struct BackendStatus {
     pub switching_until: Option<Instant>,
     pub devices: Vec<String>,
     pub writes: HashMap<String, u64>,
+    /// The console the board is plugged into is asleep (its name, since when): the board then
+    /// loses its power with it, which is not a fault (set by crate::features::watch_power).
+    #[serde(skip)]
+    pub console_asleep: Option<(String, Instant)>,
+    /// The sleep (its start) already said to have taken the Bridge with it: said once a sleep.
+    #[serde(skip)]
+    pub sleep_told: Option<Instant>,
 }
 
 pub struct Backend {
@@ -386,19 +393,35 @@ async fn run_board(
             // our own mode switch: the Bridge restarts, nothing went wrong
             if was { logs.add("bench", "NS2Bench Bridge: restarting for the USB mode change"); }
         } else if was {
-            // Usually the console went to sleep (the board powers from its USB port): logged, not
-            // a notification. watch_controller notifies when it stays away while a console is on.
-            // A sleeping console powers its USB port in short bursts: the board starts, connects
-            // and loses power again within a minute, over and over. One warning for the first
-            // drop; the repeats are ordinary lines, not a wall of warnings.
+            // The board powers from the console's USB port: when the console sleeps, the board
+            // goes with it, and that is no fault. Whether the console is asleep is known from its
+            // picture (crate::features::watch_power), which goes dark a few seconds before or
+            // after the board loses power: decided 10 s later, when both are known.
+            //   asleep: one plain line a sleep (a sleeping Switch 2 powers the board in short
+            //           bursts: those repeats say nothing);
+            //   on:     a warning, with what to check: the board lost power or its network while
+            //           the console is in use;
+            //   no picture to tell by: as before (first drop a warning, short repeats a line).
             let lasted = up_since.take().map_or(0, |t| t.elapsed().as_secs());
             short_drops = if lasted < 120 { short_drops + 1 } else { 0 };
             quiet = true;
-            if short_drops >= 1 {
-                logs.add("bench", format!("NS2Bench Bridge: lost again after {lasted} s ({short_drops} short connections in a row). Usual while the console sleeps: its USB port gives power only in short bursts"));
-            } else {
-                logs.warn("bench", format!("NS2Bench Bridge: {detail}"));
-            }
+            let (st, lg, d, repeats) = (status.clone(), logs.clone(), detail.clone(), short_drops);
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(10)).await;
+                let (asleep, back) = { let s = st.lock().unwrap(); (s.console_asleep.clone(), s.connected) };
+                match asleep {
+                    Some((name, since)) => {
+                        let first = { let mut s = st.lock().unwrap(); let f = s.sleep_told != Some(since); s.sleep_told = Some(since); f };
+                        let text = format!("NS2Bench Bridge: off while {name} sleeps (the console powers it); it comes back when {name} wakes");
+                        if first { lg.add("bench", text); } else { lg.debug("bench", text); }
+                    }
+                    // (back already, with the console on: a blip, not worth a warning)
+                    None if back => lg.add("bench", format!("NS2Bench Bridge: dropped for a moment and came back ({d})")),
+                    None if st.lock().unwrap().console_asleep.is_none() && repeats >= 1 => lg.add("bench",
+                        format!("NS2Bench Bridge: lost again after {lasted} s ({repeats} short connections in a row)")),
+                    None => lg.warn("bench", format!("NS2Bench Bridge: lost while the console is on ({d})")),
+                }
+            });
         } else if status.lock().unwrap().detail.as_deref() != Some(detail.as_str()) {
             if quiet { logs.debug("bench", format!("NS2Bench Bridge: {detail}")); } else { logs.warn("bench", format!("NS2Bench Bridge: {detail}")); }
         }

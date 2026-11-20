@@ -55,7 +55,8 @@ function consoleCard(s, v) {
   if (v.controller_here) chip(`🎮 ${t('Controller here')}`, 'ok');
   else if (consoles.length > 1) chip(on ? t('Controller on %1').replace('%1', () => on.name) : t('Controller: which console?'), 'warn');
   const live = v.video_status?.age_s != null && v.video_status.age_s < 3;
-  chip(live ? `● ${t('live')}` : t('no picture'), live ? 'ok' : '');
+  if (v.power?.state === 'asleep') chip(`☾ ${t('asleep')}`);
+  else chip(live ? `● ${t('live')}` : t('no picture'), live ? 'ok' : '');
   if (v.network_ip) chip(v.network_ip);
   const here = consoles.length > 1 && !v.controller_here;
   keyed($('#pc-chips'), [v.id, chips, here, document.documentElement.lang], () => [

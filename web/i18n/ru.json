@@ -717,5 +717,10 @@
   "Stop using the shared home network?": "Больше не использовать общую домашнюю сеть?",
   "Stop using the shared network": "Больше не использовать общую сеть",
   "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "Консоли перестанут получать ответы от этого компьютера, и их проверка подключения не пройдёт, пока вы снова не настроите сеть для консолей. В домашней сети ничего не раздаётся. Настройки сначала сохраняются в резервную копию.",
-  "The shared home network is no longer used. Backup of your settings:": "Общая домашняя сеть больше не используется. Резервная копия настроек:"
+  "The shared home network is no longer used. Backup of your settings:": "Общая домашняя сеть больше не используется. Резервная копия настроек:",
+  "asleep": "спит",
+  "asleep with the console": "спит вместе с консолью",
+  "console asleep": "консоль спит",
+  "The console is asleep: the capture card shows its “No Signal” screen. Wake the console to see it again.": "Консоль в режиме сна: карта захвата показывает свой экран «No Signal». Разбудите консоль, чтобы снова её видеть.",
+  "The console the Bridge is plugged into is asleep. It powers the Bridge, so the Bridge is off too, and comes back when the console wakes.": "Консоль, к которой подключён Bridge, спит. Она питает Bridge, поэтому он тоже выключен и вернётся, когда консоль проснётся."
 }

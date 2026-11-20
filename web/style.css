@@ -325,6 +325,7 @@ button:disabled { opacity: .5; cursor: default; }
 .console-thumb .state { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .console-thumb .state.live { color: var(--ok); }
 .console-thumb .state.live::before { content: "● "; }
+.console-thumb .state.asleep::before { content: "☾ "; }
 /* the strip as name chips (pictures hidden) */
 .console-strip.names { gap: 8px; align-items: center; }
 .console-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; border: 2px solid var(--line); background: var(--field); color: inherit; font-weight: 600; cursor: pointer; }

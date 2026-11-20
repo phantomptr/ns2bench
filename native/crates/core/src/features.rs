@@ -39,10 +39,50 @@ pub fn start_console(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
         tokio::spawn(c.dvr.clone().run(c.frames.clone())),
         tokio::spawn(c.audio.clone().run(c.video_cfg.clone(), b.logs.clone())),
         tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_health(b.clone(), c.clone()))),
-        tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_screen(b, c.clone()))),
+        tokio::spawn(crate::console::SELECTED.scope(Some(c.id.clone()), watch_screen(b.clone(), c.clone()))),
+        tokio::spawn(watch_power(b, c.clone())),
     ];
     // owned by the console: removing it stops all of them
     c.tasks.lock().unwrap().extend(tasks);
+}
+
+/// Is the console on or asleep? Told by its picture: a sleeping console sends no picture, and its
+/// capture card then shows black or its own "No Signal" screen (frames still come). Dark for 8
+/// seconds is asleep (a fade to black in a game is shorter); any picture is on. A console that is
+/// switched off looks the same as one asleep. Every 2 seconds, from a small grey copy of the
+/// latest frame (no colour, no full decode). The controller's console's state also goes to the
+/// Bridge connection, which then knows a lost Bridge is the console sleeping, not a fault.
+async fn watch_power(b: Arc<crate::Bench>, c: Arc<crate::console::Console>) {
+    let mut dark_since: Option<std::time::Instant> = None;
+    loop {
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let now = std::time::Instant::now();
+        let current = c.power.lock().unwrap().0;
+        let state = match c.frames.latest().filter(|f| f.at.elapsed() < Duration::from_secs(3)) {
+            None => { dark_since = None; "unknown" }
+            Some(f) => match crate::calib::small(&f).await {
+                Ok(img) if crate::power::dark(&img) => {
+                    let d = *dark_since.get_or_insert(now);
+                    if now.duration_since(d) >= Duration::from_secs(8) { "asleep" } else { current }
+                }
+                Ok(_) => { dark_since = None; "on" }
+                Err(_) => current,
+            },
+        };
+        if state != current {
+            *c.power.lock().unwrap() = (state, now);
+            match (current, state) {
+                (_, "asleep") => b.logs.add("bench", format!("{}: asleep (no picture from the console)", c.name())),
+                ("asleep", "on") => b.logs.add("bench", format!("{}: awake", c.name())),
+                _ => {}
+            }
+        }
+        // the Bridge's console: is it asleep (since when)?
+        if b.controller_console().is_some_and(|x| x.id == c.id) {
+            let since = c.power.lock().unwrap().1;
+            b.hub.backend.status.lock().unwrap().console_asleep = (state == "asleep").then(|| (c.name(), since));
+        }
+    }
 }
 
 /// The controller's USB cable moved: with several consoles, which one it's on now isn't known, so

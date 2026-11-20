@@ -74,7 +74,10 @@ function thumb(c) {
   const live = c.video_status?.age_s != null && c.video_status.age_s < 3;
   cap.append(Object.assign(document.createElement('span'), { className: 'dot' }),
     Object.assign(document.createElement('span'), { className: 'name', textContent: c.name }),
-    Object.assign(document.createElement('span'), { className: `state${live ? ' live' : ''}`, textContent: live ? t('live') : t('no picture') }));
+    // (frames come while a console sleeps: the card's own "No Signal" screen, which says asleep)
+    c.power?.state === 'asleep'
+      ? Object.assign(document.createElement('span'), { className: 'state asleep', textContent: t('asleep') })
+      : Object.assign(document.createElement('span'), { className: `state${live ? ' live' : ''}`, textContent: live ? t('live') : t('no picture') }));
   b.title = `${c.name} · ${c.model_name || ''}`;
   b.append(pic, cap);
   // picking a console pins it (it no longer follows the controller around); the shared controller

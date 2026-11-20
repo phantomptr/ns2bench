@@ -65,6 +65,8 @@ pub fn hint_for(source: &str, text: &str) -> Option<&'static str> {
         "The capture card itself sends fewer pictures than asked, before NS2Bench gets them. Usual causes: two capture cards on one USB hub or port group (give each its own port on the computer), a USB 2 cable or port, or the console sending a lower rate."
     } else if has("could not keep up") && has("frames a second") {
         "This computer was too busy to take every picture from the capture card. Close other heavy apps, lower the frame rate or size under Picture & sound, or (on Windows and Linux) check that a hardware encoder is used."
+    } else if has("lost while the console is on") {
+        "The Bridge lost its power or network while the console is in use (a sleeping console would explain it, but this one shows a picture). Check the board's USB cable to the console and any hub between them (it powers the board), and its network cable."
     } else if has("heartbeat timed out") || (has("bridge") && (has("closed the connection") || has("connection reset"))) {
         "The Bridge stopped answering. It powers from the console's USB port, so this is normal while the console sleeps; it reconnects by itself when the console wakes. Otherwise check its cable."
     } else if has("bridge") && (has("refused") || has("timed out") || has("unreachable") || has("no route") || has("host is down")) {

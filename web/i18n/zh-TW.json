@@ -717,5 +717,10 @@
   "Stop using the shared home network?": "要停止使用共享家用網路嗎？",
   "Stop using the shared network": "停止使用共享網路",
   "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "在你重新設定主機網路之前，主機將收不到這台電腦的回應，因此它們的連線測試會失敗。家用網路中不會分配任何位址。你的設定會先備份。",
-  "The shared home network is no longer used. Backup of your settings:": "共享家用網路已不再使用。設定備份："
+  "The shared home network is no longer used. Backup of your settings:": "共享家用網路已不再使用。設定備份：",
+  "asleep": "休眠中",
+  "asleep with the console": "隨主機休眠",
+  "console asleep": "主機休眠中",
+  "The console is asleep: the capture card shows its “No Signal” screen. Wake the console to see it again.": "主機正在休眠：擷取卡顯示的是它自己的「No Signal」畫面。喚醒主機即可再次看到畫面。",
+  "The console the Bridge is plugged into is asleep. It powers the Bridge, so the Bridge is off too, and comes back when the console wakes.": "Bridge 所連接的主機正在休眠。Bridge 由主機供電，所以也一起關閉了，主機喚醒後會自動恢復。"
 }

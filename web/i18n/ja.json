@@ -717,5 +717,10 @@
   "Stop using the shared home network?": "共有ホームネットワークの使用をやめますか？",
   "Stop using the shared network": "共有ネットワークの使用をやめる",
   "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "コンソール用ネットワークを再設定するまで、コンソールはこのコンピューターから応答を受け取れず、接続テストは失敗します。ホームネットワークには何も配布されません。設定は事前にバックアップされます。",
-  "The shared home network is no longer used. Backup of your settings:": "共有ホームネットワークは使用されなくなりました。設定のバックアップ："
+  "The shared home network is no longer used. Backup of your settings:": "共有ホームネットワークは使用されなくなりました。設定のバックアップ：",
+  "asleep": "スリープ中",
+  "asleep with the console": "本体と一緒にスリープ中",
+  "console asleep": "本体スリープ中",
+  "The console is asleep: the capture card shows its “No Signal” screen. Wake the console to see it again.": "本体はスリープ中です。キャプチャーボードは「No Signal」画面を表示しています。本体を起動すると再び映ります。",
+  "The console the Bridge is plugged into is asleep. It powers the Bridge, so the Bridge is off too, and comes back when the console wakes.": "Bridge をつないでいる本体がスリープ中です。Bridge は本体から給電されているため一緒に止まり、本体が起動すると戻ります。"
 }

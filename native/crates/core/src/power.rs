@@ -233,13 +233,20 @@ enum Seen {
     Picture,
 }
 
+/// A picture with (nearly) nothing in it: black, or a capture card's "No Signal" screen (black
+/// with a line of small text). A console's own screens always have more than 2% bright pixels;
+/// a fade to black does too within a few seconds, which is why callers look for a while.
+pub fn dark(img: &image::GrayImage) -> bool {
+    let n = (img.width() * img.height()).max(1) as f64;
+    let (mut sum, mut bright) = (0u64, 0u64);
+    for p in img.pixels() { sum += p.0[0] as u64; if p.0[0] > 40 { bright += 1; } }
+    (sum as f64 / n) < 20.0 && (bright as f64 / n) < 0.02
+}
+
 async fn seen(b: &S) -> Seen {
     let Some(f) = b.target().ok().and_then(|c| c.frames.latest()).filter(|f| f.at.elapsed() < Duration::from_secs(3)) else { return Seen::NoCapture };
     if let Ok(img) = crate::calib::small(&f).await {
-        let px: Vec<f64> = img.pixels().map(|p| p.0[0] as f64).collect();
-        let mean = px.iter().sum::<f64>() / px.len().max(1) as f64;
-        let var = px.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / px.len().max(1) as f64;
-        if mean < 14.0 && var.sqrt() < 6.0 {
+        if dark(&img) {
             return Seen::NoSignal;
         }
     }
@@ -416,5 +423,24 @@ mod tests {
         assert!(validate(&json!({"cec_port": "--evil"})).is_err());
         assert!(validate(&json!({"shell": "x"})).is_err());
         assert_eq!(validate(&json!({"button_command": "  x  "})).unwrap()["button_command"], "x");
+    }
+}
+
+#[cfg(test)]
+mod dark_tests {
+    #[test]
+    fn a_no_signal_screen_is_dark_and_a_console_screen_is_not() {
+        // a capture card's "No Signal": black, one short line of yellow text in the middle
+        let mut no_signal = image::GrayImage::from_pixel(160, 90, image::Luma([4]));
+        for x in 70..90 { for y in 44..47 { no_signal.put_pixel(x, y, image::Luma([180])); } }
+        assert!(super::dark(&no_signal));
+        // the home screen: grey tiles and icons (measured: mean 53, 46% bright)
+        let mut home = image::GrayImage::from_pixel(160, 90, image::Luma([30]));
+        for x in 10..150 { for y in 25..60 { home.put_pixel(x, y, image::Luma([70])); } }
+        assert!(!super::dark(&home));
+        // a dark game scene with a small lit area (a menu, a torch) is still a picture
+        let mut scene = image::GrayImage::from_pixel(160, 90, image::Luma([8]));
+        for x in 0..40 { for y in 0..20 { scene.put_pixel(x, y, image::Luma([120])); } }
+        assert!(!super::dark(&scene));
     }
 }

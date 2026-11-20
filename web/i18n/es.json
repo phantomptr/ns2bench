@@ -717,5 +717,10 @@
   "Stop using the shared home network?": "¿Dejar de usar la red doméstica compartida?",
   "Stop using the shared network": "Dejar de usar la red compartida",
   "The consoles then get no answers from this computer, so their connection test fails, until you set up a console network again. Nothing is handed out on your home network. Your settings are backed up first.": "Las consolas dejarán de recibir respuestas de este ordenador, así que su prueba de conexión fallará, hasta que vuelvas a configurar una red para consolas. No se reparte nada en tu red doméstica. Antes se hace una copia de tus ajustes.",
-  "The shared home network is no longer used. Backup of your settings:": "La red doméstica compartida ya no se usa. Copia de tus ajustes:"
+  "The shared home network is no longer used. Backup of your settings:": "La red doméstica compartida ya no se usa. Copia de tus ajustes:",
+  "asleep": "en reposo",
+  "asleep with the console": "en reposo con la consola",
+  "console asleep": "consola en reposo",
+  "The console is asleep: the capture card shows its “No Signal” screen. Wake the console to see it again.": "La consola está en reposo: la capturadora muestra su pantalla «No Signal». Despierta la consola para volver a verla.",
+  "The console the Bridge is plugged into is asleep. It powers the Bridge, so the Bridge is off too, and comes back when the console wakes.": "La consola a la que está conectado el Bridge está en reposo. Ella alimenta el Bridge, así que también está apagado y vuelve cuando la consola despierta."
 }

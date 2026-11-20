@@ -392,6 +392,13 @@ function showStatus(s) {
   v.title = live ? `${t('The capture card is sending the console picture.')} ${t('Click for video settings.')}`
     : `${s.video.error ?? t('No picture yet.')} — ${t('Check the HDMI cable goes into the card’s input and the console is awake. Click for video settings.')}`;
   v.className = live ? 'pill ok' : 'pill bad';
+  // asleep: the card still sends (its "No Signal" screen), but there is no console picture
+  const asleep = shown?.power?.state === 'asleep';
+  if (asleep) {
+    v.textContent = `${t('video')} · ${t('console asleep')}`;
+    v.title = t('The console is asleep: the capture card shows its “No Signal” screen. Wake the console to see it again.');
+    v.className = 'pill';
+  }
   const inp = s.input;
   const wasReady = bridgeStatus?.connected && bridgeStatus?.usb === 'configured';
   bridgeStatus = inp; bridgeSeen = performance.now();
@@ -413,6 +420,13 @@ function showStatus(s) {
       : inp.connected ? `${t('Connected, but the console hasn’t accepted the USB device yet (it may be asleep).')} ${t('Click for input settings.')}`
         : `${inp.detail ?? t('Not connected.')} — ${t('Check the device is powered (the console must be awake) and its address. Click for input settings.')}`;
   i.className = inp.connected && inp.usb === 'configured' ? 'pill ok' : 'pill bad';
+  // the board's console is asleep: it powers the board, so the Bridge is off with it (no fault)
+  const sleeper = (s.consoles || []).find((c) => c.controller_here && c.power?.state === 'asleep');
+  if (sleeper && !inp.connected && inp.backend !== 'none') {
+    i.textContent = `Bridge · ${t('asleep with the console')}`;
+    i.title = t('The console the Bridge is plugged into is asleep. It powers the Bridge, so the Bridge is off too, and comes back when the console wakes.');
+    i.className = 'pill';
+  }
   $('#manual-only').checked = inp.manual_only;
   if (s.ocr) $('#log-screen').checked = s.ocr.screen_log;
   // No picture: say why inside the screen, with the way to fix it.
