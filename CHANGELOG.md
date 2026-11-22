@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+- **Updated parts:** the desktop app framework (Tauri 2.12.7), compression, regex and other libraries, the Pico firmware's buffer library (fixes a possible overflow when adding data), and the security scanner.
+
 ## 0.0.34
 
 - **NS2Bench knows when a console is asleep.** It tells from the picture: a sleeping console sends none, and the capture card shows its own "No Signal" screen. The console's tile, the right panel and the status pills then say *asleep*.
