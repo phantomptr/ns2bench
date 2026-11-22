@@ -6,6 +6,8 @@ What's new in NS2Bench, written for humans.
 
 ## Unreleased
 
+## 0.0.35
+
 - **Updated parts:** the desktop app framework (Tauri 2.12.7), compression, regex and other libraries, the Pico firmware's buffer library (fixes a possible overflow when adding data), and the security scanner.
 
 ## 0.0.34
